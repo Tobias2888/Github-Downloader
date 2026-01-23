@@ -1,0 +1,92 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        x:Class="Github_Downloader.MainWindow"
+        Title="Github_Downloader"
+        Loaded="Control_OnLoaded">
+    
+
+<Window.Styles>
+
+    <Style Selector="TextBlock.Title">
+      <Setter Property="FontSize" Value="22"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="Foreground" Value="White"/>
+    </Style>
+
+    <Style Selector="TextBlock.SubTitle">
+      <Setter Property="FontSize" Value="16"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Foreground" Value="White"/>
+    </Style>
+    
+    <Style Selector="TextBlock">
+        <Setter Property="Margin" Value="5"></Setter>
+        <Setter Property="Foreground" Value="White"></Setter>
+    </Style>
+
+    <Style Selector="TextBox">
+      <Setter Property="Background" Value="#1E1E1E"/>
+      <Setter Property="Foreground" Value="White"/>
+      <Setter Property="BorderBrush" Value="#333"/>
+      <Setter Property="CornerRadius" Value="6"/>
+      <Setter Property="Padding" Value="8"/>
+    </Style>
+
+    <Style Selector="Button">
+      <Setter Property="Background" Value="#2EA043"/>
+      <Setter Property="Foreground" Value="White"/>
+      <Setter Property="CornerRadius" Value="6"/>
+      <Setter Property="Padding" Value="10"/>
+    </Style>
+
+  </Window.Styles>
+
+  <!-- ===================== -->
+  <!-- Layout -->
+  <!-- ===================== -->
+  <Grid RowDefinitions="Auto,*" Margin="20">
+
+    <!-- Header -->
+    <Border Background="#1E1E1E" CornerRadius="12" Padding="16">
+      <TextBlock Text="GitHub Repository Tracker" Classes="Title"/>
+    </Border>
+
+    <!-- Content -->
+    <Grid Grid.Row="1"
+          ColumnDefinitions="2*,20,3*"
+          Margin="0,20,0,0">
+
+      <!-- Add Repository -->
+      <Border Grid.Column="0"
+              Background="#1E1E1E"
+              CornerRadius="12"
+              Padding="16">
+        <StackPanel Spacing="10">
+          <TextBlock Text="Add Repository" Classes="SubTitle"/>
+
+          <TextBox Name="TbxOwner" Watermark="Owner (e.g. torvalds)"/>
+          <TextBox Name="TbxRepo" Watermark="Repository name (e.g. linux)"/>
+
+          <Button Click="Button_OnClick" Content="Add Repository"/>
+        </StackPanel>
+      </Border>
+
+      <!-- Repository List -->
+      <Border Grid.Column="2"
+              Background="#1E1E1E"
+              CornerRadius="12"
+              Padding="16">
+        <StackPanel>
+          <TextBlock Text="Tracked Repositories" Margin="0, 0, 0, 10" Classes="SubTitle"/>
+
+          <StackPanel Name="TrackedRepos"></StackPanel>
+        </StackPanel>
+      </Border>
+
+    </Grid>
+
+  </Grid>
+</Window>
