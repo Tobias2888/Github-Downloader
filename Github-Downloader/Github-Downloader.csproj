@@ -18,4 +18,10 @@
             <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
         </PackageReference>
     </ItemGroup>
+
+    <ItemGroup>
+      <Reference Include="FileLib">
+        <HintPath>..\FileLib.dll</HintPath>
+      </Reference>
+    </ItemGroup>
 </Project>

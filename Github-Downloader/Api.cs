@@ -1,24 +1,52 @@
-using System;
+using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Text.Json;
 using System.Threading.Tasks;
+using FileLib;
 
 namespace Github_Downloader;
 
 public class Api
 {
-    public static async Task<string> GetRequest(string url)
+    public static async Task<HttpResponseMessage> GetRequest(string url, string token = "")
     {
         HttpClient client = new();
 
-        client.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", "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");
+        if (!string.IsNullOrEmpty(token))
+        {
+            client.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Bearer", token);
+        }
         
         client.DefaultRequestHeaders.UserAgent.ParseAdd("Github-Downloader/1.0");
         
-        string responseJson = await client.GetStringAsync(url);
+        HttpResponseMessage response = await client.GetAsync(url);
+
+        return response;
+    }
+    
+    public static async Task DownloadFileAsync(string url, string outputPath, string token = "")
+    {
+        using HttpClient client = new();
+
+        // GitHub still requires User-Agent
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("Github-Downloader/1.0");
         
-        return responseJson;
+        if (!string.IsNullOrEmpty(token))
+        {
+            client.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Bearer", token);
+        }
+        
+        client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/octet-stream"));
+
+        using HttpResponseMessage response = await client.GetAsync(
+            url,
+            HttpCompletionOption.ResponseHeadersRead
+        );
+
+        FileHelper.Create(outputPath);
+        await using FileStream fs = File.OpenWrite(outputPath);
+        await response.Content.CopyToAsync(fs);
     }
 }
