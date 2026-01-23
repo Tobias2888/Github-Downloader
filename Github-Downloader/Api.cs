@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -19,8 +20,17 @@ public class Api
         }
         
         client.DefaultRequestHeaders.UserAgent.ParseAdd("Github-Downloader/1.0");
-        
-        HttpResponseMessage response = await client.GetAsync(url);
+
+        HttpResponseMessage response;
+        try
+        {
+            response = await client.GetAsync(url);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Invalid url: {url}");
+            response = null;
+        }
 
         return response;
     }

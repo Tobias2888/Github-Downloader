@@ -3,8 +3,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Text.Json;
+using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Layout;
+using Avalonia.Media;
 using FileLib;
 
 namespace Github_Downloader;
@@ -34,10 +37,16 @@ public partial class MainWindow : Window
         string url;
         if (!string.IsNullOrEmpty(TbxUrl.Text))
         {
-            string[] values = TbxUrl.Text.Split("github.com/");
-            string[] values2 = values[1].TrimEnd('/').Split("/");
-            url = $"https://api.github.com/repos/{values2[0]}/{values2[1]}/releases/latest";
-            
+            try
+            {
+                string[] values = TbxUrl.Text.Split("github.com/");
+                string[] values2 = values[1].TrimEnd('/').Split("/");
+                url = $"https://api.github.com/repos/{values2[0]}/{values2[1]}/releases/latest";
+            }
+            catch (Exception ignored) {
+                Console.WriteLine($"Failed to parse url: {TbxUrl.Text}");
+                url = "";
+            }
         }
         else
         {
@@ -45,11 +54,17 @@ public partial class MainWindow : Window
         }
         
         HttpResponseMessage httpResponse = await Api.GetRequest(url, _token);
-        if (!httpResponse.IsSuccessStatusCode)
+        
+        if (httpResponse == null || !httpResponse.IsSuccessStatusCode)
         {
             Console.WriteLine("Failed to fetch releases");
+            ToastText.Text = $"Failed to fetch release of: {TbxUrl.Text}";
+            ToastPopup.IsOpen = true;
+            await Task.Delay(2500);
+            ToastPopup.IsOpen = false;
             return;
         }
+        
         Response response = JsonSerializer.Deserialize<Response>(await httpResponse.Content.ReadAsStringAsync());
         
         _repos.Add(new Repo
@@ -58,9 +73,27 @@ public partial class MainWindow : Window
             DownloadUrl = response.assets[0].url,
         });
 
+        CreateTrackedRepoEntry(response);
+
+        TbxUrl.Text = "";
+    }
+
+    private void CreateTrackedRepoEntry(Response response)
+    {
+        StackPanel stackPanel = new();
+        stackPanel.Orientation = Orientation.Horizontal;
+
+        Button btnUninstall = new();
+        btnUninstall.Content = "Uninstall";
+        btnUninstall.Background = Brushes.Red;
+        
         TextBlock textBlock = new();
         textBlock.Text = response.name;
-        TrackedRepos.Children.Add(textBlock);
+        
+        stackPanel.Children.Add(textBlock);
+        stackPanel.Children.Add(btnUninstall);
+        
+        TrackedRepos.Children.Add(stackPanel);
     }
 
     private async void BtnUpdateAll_OnClick(object? sender, RoutedEventArgs e)

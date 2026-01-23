@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        mc:Ignorable="d" d:DesignWidth="650" d:DesignHeight="400"
         x:Class="Github_Downloader.MainWindow"
         Title="Github_Downloader"
         Loaded="Control_OnLoaded">
@@ -70,7 +70,7 @@
         <StackPanel Spacing="10">
           <TextBlock Text="Add Repository" Classes="SubTitle"/>
 
-          <TextBox Name="TbxUrl" Watermark="Repository-Url"></TextBox>
+          <TextBox Name="TbxUrl" Watermark="Repository-Url"/>
           <TextBox Name="TbxOwner" Watermark="Owner (e.g. torvalds)"/>
           <TextBox Name="TbxRepo" Watermark="Repository name (e.g. linux)"/>
 
@@ -91,6 +91,25 @@
       </Border>
 
     </Grid>
+    <Popup
+        x:Name="ToastPopup"
+        Placement="Bottom"
+        HorizontalOffset="0"
+        VerticalOffset="-40"
+        IsLightDismissEnabled="False">
 
+        <Border
+            Background="#CC333333"
+            CornerRadius="8"
+            Padding="12"
+            MaxWidth="400">
+
+            <TextBlock
+                x:Name="ToastText"
+                Foreground="White"
+                FontSize="14"
+                TextWrapping="Wrap"/>
+        </Border>
+    </Popup>
   </Grid>
 </Window>
