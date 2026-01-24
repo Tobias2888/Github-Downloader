@@ -19,20 +19,24 @@ public partial class MainWindow : Window
     private string _appdataPath;
     private string _cachePath;
     private string _reposConfigFilePath;
-    private string _token = "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";
+    private string _patFilePath;
+    
+    private TrayIcon _trayIcon;
     
     public MainWindow() => InitializeComponent();
 
     private async void Control_OnLoaded(object? sender, RoutedEventArgs e)
     {
+        Hide();
+        InitializeTrayIcon();
+        
         _appdataPath = Path.Join(DirectoryHelper.GetAppDataDirPath(), "github-downloader");
         _cachePath = Path.Join(DirectoryHelper.GetCacheDirPath(), "github-downloader");
         _reposConfigFilePath = Path.Join(_appdataPath, "repos.json");
+        _patFilePath = Path.Join(_appdataPath, "pat");
         DirectoryHelper.CreateDir(_appdataPath);
         DirectoryHelper.CreateDir(_cachePath);
         
-        
-
         if (File.Exists(_reposConfigFilePath))
         {
             string jsonString = File.ReadAllText(_reposConfigFilePath);
@@ -47,6 +51,54 @@ public partial class MainWindow : Window
         {
             CreateTrackedRepoEntry(repo.Name);
         }
+    }
+
+    private void Window_OnClosing(object? sender, WindowClosingEventArgs e)
+    {
+        if (e.CloseReason == WindowCloseReason.WindowClosing)
+        {
+            Hide();
+            e.Cancel = true;
+        }
+    }
+
+    private void InitializeTrayIcon()
+    {
+        _trayIcon = new TrayIcon
+        {
+            IsVisible = true,
+            ToolTipText = "Github Downloader",
+            Icon = new WindowIcon(AppDomain.CurrentDomain.BaseDirectory + "icon.png")
+        };
+
+        _trayIcon.Clicked += (sender, args) =>
+        {
+            switch (IsVisible)
+            {
+                case true: Hide(); break;
+                case false: Show(); break;
+            }
+        };
+
+        _trayIcon.Menu = new NativeMenu();
+
+        NativeMenuItem updateAllItem = new("Update All");
+        updateAllItem.Click += (sender, args) =>
+        {
+            BtnUpdateAll_OnClick(sender, null);
+        };
+
+        NativeMenuItem seperatorItem = new NativeMenuItemSeparator();
+        
+        NativeMenuItem quitItem = new ("Quit");
+        quitItem.Click += (sender, args) =>
+        {
+            Environment.Exit(0);
+        };
+        
+        _trayIcon.Menu.Add(updateAllItem);
+        _trayIcon.Menu.Add(seperatorItem);
+        _trayIcon.Menu.Add(quitItem);
     }
 
     private async void BtnAddRepo_OnClick(object? sender, RoutedEventArgs e)
@@ -70,7 +122,7 @@ public partial class MainWindow : Window
             url = $"https://api.github.com/repos/{TbxOwner.Text}/{TbxRepo.Text}/releases/latest";
         }
         
-        HttpResponseMessage httpResponse = await Api.GetRequest(url, _token);
+        HttpResponseMessage httpResponse = await Api.GetRequest(url, GetPat());
         
         if (httpResponse == null || !httpResponse.IsSuccessStatusCode)
         {
@@ -139,7 +191,7 @@ public partial class MainWindow : Window
         List<string> debPaths = new();
         foreach (Repo repo in _repos)
         {
-            HttpResponseMessage httpResponse = await Api.GetRequest(repo.Url, _token);
+            HttpResponseMessage httpResponse = await Api.GetRequest(repo.Url, GetPat());
             if (!httpResponse.IsSuccessStatusCode)
             {
                 Console.WriteLine($"Failed to fetch release of: {repo.Url}");
@@ -148,9 +200,7 @@ public partial class MainWindow : Window
             
             Response response = JsonSerializer.Deserialize<Response>(await httpResponse.Content.ReadAsStringAsync());
 
-            string downloadUrl = response.assets[0].url;
-
-            await Api.DownloadFileAsync(repo.DownloadUrl, Path.Join(_cachePath, response.assets[0].name), _token);
+            await Api.DownloadFileAsync(repo.DownloadUrl, Path.Join(_cachePath, response.assets[repo.DownloadAssetIndex].name), GetPat());
             
             debPaths.Add(Path.Join(_cachePath, response.assets[0].name));
         }
@@ -193,5 +243,16 @@ public partial class MainWindow : Window
         }
 
         Console.WriteLine(output);
+    }
+
+    private void BtnSetPat_OnClick(object? sender, RoutedEventArgs e)
+    {
+        File.WriteAllText(_patFilePath, TbxPat.Text);
+        TbxPat.Text = "";
+    }
+
+    private string GetPat()
+    {
+        return File.ReadAllText(_patFilePath);
     }
 }

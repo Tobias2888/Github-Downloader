@@ -2,12 +2,12 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="650" d:DesignHeight="400"
+        mc:Ignorable="d" d:DesignWidth="700" d:DesignHeight="500"
         x:Class="Github_Downloader.MainWindow"
         Title="Github_Downloader"
-        Loaded="Control_OnLoaded">
+        Loaded="Control_OnLoaded"
+        Closing="Window_OnClosing">
     
-
 <Window.Styles>
 
     <Style Selector="TextBlock.Title">
@@ -75,6 +75,9 @@
           <TextBox Name="TbxRepo" Watermark="Repository name (e.g. linux)"/>
 
           <Button Name="BtnAddRepo" Click="BtnAddRepo_OnClick" Content="Add Repository"/>
+          
+          <TextBox Name="TbxPat" Watermark="Personal Access token"/>
+          <Button Name="BtnSetPat" Click="BtnSetPat_OnClick" Content="Set personal Access token"/>
         </StackPanel>
       </Border>
 
