@@ -69,7 +69,7 @@
               Padding="16">
         <StackPanel Spacing="10">
           <TextBlock Text="Add Repository" Classes="SubTitle"/>
-
+          
           <TextBox Name="TbxUrl" Watermark="Repository-Url"/>
           <TextBox Name="TbxOwner" Watermark="Owner (e.g. torvalds)"/>
           <TextBox Name="TbxRepo" Watermark="Repository name (e.g. linux)"/>

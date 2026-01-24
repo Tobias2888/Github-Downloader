@@ -20,14 +20,14 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Reference Include="FileLib">
-        <HintPath>..\FileLib.dll</HintPath>
-      </Reference>
-    </ItemGroup>
-
-    <ItemGroup>
       <None Update="icon.png">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
+    </ItemGroup>
+
+    <ItemGroup>
+      <Reference Include="FileLib">
+        <HintPath>..\..\Libs\FileLib.dll</HintPath>
+      </Reference>
     </ItemGroup>
 </Project>

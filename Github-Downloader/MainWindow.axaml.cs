@@ -2,13 +2,16 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Platform.Storage;
 using FileLib;
 
 namespace Github_Downloader;
@@ -49,7 +52,7 @@ public partial class MainWindow : Window
         
         foreach (var repo in _repos)
         {
-            CreateTrackedRepoEntry(repo.Name);
+            CreateTrackedRepoEntry(repo);
         }
     }
 
@@ -135,18 +138,23 @@ public partial class MainWindow : Window
         }
         
         Response response = JsonSerializer.Deserialize<Response>(await httpResponse.Content.ReadAsStringAsync());
-        
-        _repos.Add(new Repo
+
+        Repo repo = new()
         {
             Url = url,
             DownloadUrl = response.assets[0].url,
-            Name = response.name
-        });
+            Name = response.name,
+            AssetNames = response.assets.ToList().Select(asset  => asset.name).ToList()
+        };
+        
+        _repos.Add(repo);
 
         SaveRepos();
-        CreateTrackedRepoEntry(response.name);
+        CreateTrackedRepoEntry(repo);
 
         TbxUrl.Text = "";
+        TbxOwner.Text = "";
+        TbxRepo.Text = "";
     }
     
     private void SaveRepos()
@@ -164,24 +172,100 @@ public partial class MainWindow : Window
         File.WriteAllText(_reposConfigFilePath, jsonString);
     }
 
-    private void CreateTrackedRepoEntry(string name)
+    private void CreateTrackedRepoEntry(Repo repo)
     {
         StackPanel stackPanel = new();
         stackPanel.Orientation = Orientation.Horizontal;
 
+        /*
         Button btnUninstall = new();
         btnUninstall.Content = "Uninstall";
         btnUninstall.Background = Brushes.Red;
+        */
+
+        Button btnRemove = new();
+        btnRemove.Content = "Remove";
+        btnRemove.Background = Brushes.Orange;
+        btnRemove.Click += (sender, args) =>
+        {
+            _repos.Remove(repo);
+            TrackedRepos.Children.Remove(stackPanel);
+            SaveRepos();
+        };
 
         Button btnUpdate = new();
         btnUpdate.Content = "Update";
+        btnUpdate.Click += async (sender, args) =>
+        {
+            InstallDeb(await UpdateRepo(repo));
+        };
         
-        TextBlock textBlock = new();
-        textBlock.Text = name;
+        TextBlock tbxName = new();
+        tbxName.Text = repo.Name;
+
+        Button btnFilePicker = new();
+        btnFilePicker.Content = "Select download location";
+        btnFilePicker.Background = Brushes.CornflowerBlue;
+        btnFilePicker.Click += async (sender, args) =>
+        {
+            TopLevel? topLevel = TopLevel.GetTopLevel(this);
+            if (topLevel is null)
+            {
+                return;
+            }
+
+            IReadOnlyList<IStorageFolder> folders = await topLevel.StorageProvider.OpenFolderPickerAsync(
+                new FolderPickerOpenOptions
+                {
+                    Title = "Select folder",
+                    AllowMultiple = false
+                });
+
+            if (folders.Count > 0)
+            {
+                string path = folders[0].Path.LocalPath;
+                repo.DownloadPath = path;
+                SaveRepos();
+            }
+
+        };
+
+        ComboBox cobAssets = new();
+        foreach (string assetName in repo.AssetNames)
+        {
+            ComboBoxItem cobItem = new();
+            cobItem.Content = assetName;
+            cobAssets.Items.Add(cobItem);
+        }
+        cobAssets.SelectedIndex = repo.DownloadAssetIndex;
+
+        cobAssets.SelectionChanged += (sender, args) =>
+        {
+            repo.DownloadAssetIndex = cobAssets.SelectedIndex;
+            if (repo.AssetNames[repo.DownloadAssetIndex].Contains(".deb"))
+            {
+                stackPanel.Children.Remove(btnFilePicker);
+            }
+            else
+            {
+                if (btnFilePicker.Parent == null)
+                {
+                    stackPanel.Children.Add(btnFilePicker);
+                }
+            }
+            SaveRepos();
+        };
         
-        stackPanel.Children.Add(textBlock);
-        stackPanel.Children.Add(btnUninstall);
+        stackPanel.Children.Add(tbxName);
+        stackPanel.Children.Add(cobAssets);
+        stackPanel.Children.Add(btnRemove);
+        //stackPanel.Children.Add(btnUninstall);
         stackPanel.Children.Add(btnUpdate);
+
+        if (!repo.AssetNames[repo.DownloadAssetIndex].Contains(".deb"))
+        {
+            stackPanel.Children.Add(btnFilePicker);
+        }
         
         TrackedRepos.Children.Add(stackPanel);
     }
@@ -191,28 +275,68 @@ public partial class MainWindow : Window
         List<string> debPaths = new();
         foreach (Repo repo in _repos)
         {
-            HttpResponseMessage httpResponse = await Api.GetRequest(repo.Url, GetPat());
-            if (!httpResponse.IsSuccessStatusCode)
-            {
-                Console.WriteLine($"Failed to fetch release of: {repo.Url}");
-                continue;
-            }
-            
-            Response response = JsonSerializer.Deserialize<Response>(await httpResponse.Content.ReadAsStringAsync());
-
-            await Api.DownloadFileAsync(repo.DownloadUrl, Path.Join(_cachePath, response.assets[repo.DownloadAssetIndex].name), GetPat());
-            
-            debPaths.Add(Path.Join(_cachePath, response.assets[0].name));
+            debPaths.Add(await UpdateRepo(repo));
         }
         InstallDebs(debPaths);
     }
 
-    public static void InstallDebs(List<string> debPaths)
+    private async Task<string> UpdateRepo(Repo repo)
     {
-        string installCommand = "pkexec apt install -y ";
+        HttpResponseMessage httpResponse = await Api.GetRequest(repo.Url, GetPat());
+        if (!httpResponse.IsSuccessStatusCode)
+        {
+            Console.WriteLine($"Failed to fetch release of: {repo.Url}");
+            ToastText.Text = $"Failed to fetch release of: {repo.Url}";
+            ToastPopup.IsOpen = true;
+            await Task.Delay(3000);
+            ToastPopup.IsOpen = false;
+            return "";
+        }
+            
+        Response response = JsonSerializer.Deserialize<Response>(await httpResponse.Content.ReadAsStringAsync());
+
+        await Api.DownloadFileAsync(repo.DownloadUrl, Path.Join(_cachePath, response.assets[repo.DownloadAssetIndex].name), GetPat());
+
+        if (repo.AssetNames[repo.DownloadAssetIndex].Contains(".deb"))
+        {
+            return Path.Join(_cachePath, response.assets[repo.DownloadAssetIndex].name);    
+        }
+
+        string destPath = Path.Join(repo.DownloadPath, repo.AssetNames[repo.DownloadAssetIndex]);
+        if (File.Exists(destPath))
+        {
+            File.Delete(destPath);
+        }
+        File.Move(Path.Join(_cachePath, response.assets[repo.DownloadAssetIndex].name), destPath);
+
+        return "";
+    }
+
+    private static void InstallDeb(string debPath)
+    {
+        InstallDebs(new List<string>{debPath});
+    }
+
+    private static void InstallDebs(List<string> debPaths)
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            return;
+        }
+        
+        string installCommand = "pkexec apt-get install -y ";
         foreach (string debPath in debPaths)
         {
+            if (!debPath.Contains(".deb"))
+            {
+                continue;
+            }
             installCommand += $"\"{debPath}\" ";
+        }
+
+        if (installCommand == "pkexec apt-get install -y ")
+        {
+            return;
         }
 
         Console.WriteLine(installCommand);
@@ -237,18 +361,22 @@ public partial class MainWindow : Window
 
         process.WaitForExit();
 
-        if (process.ExitCode != 0)
-        {
-            throw new Exception($"Installation failed:\n{error}");
-        }
-
         Console.WriteLine(output);
+        Console.WriteLine(error);
     }
 
-    private void BtnSetPat_OnClick(object? sender, RoutedEventArgs e)
+    private async void BtnSetPat_OnClick(object? sender, RoutedEventArgs e)
     {
+        if (string.IsNullOrEmpty(TbxPat.Text))
+        {
+            return;
+        }
         File.WriteAllText(_patFilePath, TbxPat.Text);
         TbxPat.Text = "";
+        ToastText.Text = "Personal access token saved successfuly!";
+        ToastPopup.IsOpen = true;
+        await Task.Delay(2500);
+        ToastPopup.IsOpen = false;
     }
 
     private string GetPat()
