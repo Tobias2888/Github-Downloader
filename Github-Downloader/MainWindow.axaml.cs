@@ -142,7 +142,6 @@ public partial class MainWindow : Window
         Repo repo = new()
         {
             Url = url,
-            DownloadUrl = response.assets[0].url,
             Name = response.name,
             AssetNames = response.assets.ToList().Select(asset  => asset.name).ToList()
         };
@@ -294,8 +293,9 @@ public partial class MainWindow : Window
         }
             
         Response response = JsonSerializer.Deserialize<Response>(await httpResponse.Content.ReadAsStringAsync());
+        string downloadUrl = response.assets[repo.DownloadAssetIndex].url;
 
-        await Api.DownloadFileAsync(repo.DownloadUrl, Path.Join(_cachePath, response.assets[repo.DownloadAssetIndex].name), GetPat());
+        await Api.DownloadFileAsync(downloadUrl, Path.Join(_cachePath, response.assets[repo.DownloadAssetIndex].name), GetPat());
 
         if (repo.AssetNames[repo.DownloadAssetIndex].Contains(".deb"))
         {
