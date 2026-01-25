@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Github Downloader
+Comment=Download Gihub-releases
+Comment[de]=Lade Github-releases herunter
+Exec=/opt/Github-Downloader/Github-Downloader
+Icon=/opt/Github-Downloader/icon.png
+Type=Application
+StartupNotify=false
+X-GNOME-Autostart-enabled=true

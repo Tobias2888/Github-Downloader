@@ -381,6 +381,10 @@ public partial class MainWindow : Window
 
     private string GetPat()
     {
+        if (File.Exists(_patFilePath))
+        {
+            return "";
+        }
         return File.ReadAllText(_patFilePath);
     }
 }
