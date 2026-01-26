@@ -5,6 +5,7 @@
       <list>
         <option value="$PROJECT_DIR$/Github-Downloader/bin/Release/net8.0/linux-x64/publish" />
         <option value="$PROJECT_DIR$/releases/github-downloader-x64/opt/Github-Downloader" />
+        <option value="$PROJECT_DIR$/builds/github-downloader-win-x64" />
       </list>
     </option>
   </component>

@@ -25,6 +25,7 @@ public partial class MainWindow : Window
     private string _patFilePath;
     
     private TrayIcon _trayIcon;
+    private UpdateManager _updateManager;
     
     public MainWindow() => InitializeComponent();
 
@@ -39,6 +40,11 @@ public partial class MainWindow : Window
         _patFilePath = Path.Join(_appdataPath, "pat");
         DirectoryHelper.CreateDir(_appdataPath);
         DirectoryHelper.CreateDir(_cachePath);
+
+        _updateManager = new UpdateManager
+        {
+            CachePath = _cachePath
+        };
         
         if (File.Exists(_reposConfigFilePath))
         {
@@ -125,7 +131,7 @@ public partial class MainWindow : Window
             url = $"https://api.github.com/repos/{TbxOwner.Text}/{TbxRepo.Text}/releases/latest";
         }
         
-        HttpResponseMessage httpResponse = await Api.GetRequest(url, GetPat());
+        HttpResponseMessage httpResponse = await Api.GetRequest(url, FileManager.GetPat());
         
         if (httpResponse == null || !httpResponse.IsSuccessStatusCode)
         {
@@ -143,32 +149,19 @@ public partial class MainWindow : Window
         {
             Url = url,
             Name = response.name,
-            AssetNames = response.assets.ToList().Select(asset  => asset.name).ToList()
+            AssetNames = response.assets.ToList().Select(asset  => asset.name).ToList(),
+            DownloadUrls = response.assets.ToList().Select(asset => asset.url).ToList(),
+            Tag = response.tag_name
         };
         
         _repos.Add(repo);
 
-        SaveRepos();
+        FileManager.SaveRepos(_repos);
         CreateTrackedRepoEntry(repo);
 
         TbxUrl.Text = "";
         TbxOwner.Text = "";
         TbxRepo.Text = "";
-    }
-    
-    private void SaveRepos()
-    {
-        if (!File.Exists(_reposConfigFilePath))
-        {
-            FileHelper.Create(_reposConfigFilePath);
-        }
-
-        string jsonString = JsonSerializer.Serialize(_repos, new JsonSerializerOptions
-        {
-            WriteIndented = true
-        });
-        
-        File.WriteAllText(_reposConfigFilePath, jsonString);
     }
 
     private void CreateTrackedRepoEntry(Repo repo)
@@ -189,14 +182,14 @@ public partial class MainWindow : Window
         {
             _repos.Remove(repo);
             TrackedRepos.Children.Remove(stackPanel);
-            SaveRepos();
+            FileManager.SaveRepos(_repos);
         };
 
         Button btnUpdate = new();
         btnUpdate.Content = "Update";
         btnUpdate.Click += async (sender, args) =>
         {
-            InstallDeb(await UpdateRepo(repo));
+            _updateManager.UpdateRepo(repo);
         };
         
         TextBlock tbxName = new();
@@ -224,7 +217,7 @@ public partial class MainWindow : Window
             {
                 string path = folders[0].Path.LocalPath;
                 repo.DownloadPath = path;
-                SaveRepos();
+                FileManager.SaveRepos(_repos);
             }
 
         };
@@ -252,7 +245,7 @@ public partial class MainWindow : Window
                     stackPanel.Children.Add(btnFilePicker);
                 }
             }
-            SaveRepos();
+            FileManager.SaveRepos(_repos);
         };
         
         stackPanel.Children.Add(tbxName);
@@ -269,100 +262,16 @@ public partial class MainWindow : Window
         TrackedRepos.Children.Add(stackPanel);
     }
 
+    private void BtnSearchForUpdates_OnClick(object? sender, RoutedEventArgs e)
+    {
+        _updateManager.SearchForUpdates(_repos);
+        FileManager.SaveRepos(_repos);
+    }
+    
     private async void BtnUpdateAll_OnClick(object? sender, RoutedEventArgs e)
     {
-        List<string> debPaths = new();
-        foreach (Repo repo in _repos)
-        {
-            debPaths.Add(await UpdateRepo(repo));
-        }
-        InstallDebs(debPaths);
-    }
-
-    private async Task<string> UpdateRepo(Repo repo)
-    {
-        HttpResponseMessage httpResponse = await Api.GetRequest(repo.Url, GetPat());
-        if (!httpResponse.IsSuccessStatusCode)
-        {
-            Console.WriteLine($"Failed to fetch release of: {repo.Url}");
-            ToastText.Text = $"Failed to fetch release of: {repo.Url}";
-            ToastPopup.IsOpen = true;
-            await Task.Delay(3000);
-            ToastPopup.IsOpen = false;
-            return "";
-        }
-            
-        Response response = JsonSerializer.Deserialize<Response>(await httpResponse.Content.ReadAsStringAsync());
-        string downloadUrl = response.assets[repo.DownloadAssetIndex].url;
-
-        await Api.DownloadFileAsync(downloadUrl, Path.Join(_cachePath, response.assets[repo.DownloadAssetIndex].name), GetPat());
-
-        if (repo.AssetNames[repo.DownloadAssetIndex].Contains(".deb"))
-        {
-            return Path.Join(_cachePath, response.assets[repo.DownloadAssetIndex].name);    
-        }
-
-        string destPath = Path.Join(repo.DownloadPath, repo.AssetNames[repo.DownloadAssetIndex]);
-        if (File.Exists(destPath))
-        {
-            File.Delete(destPath);
-        }
-        File.Move(Path.Join(_cachePath, response.assets[repo.DownloadAssetIndex].name), destPath);
-
-        return "";
-    }
-
-    private static void InstallDeb(string debPath)
-    {
-        InstallDebs(new List<string>{debPath});
-    }
-
-    private static void InstallDebs(List<string> debPaths)
-    {
-        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-        {
-            return;
-        }
-        
-        string installCommand = "pkexec apt-get install -y ";
-        foreach (string debPath in debPaths)
-        {
-            if (!debPath.Contains(".deb"))
-            {
-                continue;
-            }
-            installCommand += $"\"{debPath}\" ";
-        }
-
-        if (installCommand == "pkexec apt-get install -y ")
-        {
-            return;
-        }
-
-        Console.WriteLine(installCommand);
-        
-        var process = new Process
-        {
-            StartInfo = new ProcessStartInfo
-            {
-                FileName = "pkexec",
-                Arguments = installCommand,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            }
-        };
-
-        process.Start();
-
-        string output = process.StandardOutput.ReadToEnd();
-        string error = process.StandardError.ReadToEnd();
-
-        process.WaitForExit();
-
-        Console.WriteLine(output);
-        Console.WriteLine(error);
+        await _updateManager.UpdateRepos(_repos);
+        FileManager.SaveRepos(_repos);
     }
 
     private async void BtnSetPat_OnClick(object? sender, RoutedEventArgs e)
@@ -377,14 +286,5 @@ public partial class MainWindow : Window
         ToastPopup.IsOpen = true;
         await Task.Delay(2500);
         ToastPopup.IsOpen = false;
-    }
-
-    private string GetPat()
-    {
-        if (File.Exists(_patFilePath))
-        {
-            return "";
-        }
-        return File.ReadAllText(_patFilePath);
     }
 }

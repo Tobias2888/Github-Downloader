@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="700" d:DesignHeight="500"
+        mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="550"
         x:Class="Github_Downloader.MainWindow"
         Title="Github_Downloader"
         Loaded="Control_OnLoaded"
@@ -53,7 +53,6 @@
     <Border Background="#1E1E1E" CornerRadius="12" Padding="16">
       <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
           <TextBlock Text="GitHub Repository Tracker" Classes="Title"/>
-          <Button Name="BtnUpdateAll" Click="BtnUpdateAll_OnClick">Update All</Button>
       </StackPanel>
     </Border>
 
@@ -87,9 +86,13 @@
               CornerRadius="12"
               Padding="16">
         <StackPanel>
-          <TextBlock Text="Tracked Repositories" Margin="0, 0, 0, 10" Classes="SubTitle"/>
+            <StackPanel Margin="0, 0, 0, 25" Orientation="Horizontal">
+                <TextBlock Text="Tracked Repositories" Classes="SubTitle"/>
+                <Button Name="BtnSearchForUpdates" Click="BtnSearchForUpdates_OnClick">Search for updates</Button>
+                <Button Name="BtnUpdateAll" Click="BtnUpdateAll_OnClick">Update All</Button>
+            </StackPanel>
 
-          <StackPanel Name="TrackedRepos"></StackPanel>
+            <StackPanel Name="TrackedRepos"></StackPanel>
         </StackPanel>
       </Border>
 
