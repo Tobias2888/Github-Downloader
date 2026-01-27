@@ -14,11 +14,14 @@ public class UpdateManager
 {
     public required string CachePath;
     
-    private readonly record struct Asset(Repo Repo, string TempAssetPath);
+    private readonly record struct   Asset(Repo Repo, string TempAssetPath);
 
-    public void SearchForUpdates(List<Repo> repos)
+    public async Task SearchForUpdates(List<Repo> repos)
     {
-        repos.ForEach(async repo => await SearchForUpdates(repo));
+        foreach (Repo repo in repos)
+        {
+            await SearchForUpdates(repo);
+        }
     }
 
     public async Task SearchForUpdates(Repo repo)

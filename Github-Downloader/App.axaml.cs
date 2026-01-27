@@ -1,3 +1,5 @@
+using System;
+using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
@@ -8,6 +10,11 @@ public partial class App : Application
 {
     public override void Initialize()
     {
+        if (Process.GetProcessesByName(Process.GetCurrentProcess().ProcessName).Length > 1)
+        {
+            Console.WriteLine("Service already running");
+            Environment.Exit(0);
+        }
         AvaloniaXamlLoader.Load(this);
     }
 

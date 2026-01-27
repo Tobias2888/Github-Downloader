@@ -3,6 +3,7 @@
   <component name="AvaloniaProject">
     <option name="projectPerEditor">
       <map>
+        <entry key="Github-Downloader/App.axaml" value="Github-Downloader/Github-Downloader.csproj" />
         <entry key="Github-Downloader/MainWindow.axaml" value="Github-Downloader/Github-Downloader.csproj" />
       </map>
     </option>

@@ -8,10 +8,14 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Avalonia.Controls;
+using Avalonia.Data;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 using Avalonia.Platform.Storage;
+using Avalonia.Styling;
 using FileLib;
 
 namespace Github_Downloader;
@@ -26,6 +30,8 @@ public partial class MainWindow : Window
     
     private TrayIcon _trayIcon;
     private UpdateManager _updateManager;
+    
+    private const string ResPath = "avares://Github-Downloader/resources";
     
     public MainWindow() => InitializeComponent();
 
@@ -166,8 +172,18 @@ public partial class MainWindow : Window
 
     private void CreateTrackedRepoEntry(Repo repo)
     {
-        StackPanel stackPanel = new();
-        stackPanel.Orientation = Orientation.Horizontal;
+        //StackPanel stackPanel = new();
+        //stackPanel.Orientation = Orientation.Horizontal;
+        Grid grid = new();
+        grid.ColumnDefinitions.AddRange(new List<ColumnDefinition>
+        {
+            new (GridLength.Star),
+            new (GridLength.Auto),
+            new (GridLength.Auto),
+            new (GridLength.Auto),
+            new (GridLength.Auto),
+            new (GridLength.Auto),
+        });
 
         /*
         Button btnUninstall = new();
@@ -175,25 +191,56 @@ public partial class MainWindow : Window
         btnUninstall.Background = Brushes.Red;
         */
 
-        Button btnRemove = new();
-        btnRemove.Content = "Remove";
-        btnRemove.Background = Brushes.Orange;
-        btnRemove.Click += (sender, args) =>
+        Image imgRemove = new()
+        {
+            Source = new Bitmap(AssetLoader.Open(new Uri(Path.Join(ResPath, "trash.png")))),
+            Width = 25,
+            Height = 25
+        };
+        imgRemove.PointerPressed += (sender, args) =>
         {
             _repos.Remove(repo);
-            TrackedRepos.Children.Remove(stackPanel);
+            TrackedRepos.Children.Remove(grid);
             FileManager.SaveRepos(_repos);
         };
 
         Button btnUpdate = new();
         btnUpdate.Content = "Update";
-        btnUpdate.Click += async (sender, args) =>
+        btnUpdate.Click += (sender, args) =>
         {
             _updateManager.UpdateRepo(repo);
         };
         
         TextBlock tbxName = new();
-        tbxName.Text = repo.Name;
+        tbxName.DataContext = repo;
+        tbxName.Bind(TextBlock.TextProperty, new Binding(nameof(Repo.Name)));
+
+        TextBlock tbxUpdateVersion = new();
+        tbxUpdateVersion.Text = "Version";
+        tbxUpdateVersion.Foreground = Brushes.Orange;
+        tbxUpdateVersion.DataContext = repo;
+        tbxUpdateVersion.Bind(
+            TextBlock.TextProperty, 
+            new MultiBinding
+            {
+                StringFormat = "{0} -> {1}",
+                Bindings =
+                {
+                    new Binding(nameof(Repo.CurrentInstallTag)),
+                    new Binding(nameof(Repo.Tag))
+                }
+            });
+        tbxUpdateVersion.Bind(IsVisibleProperty, new Binding("!" + nameof(Repo.IsUpToDate)));
+
+        StackPanel stpRepoLabel = new()
+        {
+            Orientation = Orientation.Horizontal,
+            Children =
+            {
+                tbxName,
+                tbxUpdateVersion,
+            }
+        };
 
         Button btnFilePicker = new();
         btnFilePicker.Content = "Select download location";
@@ -219,16 +266,13 @@ public partial class MainWindow : Window
                 repo.DownloadPath = path;
                 FileManager.SaveRepos(_repos);
             }
-
         };
 
-        ComboBox cobAssets = new();
-        foreach (string assetName in repo.AssetNames)
+        ComboBox cobAssets = new()
         {
-            ComboBoxItem cobItem = new();
-            cobItem.Content = assetName;
-            cobAssets.Items.Add(cobItem);
-        }
+            Width = 200,
+            ItemsSource =  repo.AssetNames
+        };
         cobAssets.SelectedIndex = repo.DownloadAssetIndex;
 
         cobAssets.SelectionChanged += (sender, args) =>
@@ -236,35 +280,45 @@ public partial class MainWindow : Window
             repo.DownloadAssetIndex = cobAssets.SelectedIndex;
             if (repo.AssetNames[repo.DownloadAssetIndex].Contains(".deb"))
             {
-                stackPanel.Children.Remove(btnFilePicker);
+                grid.Children.Remove(btnFilePicker);
             }
             else
             {
                 if (btnFilePicker.Parent == null)
                 {
-                    stackPanel.Children.Add(btnFilePicker);
+                    grid.Children.Add(btnFilePicker);
                 }
             }
             FileManager.SaveRepos(_repos);
         };
+
+        ToggleSwitch tglExcludeFromDownloadAll = new();
+        tglExcludeFromDownloadAll.IsChecked = repo.ExcludedFromDownloadAll;
         
-        stackPanel.Children.Add(tbxName);
-        stackPanel.Children.Add(cobAssets);
-        stackPanel.Children.Add(btnRemove);
-        //stackPanel.Children.Add(btnUninstall);
-        stackPanel.Children.Add(btnUpdate);
+        Grid.SetColumn(stpRepoLabel, 0);
+        grid.Children.Add(stpRepoLabel);
+        Grid.SetColumn(cobAssets, 2);
+        grid.Children.Add(cobAssets);
+        Grid.SetColumn(tglExcludeFromDownloadAll, 3);
+        grid.Children.Add(tglExcludeFromDownloadAll);
+        Grid.SetColumn(btnUpdate, 4);
+        grid.Children.Add(btnUpdate);
+        Grid.SetColumn(imgRemove, 5);
+        grid.Children.Add(imgRemove);
+        //grid.Children.Add(btnUninstall);
 
         if (!repo.AssetNames[repo.DownloadAssetIndex].Contains(".deb"))
         {
-            stackPanel.Children.Add(btnFilePicker);
+            Grid.SetColumn(btnFilePicker, 1);
+            grid.Children.Add(btnFilePicker);
         }
         
-        TrackedRepos.Children.Add(stackPanel);
+        TrackedRepos.Children.Add(grid);
     }
 
-    private void BtnSearchForUpdates_OnClick(object? sender, RoutedEventArgs e)
+    private async void BtnSearchForUpdates_OnClick(object? sender, RoutedEventArgs e)
     {
-        _updateManager.SearchForUpdates(_repos);
+        await _updateManager.SearchForUpdates(_repos);
         FileManager.SaveRepos(_repos);
     }
     
