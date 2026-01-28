@@ -28,8 +28,6 @@ public partial class MainWindow : Window
     
     private TrayIcon _trayIcon;
     private UpdateManager _updateManager;
-
-    private Grid _trackedRepoGrid;
     
     private const string ResPath = "avares://Github-Downloader/resources";
     
@@ -61,19 +59,12 @@ public partial class MainWindow : Window
         {
             _repos = new List<Repo>();
         }
-
-        _trackedRepoGrid = new();
-        _trackedRepoGrid.ColumnDefinitions.AddRange(new List<ColumnDefinition>
-        {
-            new(GridLength.Star),
-            new(GridLength.Auto),
-            new(GridLength.Auto),
-            new(GridLength.Auto),
-            new(GridLength.Auto),
-            new(GridLength.Auto),
-        });
-        TrackedRepos.Children.Add(_trackedRepoGrid);
         
+        LoadGrdTrackedRepos();
+    }
+
+    private void LoadGrdTrackedRepos()
+    {
         foreach (var repo in _repos)
         {
             CreateTrackedRepoEntry(repo);
@@ -184,7 +175,7 @@ public partial class MainWindow : Window
 
     private void CreateTrackedRepoEntry(Repo repo)
     {
-        _trackedRepoGrid.RowDefinitions.Add(new RowDefinition());
+        GrdTrackedRepos.RowDefinitions.Add(new RowDefinition());
 
         /*
         Button btnUninstall = new();
@@ -202,7 +193,8 @@ public partial class MainWindow : Window
         imgRemove.PointerPressed += (sender, args) =>
         {
             _repos.Remove(repo);
-            TrackedRepos.Children.Remove(_trackedRepoGrid);
+            GrdTrackedRepos.Children.Clear();
+            LoadGrdTrackedRepos();
             FileManager.SaveRepos(_repos);
         };
 
@@ -279,13 +271,13 @@ public partial class MainWindow : Window
             repo.DownloadAssetIndex = cobAssets.SelectedIndex;
             if (repo.AssetNames[repo.DownloadAssetIndex].Contains(".deb"))
             {
-                _trackedRepoGrid.Children.Remove(btnFilePicker);
+                GrdTrackedRepos.Children.Remove(btnFilePicker);
             }
             else
             {
                 if (btnFilePicker.Parent == null)
                 {
-                    _trackedRepoGrid.Children.Add(btnFilePicker);
+                    GrdTrackedRepos.Children.Add(btnFilePicker);
                 }
             }
             FileManager.SaveRepos(_repos);
@@ -304,27 +296,27 @@ public partial class MainWindow : Window
         };
         
         Grid.SetColumn(stpRepoLabel, 0);
-        Grid.SetRow(stpRepoLabel, _trackedRepoGrid.RowDefinitions.Count -1);
-        _trackedRepoGrid.Children.Add(stpRepoLabel);
+        Grid.SetRow(stpRepoLabel, GrdTrackedRepos.RowDefinitions.Count -1);
+        GrdTrackedRepos.Children.Add(stpRepoLabel);
         Grid.SetColumn(cobAssets, 2);
-        Grid.SetRow(cobAssets, _trackedRepoGrid.RowDefinitions.Count -1);
-        _trackedRepoGrid.Children.Add(cobAssets);
+        Grid.SetRow(cobAssets, GrdTrackedRepos.RowDefinitions.Count -1);
+        GrdTrackedRepos.Children.Add(cobAssets);
         Grid.SetColumn(tglExcludeFromDownloadAll, 3);
-        Grid.SetRow(tglExcludeFromDownloadAll, _trackedRepoGrid.RowDefinitions.Count -1);
-        _trackedRepoGrid.Children.Add(tglExcludeFromDownloadAll);
+        Grid.SetRow(tglExcludeFromDownloadAll, GrdTrackedRepos.RowDefinitions.Count -1);
+        GrdTrackedRepos.Children.Add(tglExcludeFromDownloadAll);
         Grid.SetColumn(btnUpdate, 4);
-        Grid.SetRow(btnUpdate, _trackedRepoGrid.RowDefinitions.Count -1);
-        _trackedRepoGrid.Children.Add(btnUpdate);
+        Grid.SetRow(btnUpdate, GrdTrackedRepos.RowDefinitions.Count -1);
+        GrdTrackedRepos.Children.Add(btnUpdate);
         Grid.SetColumn(imgRemove, 5);
-        Grid.SetRow(imgRemove, _trackedRepoGrid.RowDefinitions.Count -1);
-        _trackedRepoGrid.Children.Add(imgRemove);
+        Grid.SetRow(imgRemove, GrdTrackedRepos.RowDefinitions.Count -1);
+        GrdTrackedRepos.Children.Add(imgRemove);
         //grid.Children.Add(btnUninstall);
 
         if (!repo.AssetNames[repo.DownloadAssetIndex].Contains(".deb"))
         {
             Grid.SetColumn(btnFilePicker, 1);
-            Grid.SetRow(btnFilePicker, _trackedRepoGrid.RowDefinitions.Count -1);
-            _trackedRepoGrid.Children.Add(btnFilePicker);
+            Grid.SetRow(btnFilePicker, GrdTrackedRepos.RowDefinitions.Count -1);
+            GrdTrackedRepos.Children.Add(btnFilePicker);
         }
     }
 
