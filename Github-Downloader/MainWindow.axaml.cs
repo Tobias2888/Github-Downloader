@@ -200,7 +200,11 @@ public partial class MainWindow : Window
 
         Button btnUpdate = new();
         btnUpdate.Content = "Update";
-        btnUpdate.Click += (sender, args) => _updateManager.UpdateRepo(repo);
+        btnUpdate.Click += async (sender, args) =>
+        {
+            await _updateManager.UpdateRepo(repo);
+            FileManager.SaveRepos(_repos);
+        };
         
         TextBlock tbxName = new();
         tbxName.DataContext = repo;
