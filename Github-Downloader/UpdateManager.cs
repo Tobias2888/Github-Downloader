@@ -39,21 +39,31 @@ public class UpdateManager
         repo.Tag = response.tag_name;
     }
 
-    public void UpdateRepo(Repo repo)
+    public async Task UpdateRepo(Repo repo)
     {
-        UpdateRepos(new List<Repo> { repo });
+        UpdateRepos(new List<Asset?> { await DownloadAsset(repo) });
     }
 
     public async Task UpdateRepos(List<Repo> repos)
     {
         List<Asset?> assets = new();
-        List<string> debs = new();
         foreach (var repo in repos)
         {
+            if (repo.ExcludedFromDownloadAll)
+            {
+                continue;
+            }
+            
             Asset? asset = await DownloadAsset(repo);
             assets.Add(asset);
         }
 
+        UpdateRepos(assets);
+    }
+
+    private void UpdateRepos(List<Asset?> assets)
+    {
+        List<string> debs = new();
         foreach (Asset? asset in assets)
         {
             if (asset == null)

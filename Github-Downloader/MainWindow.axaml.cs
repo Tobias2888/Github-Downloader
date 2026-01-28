@@ -1,12 +1,11 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Data;
 using Avalonia.Interactivity;
@@ -15,7 +14,6 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Platform.Storage;
-using Avalonia.Styling;
 using FileLib;
 
 namespace Github_Downloader;
@@ -30,6 +28,8 @@ public partial class MainWindow : Window
     
     private TrayIcon _trayIcon;
     private UpdateManager _updateManager;
+
+    private Grid _trackedRepoGrid;
     
     private const string ResPath = "avares://Github-Downloader/resources";
     
@@ -61,6 +61,18 @@ public partial class MainWindow : Window
         {
             _repos = new List<Repo>();
         }
+
+        _trackedRepoGrid = new();
+        _trackedRepoGrid.ColumnDefinitions.AddRange(new List<ColumnDefinition>
+        {
+            new(GridLength.Star),
+            new(GridLength.Auto),
+            new(GridLength.Auto),
+            new(GridLength.Auto),
+            new(GridLength.Auto),
+            new(GridLength.Auto),
+        });
+        TrackedRepos.Children.Add(_trackedRepoGrid);
         
         foreach (var repo in _repos)
         {
@@ -172,18 +184,7 @@ public partial class MainWindow : Window
 
     private void CreateTrackedRepoEntry(Repo repo)
     {
-        //StackPanel stackPanel = new();
-        //stackPanel.Orientation = Orientation.Horizontal;
-        Grid grid = new();
-        grid.ColumnDefinitions.AddRange(new List<ColumnDefinition>
-        {
-            new (GridLength.Star),
-            new (GridLength.Auto),
-            new (GridLength.Auto),
-            new (GridLength.Auto),
-            new (GridLength.Auto),
-            new (GridLength.Auto),
-        });
+        _trackedRepoGrid.RowDefinitions.Add(new RowDefinition());
 
         /*
         Button btnUninstall = new();
@@ -195,21 +196,19 @@ public partial class MainWindow : Window
         {
             Source = new Bitmap(AssetLoader.Open(new Uri(Path.Join(ResPath, "trash.png")))),
             Width = 25,
-            Height = 25
+            Height = 25,
+            Margin = new Thickness(10, 0, 0, 0)
         };
         imgRemove.PointerPressed += (sender, args) =>
         {
             _repos.Remove(repo);
-            TrackedRepos.Children.Remove(grid);
+            TrackedRepos.Children.Remove(_trackedRepoGrid);
             FileManager.SaveRepos(_repos);
         };
 
         Button btnUpdate = new();
         btnUpdate.Content = "Update";
-        btnUpdate.Click += (sender, args) =>
-        {
-            _updateManager.UpdateRepo(repo);
-        };
+        btnUpdate.Click += (sender, args) => _updateManager.UpdateRepo(repo);
         
         TextBlock tbxName = new();
         tbxName.DataContext = repo;
@@ -280,40 +279,53 @@ public partial class MainWindow : Window
             repo.DownloadAssetIndex = cobAssets.SelectedIndex;
             if (repo.AssetNames[repo.DownloadAssetIndex].Contains(".deb"))
             {
-                grid.Children.Remove(btnFilePicker);
+                _trackedRepoGrid.Children.Remove(btnFilePicker);
             }
             else
             {
                 if (btnFilePicker.Parent == null)
                 {
-                    grid.Children.Add(btnFilePicker);
+                    _trackedRepoGrid.Children.Add(btnFilePicker);
                 }
             }
             FileManager.SaveRepos(_repos);
         };
 
-        ToggleSwitch tglExcludeFromDownloadAll = new();
+        ToggleSwitch tglExcludeFromDownloadAll = new ToggleSwitch
+        {
+            OnContent = null,
+            OffContent = null
+        };
         tglExcludeFromDownloadAll.IsChecked = repo.ExcludedFromDownloadAll;
+        tglExcludeFromDownloadAll.Click += (sender, args) =>
+        {
+            repo.ExcludedFromDownloadAll = tglExcludeFromDownloadAll.IsChecked == true;
+            FileManager.SaveRepos(_repos);
+        };
         
         Grid.SetColumn(stpRepoLabel, 0);
-        grid.Children.Add(stpRepoLabel);
+        Grid.SetRow(stpRepoLabel, _trackedRepoGrid.RowDefinitions.Count -1);
+        _trackedRepoGrid.Children.Add(stpRepoLabel);
         Grid.SetColumn(cobAssets, 2);
-        grid.Children.Add(cobAssets);
+        Grid.SetRow(cobAssets, _trackedRepoGrid.RowDefinitions.Count -1);
+        _trackedRepoGrid.Children.Add(cobAssets);
         Grid.SetColumn(tglExcludeFromDownloadAll, 3);
-        grid.Children.Add(tglExcludeFromDownloadAll);
+        Grid.SetRow(tglExcludeFromDownloadAll, _trackedRepoGrid.RowDefinitions.Count -1);
+        _trackedRepoGrid.Children.Add(tglExcludeFromDownloadAll);
         Grid.SetColumn(btnUpdate, 4);
-        grid.Children.Add(btnUpdate);
+        Grid.SetRow(btnUpdate, _trackedRepoGrid.RowDefinitions.Count -1);
+        _trackedRepoGrid.Children.Add(btnUpdate);
         Grid.SetColumn(imgRemove, 5);
-        grid.Children.Add(imgRemove);
+        Grid.SetRow(imgRemove, _trackedRepoGrid.RowDefinitions.Count -1);
+        _trackedRepoGrid.Children.Add(imgRemove);
         //grid.Children.Add(btnUninstall);
 
         if (!repo.AssetNames[repo.DownloadAssetIndex].Contains(".deb"))
         {
             Grid.SetColumn(btnFilePicker, 1);
-            grid.Children.Add(btnFilePicker);
+            Grid.SetRow(btnFilePicker, _trackedRepoGrid.RowDefinitions.Count -1);
+            _trackedRepoGrid.Children.Add(btnFilePicker);
         }
-        
-        TrackedRepos.Children.Add(grid);
     }
 
     private async void BtnSearchForUpdates_OnClick(object? sender, RoutedEventArgs e)
