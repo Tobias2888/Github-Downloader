@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -14,6 +16,7 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using FileLib;
 
 namespace Github_Downloader;
@@ -61,6 +64,24 @@ public partial class MainWindow : Window
         }
         
         LoadGrdTrackedRepos();
+
+        /*
+        DispatcherTimer timer = new();
+        timer.Tick += (_, _) => SendNotification();
+        timer.Interval = TimeSpan.FromMilliseconds(100);
+        timer.Start();
+        */
+    }
+
+    private void SendNotification()
+    {
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = "notify-send",
+            Arguments = $"\"Github-Downloader\" \"Norification\"",
+            UseShellExecute = false,
+            CreateNoWindow = true
+        });
     }
 
     private void LoadGrdTrackedRepos()
