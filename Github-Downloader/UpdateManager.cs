@@ -7,21 +7,32 @@ using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Avalonia.Controls;
+using Github_Downloader.ViewModels;
 
 namespace Github_Downloader;
 
 public class UpdateManager
 {
     public required string CachePath;
+    public required Window Owner;
     
-    private readonly record struct   Asset(Repo Repo, string TempAssetPath);
+    private readonly record struct Asset(Repo Repo, string TempAssetPath);
 
     public async Task SearchForUpdates(List<Repo> repos)
     {
+        DownloadStatusViewModel vm = new();
+        DownloadStatus downloadStatus = new()
+        {
+            DataContext = vm
+        };
+        _ = downloadStatus.ShowDialog(Owner);
         foreach (Repo repo in repos)
         {
+            vm.StatusText = $"Checking for {repo.Name}";
             await SearchForUpdates(repo);
         }
+        downloadStatus.Close();
     }
 
     public async Task SearchForUpdates(Repo repo)
