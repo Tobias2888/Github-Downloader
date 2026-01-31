@@ -13,7 +13,7 @@ public partial class App : Application
         if (Process.GetProcessesByName(Process.GetCurrentProcess().ProcessName).Length > 1)
         {
             Console.WriteLine("Service already running");
-            Environment.Exit(0);
+            //Environment.Exit(0);
         }
         AvaloniaXamlLoader.Load(this);
     }

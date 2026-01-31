@@ -50,7 +50,8 @@ public partial class MainWindow : Window
 
         _updateManager = new UpdateManager
         {
-            CachePath = _cachePath
+            CachePath = _cachePath,
+            Owner = this
         };
         
         if (File.Exists(_reposConfigFilePath))
@@ -86,7 +87,7 @@ public partial class MainWindow : Window
 
     private void LoadGrdTrackedRepos()
     {
-        foreach (var repo in _repos)
+        foreach (Repo repo in _repos)
         {
             CreateTrackedRepoEntry(repo);
         }

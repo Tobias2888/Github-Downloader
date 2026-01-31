@@ -1,0 +1,26 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:Github_Downloader.ViewModels"
+        mc:Ignorable="d" d:DesignWidth="350" d:DesignHeight="150"
+        x:Class="Github_Downloader.DownloadStatus"
+        x:DataType="vm:DownloadStatusViewModel"
+        Title="DownloadStatus"
+        Width="350"
+        Height="150"
+        WindowStartupLocation="CenterOwner">
+    
+    <StackPanel VerticalAlignment="Center">
+        <TextBlock 
+            Text="{Binding StatusText}" 
+            HorizontalAlignment="Center" 
+            Margin="0, 0, 0, 15"/>
+        
+        <ProgressBar IsIndeterminate="True"/>
+        
+        <TextBlock 
+            Text="{Binding ProgressText}" 
+            HorizontalAlignment="Center"/>
+    </StackPanel>
+</Window>
