@@ -43,7 +43,7 @@ public class UpdateManager
         _downloadStatus.Close();
     }
 
-    public async Task SearchForUpdates(Repo repo)
+    private async Task SearchForUpdates(Repo repo)
     {
         HttpResponseMessage httpResponse = await Api.GetRequest(repo.Url, FileManager.GetPat());
         if (!httpResponse.IsSuccessStatusCode)
@@ -60,6 +60,7 @@ public class UpdateManager
 
     public async Task UpdateRepo(Repo repo)
     {
+        ShowDialog();
         UpdateRepos(new List<Asset?> { await DownloadAsset(repo) });
     }
 
