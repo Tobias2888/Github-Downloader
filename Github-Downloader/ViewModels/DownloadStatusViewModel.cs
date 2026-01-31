@@ -18,6 +18,18 @@ public sealed class DownloadStatusViewModel : INotifyPropertyChanged
         }
     }
     
+    private string _progressText = "Downloading...";
+
+    public string ProgressText
+    {
+        get => _progressText;
+        set
+        {
+            _progressText = value;
+            OnPropertyChanged();
+        }
+    }
+    
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 }

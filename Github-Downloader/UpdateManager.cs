@@ -17,22 +17,30 @@ public class UpdateManager
     public required string CachePath;
     public required Window Owner;
     
+    private DownloadStatusViewModel _vm = new();
+
+    private DownloadStatus _downloadStatus;
+    
     private readonly record struct Asset(Repo Repo, string TempAssetPath);
+
+    private void ShowDialog()
+    {
+        _downloadStatus = new()
+        {
+            DataContext = _vm
+        };
+        _ = _downloadStatus.ShowDialog(Owner);
+    }
 
     public async Task SearchForUpdates(List<Repo> repos)
     {
-        DownloadStatusViewModel vm = new();
-        DownloadStatus downloadStatus = new()
-        {
-            DataContext = vm
-        };
-        _ = downloadStatus.ShowDialog(Owner);
+        ShowDialog();
         foreach (Repo repo in repos)
         {
-            vm.StatusText = $"Checking for {repo.Name}";
+            _vm.StatusText = $"Checking for {repo.Name}";
             await SearchForUpdates(repo);
         }
-        downloadStatus.Close();
+        _downloadStatus.Close();
     }
 
     public async Task SearchForUpdates(Repo repo)
@@ -57,6 +65,9 @@ public class UpdateManager
 
     public async Task UpdateRepos(List<Repo> repos)
     {
+        ShowDialog();
+        _vm.StatusText = "Downloading updates...";
+        
         List<Asset?> assets = new();
         foreach (var repo in repos)
         {
@@ -88,23 +99,26 @@ public class UpdateManager
             }
             else
             {
+                _vm.StatusText = $"Move file {asset.Value.Repo.Name}";
                 MoveFile(asset.Value);
             }
         }
-
-        Console.WriteLine("assets: " + assets.Count);
-        Console.WriteLine("debs: " + debs.Count);
+        
+        _vm.StatusText = "Installing Updates...";
         
         InstallDebs(debs);
+        
+        _downloadStatus.Close();
     }
     
     private async Task<Asset?> DownloadAsset(Repo repo)
     {
         if (repo.Tag == repo.CurrentInstallTag)
         {
-            Console.WriteLine(repo.Tag + " : " + repo.CurrentInstallTag);
             return null;
         }
+        
+        _vm.StatusText = $"Downloading {repo.Name}";
         
         string downloadAssetName = repo.AssetNames[repo.DownloadAssetIndex];
         await Api.DownloadFileAsync(repo.DownloadUrls[repo.DownloadAssetIndex], Path.Join(CachePath, downloadAssetName), FileManager.GetPat());
@@ -156,7 +170,7 @@ public class UpdateManager
 
         Console.WriteLine(installCommand);
         
-        var process = new Process
+        Process process = new Process
         {
             StartInfo = new ProcessStartInfo
             {
@@ -166,17 +180,21 @@ public class UpdateManager
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true
-            }
+            },
+            EnableRaisingEvents = true
+        };
+        
+        process.OutputDataReceived += (_, args) =>
+        {
+            Console.WriteLine(args.Data);
+            _vm.ProgressText += args.Data + "\n";
         };
 
         process.Start();
 
-        string output = process.StandardOutput.ReadToEnd();
-        string error = process.StandardError.ReadToEnd();
+        process.BeginOutputReadLine();
+        process.BeginErrorReadLine();
 
         process.WaitForExit();
-
-        Console.WriteLine(output);
-        Console.WriteLine(error);
     }
 }
