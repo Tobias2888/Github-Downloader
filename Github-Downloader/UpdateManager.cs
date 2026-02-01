@@ -27,11 +27,19 @@ public class UpdateManager
 
     private void ShowDialog()
     {
+        if (!Owner.IsVisible) return;
+        
         _downloadStatus = new()
         {
             DataContext = _vm
         };
         _ = _downloadStatus.ShowDialog(Owner);
+    }
+
+    private void CloseDialog()
+    {
+        if (_downloadStatus == null) return;
+        _downloadStatus.Close();
     }
 
     public async Task SearchForUpdates(List<Repo> repos)
@@ -42,7 +50,7 @@ public class UpdateManager
             _vm.StatusText = $"Checking for {repo.Name}";
             await SearchForUpdates(repo);
         }
-        _downloadStatus.Close();
+        CloseDialog();
 
         foreach (Repo repo in repos)
         {
@@ -122,7 +130,7 @@ public class UpdateManager
         
         InstallDebs(debs);
         
-        _downloadStatus.Close();
+        CloseDialog();
         _mainViewModel.HasUpdates = false;
     }
     

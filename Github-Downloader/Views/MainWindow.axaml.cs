@@ -44,7 +44,7 @@ public partial class MainWindow : Window
         _mainViewModel = ((App)Application.Current!).MainViewModel;
     }
 
-    private void Control_OnLoaded(object? sender, RoutedEventArgs e)
+    private async void Control_OnLoaded(object? sender, RoutedEventArgs e)
     {
         Hide();
         InitializeTrayIcon();
@@ -73,13 +73,18 @@ public partial class MainWindow : Window
         }
         
         LoadGrdTrackedRepos();
-
         
         DispatcherTimer timer = new();
-        timer.Tick += (_, _) => SendNotification();
-        timer.Interval = TimeSpan.FromSeconds(_updateInterval);
+        timer.Tick += async (_, _) =>
+        {
+            await _updateManager.SearchForUpdates(_repos);
+            FileManager.SaveRepos(_repos);
+        };
+        timer.Interval = TimeSpan.FromMinutes(_updateInterval);
         timer.Start();
-        
+
+        await _updateManager.SearchForUpdates(_repos);
+        FileManager.SaveRepos(_repos);
     }
 
     private void SendNotification()
