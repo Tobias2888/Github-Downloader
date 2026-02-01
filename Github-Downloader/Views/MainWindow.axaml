@@ -4,7 +4,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="550"
         x:Class="Github_Downloader.MainWindow"
-        Title="Github_Downloader"
+        Title="Github Downloader"
         Loaded="Control_OnLoaded"
         Closing="Window_OnClosing">
     
