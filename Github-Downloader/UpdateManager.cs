@@ -18,8 +18,8 @@ public class UpdateManager
     public required string CachePath;
     public required Window Owner;
     
-    private DownloadStatusViewModel _vm = new();
-    private MainViewModel _mainViewModel = ((App)Application.Current!).MainViewModel;
+    private readonly DownloadStatusViewModel _vm = new();
+    private readonly MainViewModel _mainViewModel = ((App)Application.Current!).MainViewModel;
 
     private DownloadStatus _downloadStatus;
     
@@ -74,7 +74,7 @@ public class UpdateManager
     public async Task UpdateRepo(Repo repo)
     {
         ShowDialog();
-        UpdateRepos(new List<Asset?> { await DownloadAsset(repo) });
+        UpdateRepos([await DownloadAsset(repo)]);
     }
 
     public async Task UpdateRepos(List<Repo> repos)

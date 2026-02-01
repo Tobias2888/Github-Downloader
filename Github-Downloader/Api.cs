@@ -7,7 +7,7 @@ using FileLib;
 
 namespace Github_Downloader;
 
-public class Api
+public static class Api
 {
     public static async Task<HttpResponseMessage> GetRequest(string url, string token = "")
     {
@@ -26,10 +26,10 @@ public class Api
         {
             response = await client.GetAsync(url);
         }
-        catch (Exception e)
+        catch (Exception)
         {
             Console.WriteLine($"Invalid url: {url}");
-            response = null;
+            response = null!;
         }
 
         return response;

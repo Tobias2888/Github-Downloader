@@ -28,10 +28,6 @@ public static class FileManager
     
     public static string GetPat()
     {
-        if (!File.Exists(PatFilePath))
-        {
-            return "";
-        }
-        return File.ReadAllText(PatFilePath);
+        return !File.Exists(PatFilePath) ? "" : File.ReadAllText(PatFilePath);
     }
 }

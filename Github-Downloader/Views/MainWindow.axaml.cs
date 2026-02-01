@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -32,9 +31,9 @@ public partial class MainWindow : Window
     private TrayIcon _trayIcon;
     private UpdateManager _updateManager;
     
-    private MainViewModel _mainViewModel;
+    private readonly MainViewModel _mainViewModel;
 
-    private int _updateInterval = 5;
+    private readonly int _updateInterval = 5;
     
     private const string ResPath = "avares://Github-Downloader/resources/";
     
@@ -45,7 +44,7 @@ public partial class MainWindow : Window
         _mainViewModel = ((App)Application.Current!).MainViewModel;
     }
 
-    private async void Control_OnLoaded(object? sender, RoutedEventArgs e)
+    private void Control_OnLoaded(object? sender, RoutedEventArgs e)
     {
         Hide();
         InitializeTrayIcon();
@@ -89,7 +88,7 @@ public partial class MainWindow : Window
         Process.Start(new ProcessStartInfo
         {
             FileName = "notify-send",
-            Arguments = $"\"Github-Downloader\" \"Norification\"",
+            Arguments = $"\"Github-Downloader\" \"Notification\"",
             UseShellExecute = false,
             CreateNoWindow = true
         });*/
@@ -126,17 +125,12 @@ public partial class MainWindow : Window
             Console.WriteLine("PropertyChanged: " + args.PropertyName);
             if (args.PropertyName != nameof(MainViewModel.HasUpdates)) return;
             
-            if (!_mainViewModel.HasUpdates)
-            {
-                _trayIcon.Icon = new WindowIcon(new Bitmap(AssetLoader.Open(new Uri(Path.Join(ResPath, "icon.png")))));
-            }
-            else
-            {
-                _trayIcon.Icon = new WindowIcon(new Bitmap(AssetLoader.Open(new Uri(Path.Join(ResPath, "icon_update.png")))));
-            }
+            _trayIcon.Icon = !_mainViewModel.HasUpdates ? 
+                new WindowIcon(new Bitmap(AssetLoader.Open(new Uri(Path.Join(ResPath, "icon.png"))))) 
+                : new WindowIcon(new Bitmap(AssetLoader.Open(new Uri(Path.Join(ResPath, "icon_update.png")))));
         };
 
-        _trayIcon.Clicked += (sender, args) =>
+        _trayIcon.Clicked += (_, _) =>
         {
             switch (IsVisible)
             {
@@ -148,21 +142,21 @@ public partial class MainWindow : Window
         _trayIcon.Menu = new NativeMenu();
 
         NativeMenuItem updateAllItem = new("Update All");
-        updateAllItem.Click += (sender, args) =>
+        updateAllItem.Click += (sender, _) =>
         {
             BtnUpdateAll_OnClick(sender, null);
         };
 
-        NativeMenuItem seperatorItem = new NativeMenuItemSeparator();
+        NativeMenuItem separatorItem = new NativeMenuItemSeparator();
         
         NativeMenuItem quitItem = new ("Quit");
-        quitItem.Click += (sender, args) =>
+        quitItem.Click += (_, _) =>
         {
             Environment.Exit(0);
         };
         
         _trayIcon.Menu.Add(updateAllItem);
-        _trayIcon.Menu.Add(seperatorItem);
+        _trayIcon.Menu.Add(separatorItem);
         _trayIcon.Menu.Add(quitItem);
     }
 
@@ -177,7 +171,7 @@ public partial class MainWindow : Window
                 string[] values2 = values[1].TrimEnd('/').Split("/");
                 url = $"https://api.github.com/repos/{values2[0]}/{values2[1]}/releases/latest";
             }
-            catch (Exception ignored) {
+            catch (Exception) {
                 Console.WriteLine($"Failed to parse url: {TbxUrl.Text}");
                 url = "";
             }
@@ -237,7 +231,7 @@ public partial class MainWindow : Window
             Height = 25,
             Margin = new Thickness(10, 0, 0, 0)
         };
-        imgRemove.PointerPressed += (sender, args) =>
+        imgRemove.PointerPressed += (_, _) =>
         {
             _repos.Remove(repo);
             GrdTrackedRepos.Children.Clear();
@@ -245,22 +239,28 @@ public partial class MainWindow : Window
             FileManager.SaveRepos(_repos);
         };
 
-        Button btnUpdate = new();
-        btnUpdate.Content = "Update";
-        btnUpdate.Click += async (sender, args) =>
+        Button btnUpdate = new()
+        {
+            Content = "Update"
+        };
+        btnUpdate.Click += async (_, _) =>
         {
             await _updateManager.UpdateRepo(repo);
             FileManager.SaveRepos(_repos);
         };
         
-        TextBlock tbxName = new();
-        tbxName.DataContext = repo;
+        TextBlock tbxName = new()
+        {
+            DataContext = repo
+        };
         tbxName.Bind(TextBlock.TextProperty, new Binding(nameof(Repo.Name)));
 
-        TextBlock tbxUpdateVersion = new();
-        tbxUpdateVersion.Text = "Version";
-        tbxUpdateVersion.Foreground = Brushes.Orange;
-        tbxUpdateVersion.DataContext = repo;
+        TextBlock tbxUpdateVersion = new()
+        {
+            Text = "Version",
+            Foreground = Brushes.Orange,
+            DataContext = repo
+        };
         tbxUpdateVersion.Bind(
             TextBlock.TextProperty, 
             new MultiBinding
@@ -284,10 +284,12 @@ public partial class MainWindow : Window
             }
         };
 
-        Button btnFilePicker = new();
-        btnFilePicker.Content = "Select download location";
-        btnFilePicker.Background = Brushes.CornflowerBlue;
-        btnFilePicker.Click += async (sender, args) =>
+        Button btnFilePicker = new()
+        {
+            Content = "Select download location",
+            Background = Brushes.CornflowerBlue
+        };
+        btnFilePicker.Click += async (_, _) =>
         {
             TopLevel? topLevel = TopLevel.GetTopLevel(this);
             if (topLevel is null)
@@ -313,11 +315,12 @@ public partial class MainWindow : Window
         ComboBox cobAssets = new()
         {
             Width = 200,
-            ItemsSource =  repo.AssetNames
+            ItemsSource =  repo.AssetNames,
+            SelectedIndex = repo.DownloadAssetIndex,
+            Margin = new Thickness(10, 0)
         };
-        cobAssets.SelectedIndex = repo.DownloadAssetIndex;
 
-        cobAssets.SelectionChanged += (sender, args) =>
+        cobAssets.SelectionChanged += (_, _) =>
         {
             repo.DownloadAssetIndex = cobAssets.SelectedIndex;
             if (repo.AssetNames[repo.DownloadAssetIndex].Contains(".deb"))
@@ -337,10 +340,10 @@ public partial class MainWindow : Window
         ToggleSwitch tglExcludeFromDownloadAll = new ToggleSwitch
         {
             OnContent = null,
-            OffContent = null
+            OffContent = null,
+            IsChecked = repo.ExcludedFromDownloadAll
         };
-        tglExcludeFromDownloadAll.IsChecked = repo.ExcludedFromDownloadAll;
-        tglExcludeFromDownloadAll.Click += (sender, args) =>
+        tglExcludeFromDownloadAll.Click += (_, _) =>
         {
             repo.ExcludedFromDownloadAll = tglExcludeFromDownloadAll.IsChecked == true;
             FileManager.SaveRepos(_repos);
@@ -391,7 +394,7 @@ public partial class MainWindow : Window
         }
         File.WriteAllText(_patFilePath, TbxPat.Text);
         TbxPat.Text = "";
-        ToastText.Text = "Personal access token saved successfuly!";
+        ToastText.Text = "Personal access token saved successfully!";
         ToastPopup.IsOpen = true;
         await Task.Delay(2500);
         ToastPopup.IsOpen = false;
