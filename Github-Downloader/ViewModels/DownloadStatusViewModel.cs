@@ -1,12 +1,7 @@
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
+using Github_Downloader.ViewModels;
 
-namespace Github_Downloader.ViewModels;
-
-public sealed class DownloadStatusViewModel : INotifyPropertyChanged
+public class DownloadStatusViewModel : ViewModelBase
 {
-    public event PropertyChangedEventHandler? PropertyChanged;
-
     private string _statusText = "Checking for updates...";
     public string StatusText
     {
@@ -29,7 +24,4 @@ public sealed class DownloadStatusViewModel : INotifyPropertyChanged
             OnPropertyChanged();
         }
     }
-    
-    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 }

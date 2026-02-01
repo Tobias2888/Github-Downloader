@@ -27,12 +27,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <None Update="icon.png">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </None>
-    </ItemGroup>
-
-    <ItemGroup>
       <Compile Update="Views\DownloadStatus.axaml.cs">
         <DependentUpon>DownloadStatus.axaml</DependentUpon>
         <SubType>Code</SubType>
@@ -45,5 +39,11 @@
         <DependentUpon>App.axaml</DependentUpon>
         <SubType>Code</SubType>
       </Compile>
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Update="resources\icon.png">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 </Project>

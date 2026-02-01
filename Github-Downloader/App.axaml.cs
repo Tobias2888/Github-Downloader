@@ -3,11 +3,14 @@ using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Github_Downloader.ViewModels;
 
 namespace Github_Downloader;
 
 public partial class App : Application
 {
+    public MainViewModel MainViewModel { get; } = new();
+    
     public override void Initialize()
     {
         if (Process.GetProcessesByName(Process.GetCurrentProcess().ProcessName).Length > 1)

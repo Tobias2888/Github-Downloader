@@ -15,7 +15,9 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using FileLib;
+using Github_Downloader.ViewModels;
 
 namespace Github_Downloader;
 
@@ -30,9 +32,18 @@ public partial class MainWindow : Window
     private TrayIcon _trayIcon;
     private UpdateManager _updateManager;
     
-    private const string ResPath = "avares://Github-Downloader/resources";
+    private MainViewModel _mainViewModel;
+
+    private int _updateInterval = 5;
     
-    public MainWindow() => InitializeComponent();
+    private const string ResPath = "avares://Github-Downloader/resources/";
+    
+    public MainWindow()
+    {
+        InitializeComponent();
+        DataContext = ((App)Application.Current!).MainViewModel;
+        _mainViewModel = ((App)Application.Current!).MainViewModel;
+    }
 
     private async void Control_OnLoaded(object? sender, RoutedEventArgs e)
     {
@@ -64,23 +75,24 @@ public partial class MainWindow : Window
         
         LoadGrdTrackedRepos();
 
-        /*
+        
         DispatcherTimer timer = new();
         timer.Tick += (_, _) => SendNotification();
-        timer.Interval = TimeSpan.FromMilliseconds(100);
+        timer.Interval = TimeSpan.FromSeconds(_updateInterval);
         timer.Start();
-        */
+        
     }
 
     private void SendNotification()
     {
+        /*
         Process.Start(new ProcessStartInfo
         {
             FileName = "notify-send",
             Arguments = $"\"Github-Downloader\" \"Norification\"",
             UseShellExecute = false,
             CreateNoWindow = true
-        });
+        });*/
     }
 
     private void LoadGrdTrackedRepos()
@@ -106,7 +118,22 @@ public partial class MainWindow : Window
         {
             IsVisible = true,
             ToolTipText = "Github Downloader",
-            Icon = new WindowIcon(AppDomain.CurrentDomain.BaseDirectory + "icon.png")
+            Icon = new WindowIcon(new Bitmap(AssetLoader.Open(new Uri(Path.Join(ResPath + "icon.png")))))
+        };
+
+        _mainViewModel.PropertyChanged += (_, args) =>
+        {
+            Console.WriteLine("PropertyChanged: " + args.PropertyName);
+            if (args.PropertyName != nameof(MainViewModel.HasUpdates)) return;
+            
+            if (!_mainViewModel.HasUpdates)
+            {
+                _trayIcon.Icon = new WindowIcon(new Bitmap(AssetLoader.Open(new Uri(Path.Join(ResPath, "icon.png")))));
+            }
+            else
+            {
+                _trayIcon.Icon = new WindowIcon(new Bitmap(AssetLoader.Open(new Uri(Path.Join(ResPath, "icon_update.png")))));
+            }
         };
 
         _trayIcon.Clicked += (sender, args) =>
@@ -205,7 +232,7 @@ public partial class MainWindow : Window
 
         Image imgRemove = new()
         {
-            Source = new Bitmap(AssetLoader.Open(new Uri(Path.Join(ResPath, "trash.png")))),
+            Source = new Bitmap(AssetLoader.Open(new Uri(ResPath + "trash.png"))),
             Width = 25,
             Height = 25,
             Margin = new Thickness(10, 0, 0, 0)

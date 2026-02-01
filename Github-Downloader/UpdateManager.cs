@@ -7,6 +7,7 @@ using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Github_Downloader.ViewModels;
 
@@ -18,6 +19,7 @@ public class UpdateManager
     public required Window Owner;
     
     private DownloadStatusViewModel _vm = new();
+    private MainViewModel _mainViewModel = ((App)Application.Current!).MainViewModel;
 
     private DownloadStatus _downloadStatus;
     
@@ -41,6 +43,17 @@ public class UpdateManager
             await SearchForUpdates(repo);
         }
         _downloadStatus.Close();
+
+        foreach (Repo repo in repos)
+        {
+            if (repo.Tag != repo.CurrentInstallTag)
+            {
+                _mainViewModel.HasUpdates = true;
+                return;
+            }
+        }
+        
+        _mainViewModel.HasUpdates = false;
     }
 
     private async Task SearchForUpdates(Repo repo)
@@ -110,6 +123,7 @@ public class UpdateManager
         InstallDebs(debs);
         
         _downloadStatus.Close();
+        _mainViewModel.HasUpdates = false;
     }
     
     private async Task<Asset?> DownloadAsset(Repo repo)
