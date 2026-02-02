@@ -22,18 +22,10 @@ namespace Github_Downloader;
 
 public partial class MainWindow : Window
 {
-    private List<Repo> _repos;
+    private List<Repo> _repos = ((App)Application.Current!).Repos;
     private string _appdataPath;
     private string _cachePath;
-    private string _reposConfigFilePath;
     private string _patFilePath;
-    
-    private TrayIcon _trayIcon;
-    private UpdateManager _updateManager;
-    
-    private readonly MainViewModel _mainViewModel;
-
-    private readonly int _updateInterval = 5;
     
     private const string ResPath = "avares://Github-Downloader/resources/";
     
@@ -41,50 +33,19 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         DataContext = ((App)Application.Current!).MainViewModel;
-        _mainViewModel = ((App)Application.Current!).MainViewModel;
     }
 
-    private async void Control_OnLoaded(object? sender, RoutedEventArgs e)
+    private void Control_OnLoaded(object? sender, RoutedEventArgs e)
     {
-        Hide();
-        InitializeTrayIcon();
-        
         _appdataPath = Path.Join(DirectoryHelper.GetAppDataDirPath(), "github-downloader");
         _cachePath = Path.Join(DirectoryHelper.GetCacheDirPath(), "github-downloader");
-        _reposConfigFilePath = Path.Join(_appdataPath, "repos.json");
         _patFilePath = Path.Join(_appdataPath, "pat");
         DirectoryHelper.CreateDir(_appdataPath);
         DirectoryHelper.CreateDir(_cachePath);
 
-        _updateManager = new UpdateManager
-        {
-            CachePath = _cachePath,
-            Owner = this
-        };
-        
-        if (File.Exists(_reposConfigFilePath))
-        {
-            string jsonString = File.ReadAllText(_reposConfigFilePath);
-            _repos = JsonSerializer.Deserialize<List<Repo>>(jsonString);
-        }
-        else
-        {
-            _repos = new List<Repo>();
-        }
+        UpdateManager.Owner = this;
         
         LoadGrdTrackedRepos();
-        
-        DispatcherTimer timer = new();
-        timer.Tick += async (_, _) =>
-        {
-            await _updateManager.SearchForUpdates(_repos);
-            FileManager.SaveRepos(_repos);
-        };
-        timer.Interval = TimeSpan.FromMinutes(_updateInterval);
-        timer.Start();
-
-        await _updateManager.SearchForUpdates(_repos);
-        FileManager.SaveRepos(_repos);
     }
 
     private void SendNotification()
@@ -116,54 +77,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void InitializeTrayIcon()
-    {
-        _trayIcon = new TrayIcon
-        {
-            IsVisible = true,
-            ToolTipText = "Github Downloader",
-            Icon = new WindowIcon(new Bitmap(AssetLoader.Open(new Uri(Path.Join(ResPath + "icon.png")))))
-        };
-
-        _mainViewModel.PropertyChanged += (_, args) =>
-        {
-            Console.WriteLine("PropertyChanged: " + args.PropertyName);
-            if (args.PropertyName != nameof(MainViewModel.HasUpdates)) return;
-            
-            _trayIcon.Icon = !_mainViewModel.HasUpdates ? 
-                new WindowIcon(new Bitmap(AssetLoader.Open(new Uri(Path.Join(ResPath, "icon.png"))))) 
-                : new WindowIcon(new Bitmap(AssetLoader.Open(new Uri(Path.Join(ResPath, "icon_update.png")))));
-        };
-
-        _trayIcon.Clicked += (_, _) =>
-        {
-            switch (IsVisible)
-            {
-                case true: Hide(); break;
-                case false: Show(); break;
-            }
-        };
-
-        _trayIcon.Menu = new NativeMenu();
-
-        NativeMenuItem updateAllItem = new("Update All");
-        updateAllItem.Click += (sender, _) =>
-        {
-            BtnUpdateAll_OnClick(sender, null);
-        };
-
-        NativeMenuItem separatorItem = new NativeMenuItemSeparator();
-        
-        NativeMenuItem quitItem = new ("Quit");
-        quitItem.Click += (_, _) =>
-        {
-            Environment.Exit(0);
-        };
-        
-        _trayIcon.Menu.Add(updateAllItem);
-        _trayIcon.Menu.Add(separatorItem);
-        _trayIcon.Menu.Add(quitItem);
-    }
+    
 
     private async void BtnAddRepo_OnClick(object? sender, RoutedEventArgs e)
     {
@@ -234,7 +148,7 @@ public partial class MainWindow : Window
             Source = new Bitmap(AssetLoader.Open(new Uri(ResPath + "trash.png"))),
             Width = 25,
             Height = 25,
-            Margin = new Thickness(10, 0, 0, 0)
+            Margin = new(10, 0, 0, 0)
         };
         imgRemove.PointerPressed += (_, _) =>
         {
@@ -250,7 +164,7 @@ public partial class MainWindow : Window
         };
         btnUpdate.Click += async (_, _) =>
         {
-            await _updateManager.UpdateRepo(repo);
+            await UpdateManager.UpdateRepo(repo);
             FileManager.SaveRepos(_repos);
         };
         
@@ -381,13 +295,13 @@ public partial class MainWindow : Window
 
     private async void BtnSearchForUpdates_OnClick(object? sender, RoutedEventArgs e)
     {
-        await _updateManager.SearchForUpdates(_repos);
+        await UpdateManager.SearchForUpdates(_repos);
         FileManager.SaveRepos(_repos);
     }
     
-    private async void BtnUpdateAll_OnClick(object? sender, RoutedEventArgs e)
+    public async void BtnUpdateAll_OnClick(object? sender, RoutedEventArgs e)
     {
-        await _updateManager.UpdateRepos(_repos);
+        await UpdateManager.UpdateRepos(_repos);
         FileManager.SaveRepos(_repos);
     }
 
