@@ -20,9 +20,12 @@ public partial class App : Application
 {
     public MainViewModel MainViewModel { get; } = new();
     public DownloadStatusViewModel DownloadStatusViewModel { get; } = new();
+    public HomeViewModel HomeViewModel { get; } = new();
+    public RepoDetailsViewModel RepoDetailsViewModel { get; } = new();
+    
     public List<Repo> Repos;
     
-    private MainWindow? _mainWindow;
+    public MainWindow? MainWindow;
     private TrayIcon _trayIcon;
     
     private const string ResPath = "avares://Github-Downloader/resources/";
@@ -70,6 +73,10 @@ public partial class App : Application
         DispatcherTimer timer = new();
         timer.Tick += async (_, _) =>
         {
+            if (MainWindow?.IsVisible == true)
+            {
+                return;
+            }
             await UpdateManager.SearchForUpdates(Repos);
             FileManager.SaveRepos(Repos);
         };
@@ -82,11 +89,11 @@ public partial class App : Application
     
     private void InitializeTrayIcon()
     {
-        _trayIcon = new TrayIcon
+        _trayIcon = new()
         {
             IsVisible = true,
             ToolTipText = "Github Downloader",
-            Icon = new WindowIcon(new Bitmap(AssetLoader.Open(new Uri(Path.Join(ResPath + "icon.png")))))
+            Icon = new(new Bitmap(AssetLoader.Open(new(Path.Join(ResPath + "icon.png")))))
         };
 
         MainViewModel.PropertyChanged += (_, args) =>
@@ -94,31 +101,31 @@ public partial class App : Application
             if (args.PropertyName != nameof(MainViewModel.HasUpdates)) return;
             
             _trayIcon.Icon = !MainViewModel.HasUpdates ? 
-                new WindowIcon(new Bitmap(AssetLoader.Open(new Uri(Path.Join(ResPath, "icon.png"))))) 
-                : new WindowIcon(new Bitmap(AssetLoader.Open(new Uri(Path.Join(ResPath, "icon_update.png")))));
+                new(new Bitmap(AssetLoader.Open(new(Path.Join(ResPath, "icon.png"))))) 
+                : new(new Bitmap(AssetLoader.Open(new(Path.Join(ResPath, "icon_update.png")))));
         };
 
         _trayIcon.Clicked += (_, _) =>
         {
-            if (_mainWindow is null)
+            if (MainWindow is null)
             {
                 if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
                 {
-                    _mainWindow = new();
-                    desktop.MainWindow = _mainWindow;
+                    MainWindow = new();
+                    desktop.MainWindow = MainWindow;
                 }
             }
-            switch (_mainWindow?.IsVisible)
+            switch (MainWindow?.IsVisible)
             {
-                case true: _mainWindow.Hide(); break;
-                case false: _mainWindow.Show(); break;
+                case true: MainWindow.Hide(); break;
+                case false: MainWindow.Show(); break;
             }
         };
 
-        _trayIcon.Menu = new NativeMenu();
+        _trayIcon.Menu = [];
 
         NativeMenuItem updateAllItem = new("Update All");
-        updateAllItem.Click += async (sender, _) =>
+        updateAllItem.Click += async (_, _) =>
         {
             await UpdateManager.UpdateRepos(Repos);
             FileManager.SaveRepos(Repos);

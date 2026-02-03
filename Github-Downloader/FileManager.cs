@@ -1,15 +1,18 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
+using Avalonia;
 using FileLib;
+using Github_Downloader.ViewModels;
 
 namespace Github_Downloader;
 
 public static class FileManager
 {
-    private static readonly string AppdataPath = Path.Join(DirectoryHelper.GetAppDataDirPath(), "github-downloader");
-    private static readonly string ReposConfigFilePath = Path.Join(AppdataPath, "repos.json");
-    private static readonly string PatFilePath = Path.Join(AppdataPath, "pat");
+    private static readonly MainViewModel MainViewModel = ((App)Application.Current!).MainViewModel;
+    
+    private static readonly string ReposConfigFilePath = Path.Join(MainViewModel.AppdataPath, "repos.json");
+    private static readonly string PatFilePath = Path.Join(MainViewModel.AppdataPath, "pat");
     
     public static void SaveRepos(List<Repo> repos)
     {

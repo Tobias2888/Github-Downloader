@@ -27,16 +27,16 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Compile Update="Views\DownloadStatus.axaml.cs">
-        <DependentUpon>DownloadStatus.axaml</DependentUpon>
-        <SubType>Code</SubType>
-      </Compile>
       <Compile Update="Views\MainWindow.axaml.cs">
         <DependentUpon>MainWindow.axaml</DependentUpon>
         <SubType>Code</SubType>
       </Compile>
       <Compile Update="App.axaml.cs">
         <DependentUpon>App.axaml</DependentUpon>
+        <SubType>Code</SubType>
+      </Compile>
+      <Compile Update="Views\DownloadStatus.axaml.cs">
+        <DependentUpon>DownloadStatus.axaml</DependentUpon>
         <SubType>Code</SubType>
       </Compile>
     </ItemGroup>
