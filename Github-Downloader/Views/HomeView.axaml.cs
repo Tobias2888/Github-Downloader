@@ -13,7 +13,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
-using Avalonia.Platform.Storage;
+using Github_Downloader.Enums;
 using Github_Downloader.ViewModels;
 
 namespace Github_Downloader.Views;
@@ -185,6 +185,13 @@ public partial class HomeView : UserControl
             }
         };
 
+        Button btnMore = new()
+        {
+            Content = "More"
+        };
+        btnMore.Click += (_, _) => _mainViewModel.SwitchPage(ViewNames.RepoDetails);
+        
+        /*
         Button btnFilePicker = new()
         {
             Content = "Select download location",
@@ -211,19 +218,20 @@ public partial class HomeView : UserControl
                 repo.DownloadPath = path;
                 FileManager.SaveRepos(_repos);
             }
-        };
+        };*/
 
         ComboBox cobAssets = new()
         {
             Width = 200,
             ItemsSource =  repo.AssetNames,
             SelectedIndex = repo.DownloadAssetIndex,
-            Margin = new Thickness(10, 0)
+            Margin = new(10, 0)
         };
 
         cobAssets.SelectionChanged += (_, _) =>
         {
             repo.DownloadAssetIndex = cobAssets.SelectedIndex;
+            /*
             if (repo.AssetNames[repo.DownloadAssetIndex].Contains(".deb"))
             {
                 GrdTrackedRepos.Children.Remove(btnFilePicker);
@@ -234,7 +242,7 @@ public partial class HomeView : UserControl
                 {
                     GrdTrackedRepos.Children.Add(btnFilePicker);
                 }
-            }
+            }*/
             FileManager.SaveRepos(_repos);
         };
 
@@ -265,14 +273,18 @@ public partial class HomeView : UserControl
         Grid.SetColumn(imgRemove, 5);
         Grid.SetRow(imgRemove, GrdTrackedRepos.RowDefinitions.Count -1);
         GrdTrackedRepos.Children.Add(imgRemove);
+        Grid.SetColumn(btnMore, 1);
+        Grid.SetRow(btnMore, GrdTrackedRepos.RowDefinitions.Count -1);
+        GrdTrackedRepos.Children.Add(btnMore);
+        
         //grid.Children.Add(btnUninstall);
-
+/*
         if (!repo.AssetNames[repo.DownloadAssetIndex].Contains(".deb"))
         {
             Grid.SetColumn(btnFilePicker, 1);
             Grid.SetRow(btnFilePicker, GrdTrackedRepos.RowDefinitions.Count -1);
             GrdTrackedRepos.Children.Add(btnFilePicker);
-        }
+        }*/
     }
 
     private async void BtnSearchForUpdates_OnClick(object? sender, RoutedEventArgs e)
