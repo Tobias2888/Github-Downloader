@@ -75,7 +75,6 @@ public static class UpdateManager
         
         Response response = JsonSerializer.Deserialize<Response>(await httpResponse.Content.ReadAsStringAsync());
         repo.DownloadUrls = response.assets.ToList().Select(asset => asset.url).ToList();
-        repo.Name = response.name;
         repo.Tag = response.tag_name;
     }
 

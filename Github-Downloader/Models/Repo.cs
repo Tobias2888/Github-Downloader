@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 using FileLib;
 
@@ -8,8 +9,8 @@ namespace Github_Downloader;
 public class Repo : INotifyPropertyChanged
 {
     public required string Url { get; set; }
+    
     private string _name = string.Empty;
-
     public required string Name
     {
         get => _name;
@@ -25,6 +26,7 @@ public class Repo : INotifyPropertyChanged
         }
     }
 
+    public string Description { get; set; } = "No description available";
     public int DownloadAssetIndex { get; set; }
     public required List<string> AssetNames { get; set; }
     public required List<string> DownloadUrls { get; set; }

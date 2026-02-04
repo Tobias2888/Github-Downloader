@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Data;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Github_Downloader.Enums;
@@ -19,6 +20,27 @@ public partial class RepoDetailsView : UserControl
         _mainViewModel = ((App)Application.Current!).MainViewModel;
         _repoDetailsViewModel = ((App)Application.Current!).RepoDetailsViewModel;
         DataContext = _repoDetailsViewModel;
+    }
+
+    private void Control_OnLoaded(object? sender, RoutedEventArgs e)
+    {
+        LblDownloadPath.DataContext = _repoDetailsViewModel.Repo;
+        LblDownloadPath.Bind(
+            ContentProperty,
+            new MultiBinding
+            {
+                StringFormat = "Download Path: {0}",
+                Bindings =
+                {
+                    new Binding(nameof(_repoDetailsViewModel.Repo.DownloadPath))
+                }
+            });
+
+        TbxRepoName.DataContext = _repoDetailsViewModel.Repo;
+        TbxRepoName.Bind(TextBox.TextProperty, new Binding(nameof(_repoDetailsViewModel.Repo.Name)));
+        
+        TbxDescription.DataContext = _repoDetailsViewModel.Repo;
+        TbxDescription.Bind(TextBox.TextProperty, new Binding(nameof(_repoDetailsViewModel.Repo.Description)));
     }
 
     private void BtnBack_OnClick(object? sender, RoutedEventArgs e)

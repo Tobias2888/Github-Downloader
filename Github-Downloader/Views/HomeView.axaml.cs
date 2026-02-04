@@ -23,6 +23,7 @@ public partial class HomeView : UserControl
     private List<Repo> _repos = ((App)Application.Current!).Repos;
     private readonly MainViewModel _mainViewModel;
     private readonly HomeViewModel _homeViewModel;
+    private readonly RepoDetailsViewModel _repoDetailsViewModel;
     
     private const string ResPath = "avares://Github-Downloader/resources/";
     
@@ -31,6 +32,7 @@ public partial class HomeView : UserControl
         InitializeComponent();
         _mainViewModel = ((App)Application.Current!).MainViewModel;
         _homeViewModel = ((App)Application.Current!).HomeViewModel;
+        _repoDetailsViewModel = ((App)Application.Current!).RepoDetailsViewModel;
         DataContext = _homeViewModel;
     }
 
@@ -55,6 +57,8 @@ public partial class HomeView : UserControl
 
     private void LoadGrdTrackedRepos()
     {
+        if (Design.IsDesignMode) return;
+        
         foreach (Repo repo in _repos)
         {
             CreateTrackedRepoEntry(repo);
@@ -63,43 +67,60 @@ public partial class HomeView : UserControl
 
     private async void BtnAddRepo_OnClick(object? sender, RoutedEventArgs e)
     {
-        string url;
+        string publisherName = "";
+        string repoName = "";
         if (!string.IsNullOrEmpty(TbxUrl.Text))
         {
             try
             {
                 string[] values = TbxUrl.Text.Split("github.com/");
                 string[] values2 = values[1].TrimEnd('/').Split("/");
-                url = $"https://api.github.com/repos/{values2[0]}/{values2[1]}/releases/latest";
+                publisherName = values2[0];
+                repoName = values2[1];
             }
             catch (Exception) {
                 Console.WriteLine($"Failed to parse url: {TbxUrl.Text}");
-                url = "";
             }
         }
         else
         {
-            url = $"https://api.github.com/repos/{TbxOwner.Text}/{TbxRepo.Text}/releases/latest";
+            publisherName = TbxOwner.Text;
+            repoName = TbxRepo.Text;
         }
         
-        HttpResponseMessage httpResponse = await Api.GetRequest(url, FileManager.GetPat());
+        string url = $"https://api.github.com/repos/{publisherName}/{repoName}/releases/latest";
+        string repoUrl = $"https://api.github.com/repos/{publisherName}/{repoName}";
         
-        if (httpResponse == null || !httpResponse.IsSuccessStatusCode)
+        HttpResponseMessage httpRepoResponse = await Api.GetRequest(repoUrl, FileManager.GetPat());
+        if (httpRepoResponse == null || !httpRepoResponse.IsSuccessStatusCode)
         {
-            Console.WriteLine("Failed to fetch releases");
-            ToastText.Text = $"Failed to fetch release of: {TbxUrl.Text}";
+            Console.WriteLine("Failed to fetch repo");
+            ToastText.Text = $"Failed to fetch repo: {repoUrl}";
             ToastPopup.IsOpen = true;
             await Task.Delay(2500);
             ToastPopup.IsOpen = false;
             return;
         }
         
+        HttpResponseMessage httpResponse = await Api.GetRequest(url, FileManager.GetPat());
+        if (httpResponse == null || !httpResponse.IsSuccessStatusCode)
+        {
+            Console.WriteLine("Failed to fetch releases");
+            ToastText.Text = $"Failed to fetch release of: {url}";
+            ToastPopup.IsOpen = true;
+            await Task.Delay(2500);
+            ToastPopup.IsOpen = false;
+            return;
+        }
+        
+        RepoResponse repoResponse = JsonSerializer.Deserialize<RepoResponse>(await httpRepoResponse.Content.ReadAsStringAsync());
         Response response = JsonSerializer.Deserialize<Response>(await httpResponse.Content.ReadAsStringAsync());
 
         Repo repo = new()
         {
             Url = url,
-            Name = response.name,
+            Name = repoResponse.full_name,
+            Description = repoResponse.description,
             AssetNames = response.assets.ToList().Select(asset  => asset.name).ToList(),
             DownloadUrls = response.assets.ToList().Select(asset => asset.url).ToList(),
             Tag = response.tag_name
@@ -189,7 +210,11 @@ public partial class HomeView : UserControl
         {
             Content = "More"
         };
-        btnMore.Click += (_, _) => _mainViewModel.SwitchPage(ViewNames.RepoDetails);
+        btnMore.Click += (_, _) =>
+        {
+            _repoDetailsViewModel.Repo = repo;
+            _mainViewModel.SwitchPage(ViewNames.RepoDetails);
+        };
         
         /*
         Button btnFilePicker = new()

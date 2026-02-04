@@ -2,13 +2,22 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:viewModel="clr-namespace:Github_Downloader.Views"
+             xmlns:viewModels="clr-namespace:Github_Downloader.ViewModels"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="Github_Downloader.Views.RepoDetailsView"
-             x:DataType="viewModel:RepoDetailsView">
+             x:DataType="viewModels:RepoDetailsViewModel"
+             Loaded="Control_OnLoaded">
     
-    <StackPanel>
-        <Button Name="BtnBack" Content="Zurück" Click="BtnBack_OnClick"/>
+    <StackPanel Margin="25">
+        <StackPanel Orientation="Horizontal" Margin="0, 0, 0, 15">
+            <Button Name="BtnBack" Content="Zurück" Click="BtnBack_OnClick"/>
+            <TextBlock Name="TbxRepoName" Text="Repo-name" Classes="Title" Margin="20, 0"/>
+        </StackPanel>
+        <StackPanel >
+            <TextBlock Text="Descriptoin:" Classes="SubTitle" Margin="0, 0, 0, 5"/>
+            <TextBlock Name="TbxDescription" Text="This is the description"/>
+        </StackPanel>
         <Button Name="BtnFilePicker" Content="Select download location" Click="BtnFilePicker_OnClick"/>
+        <Label Name="LblDownloadPath" Content="föalskdjf"/>
     </StackPanel>
 </UserControl>
