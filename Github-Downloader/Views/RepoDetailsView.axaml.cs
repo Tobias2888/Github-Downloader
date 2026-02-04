@@ -41,6 +41,13 @@ public partial class RepoDetailsView : UserControl
         
         TbxDescription.DataContext = _repoDetailsViewModel.Repo;
         TbxDescription.Bind(TextBox.TextProperty, new Binding(nameof(_repoDetailsViewModel.Repo.Description)));
+
+        if (!Design.IsDesignMode)
+        {
+            TbxVersion.Text = "Version: " + (_repoDetailsViewModel.Repo.CurrentInstallTag == _repoDetailsViewModel.Repo.Tag
+                ? _repoDetailsViewModel.Repo.CurrentInstallTag
+                : $"{_repoDetailsViewModel.Repo.CurrentInstallTag} -> {_repoDetailsViewModel.Repo.Tag}");
+        }
     }
 
     private void BtnBack_OnClick(object? sender, RoutedEventArgs e)

@@ -12,6 +12,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
 using FileLib;
+using Github_Downloader.Enums;
 using Github_Downloader.ViewModels;
 
 namespace Github_Downloader;
@@ -117,7 +118,10 @@ public partial class App : Application
             }
             switch (MainWindow?.IsVisible)
             {
-                case true: MainWindow.Hide(); break;
+                case true: 
+                    MainWindow.Hide(); 
+                    MainViewModel.SwitchPage(ViewNames.Home);
+                    break;
                 case false: MainWindow.Show(); break;
             }
         };

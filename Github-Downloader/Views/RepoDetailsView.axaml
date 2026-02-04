@@ -9,12 +9,14 @@
              Loaded="Control_OnLoaded">
     
     <StackPanel Margin="25">
-        <StackPanel Orientation="Horizontal" Margin="0, 0, 0, 15">
+        <Grid ColumnDefinitions="Auto, *, Auto" Margin="0, 0, 0, 15">
             <Button Name="BtnBack" Content="Zurück" Click="BtnBack_OnClick"/>
-            <TextBlock Name="TbxRepoName" Text="Repo-name" Classes="Title" Margin="20, 0"/>
-        </StackPanel>
+            <TextBlock Name="TbxRepoName" Text="Repo-name" Classes="Title" Grid.Column="1" Margin="20, 0"/>
+            <TextBlock Name="TbxGithubLink" Text="Link" Grid.Column="2"/>
+        </Grid>
+        <TextBlock Name="TbxVersion" Text="Version" Margin="0, 0, 0, 15"/>
         <StackPanel >
-            <TextBlock Text="Descriptoin:" Classes="SubTitle" Margin="0, 0, 0, 5"/>
+            <TextBlock Text="Description:" Classes="SubTitle" Margin="0, 0, 0, 5"/>
             <TextBlock Name="TbxDescription" Text="This is the description"/>
         </StackPanel>
         <Button Name="BtnFilePicker" Content="Select download location" Click="BtnFilePicker_OnClick"/>

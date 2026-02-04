@@ -16,6 +16,7 @@ using Avalonia.Platform;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using FileLib;
+using Github_Downloader.Enums;
 using Github_Downloader.ViewModels;
 
 namespace Github_Downloader;
@@ -36,6 +37,7 @@ public partial class MainWindow : Window
         if (e.CloseReason == WindowCloseReason.WindowClosing)
         {
             Hide();
+            _mainViewModel.SwitchPage(ViewNames.Home);
             e.Cancel = true;
         }
     }
