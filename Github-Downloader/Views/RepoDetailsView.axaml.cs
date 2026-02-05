@@ -1,7 +1,9 @@
 using System.Collections.Generic;
+using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Data;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Github_Downloader.Enums;
@@ -48,6 +50,12 @@ public partial class RepoDetailsView : UserControl
                 ? _repoDetailsViewModel.Repo.CurrentInstallTag
                 : $"{_repoDetailsViewModel.Repo.CurrentInstallTag} -> {_repoDetailsViewModel.Repo.Tag}");
         }
+
+        TbxGithubLink.DataContext = _repoDetailsViewModel.Repo;
+        TbxGithubLink.Bind(TextBlock.TextProperty, new Binding(nameof(_repoDetailsViewModel.Repo.GitHubLink)));
+        
+        TbxChangelog.DataContext = _repoDetailsViewModel.Repo;
+        TbxChangelog.Bind(TextBlock.TextProperty, new Binding(nameof(_repoDetailsViewModel.Repo.LatestChangelog)));
     }
 
     private void BtnBack_OnClick(object? sender, RoutedEventArgs e)
@@ -80,5 +88,22 @@ public partial class RepoDetailsView : UserControl
             _repoDetailsViewModel.Repo.DownloadPath = path;
             FileManager.SaveRepos(((App)Application.Current!).Repos);
         }
+    }
+
+    private void TbxGithubLink_OnPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = ((TextBlock)sender).Text,
+            UseShellExecute = true
+        });
+    }
+
+    private async void Button_OnClick(object? sender, RoutedEventArgs e)
+    {
+        List<Repo> repos = ((App)Application.Current!).Repos;
+        await UpdateManager.SearchForUpdates(repos);
+        await UpdateManager.UpdateRepo(_repoDetailsViewModel.Repo);
+        FileManager.SaveRepos(repos);
     }
 }

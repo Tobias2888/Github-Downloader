@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 using FileLib;
 
@@ -60,6 +59,31 @@ public class Repo : INotifyPropertyChanged
             _currentInstallTag = value;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CurrentInstallTag)));
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsUpToDate)));
+        }
+    }
+    
+    private string _githubLink = string.Empty;
+    public string GitHubLink
+    {
+        get => _githubLink;
+        set
+        {
+            if (_githubLink == value) return;
+            _githubLink = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(GitHubLink)));
+        }
+    }
+    
+    private string _latestChangelog = string.Empty;
+
+    public string LatestChangelog
+    {
+        get => _latestChangelog;
+        set
+        {
+            if (_latestChangelog == value) return;
+            _latestChangelog = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LatestChangelog)));
         }
     }
 

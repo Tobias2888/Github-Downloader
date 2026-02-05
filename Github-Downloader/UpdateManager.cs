@@ -44,6 +44,29 @@ public static class UpdateManager
         _downloadStatus?.Close();
     }
 
+    public static async Task UpdateRepoDetails(List<Repo> repos)
+    {
+        foreach (Repo repo in repos)
+        {
+            HttpResponseMessage httpRepoResponse = await Api.GetRequest(repo.Url.Replace("/releases/latest", ""), FileManager.GetPat());
+            if (httpRepoResponse == null || !httpRepoResponse.IsSuccessStatusCode)
+            {
+                Console.WriteLine("Failed to fetch repo");
+                return;
+            }
+        
+            RepoResponse repoResponse = JsonSerializer.Deserialize<RepoResponse>(await httpRepoResponse.Content.ReadAsStringAsync());
+            if (repoResponse == null)
+            {
+                return;
+            }
+            
+            repo.Name = repoResponse.full_name;
+            repo.Description = repoResponse.description;
+            repo.GitHubLink = repoResponse.html_url;
+        }
+    }
+
     public static async Task SearchForUpdates(List<Repo> repos)
     {
         ShowDialog();
@@ -74,8 +97,10 @@ public static class UpdateManager
         }
         
         Response response = JsonSerializer.Deserialize<Response>(await httpResponse.Content.ReadAsStringAsync());
+        repo.AssetNames = response.assets.ToList().Select(asset => asset.name).ToList();
         repo.DownloadUrls = response.assets.ToList().Select(asset => asset.url).ToList();
         repo.Tag = response.tag_name;
+        repo.LatestChangelog = response.body;
     }
 
     public static async Task UpdateRepo(Repo repo)

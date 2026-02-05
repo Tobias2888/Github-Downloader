@@ -12,14 +12,30 @@
         <Grid ColumnDefinitions="Auto, *, Auto" Margin="0, 0, 0, 15">
             <Button Name="BtnBack" Content="Zurück" Click="BtnBack_OnClick"/>
             <TextBlock Name="TbxRepoName" Text="Repo-name" Classes="Title" Grid.Column="1" Margin="20, 0"/>
-            <TextBlock Name="TbxGithubLink" Text="Link" Grid.Column="2"/>
+            <TextBlock Grid.Column="2" 
+                Name="TbxGithubLink" 
+                Text="Link" 
+                Foreground="DodgerBlue"
+                TextDecorations="Underline"
+                Cursor="Hand"
+                PointerPressed="TbxGithubLink_OnPointerPressed"/>
         </Grid>
-        <TextBlock Name="TbxVersion" Text="Version" Margin="0, 0, 0, 15"/>
-        <StackPanel >
-            <TextBlock Text="Description:" Classes="SubTitle" Margin="0, 0, 0, 5"/>
-            <TextBlock Name="TbxDescription" Text="This is the description"/>
-        </StackPanel>
-        <Button Name="BtnFilePicker" Content="Select download location" Click="BtnFilePicker_OnClick"/>
-        <Label Name="LblDownloadPath" Content="föalskdjf"/>
+        <Grid ColumnDefinitions="*, *">
+            <StackPanel Grid.Column="0">
+                <TextBlock Name="TbxVersion" Text="Version" Margin="0, 0, 0, 15"/>
+                <Button Content="Update" Click="Button_OnClick"></Button>
+                <StackPanel >
+                    <TextBlock Text="Description:" Classes="SubTitle" Margin="0, 0, 0, 5"/>
+                    <TextBlock Name="TbxDescription" Text="This is the description"/>
+                </StackPanel>
+                <Button Name="BtnFilePicker" Content="Select download location" Click="BtnFilePicker_OnClick"/>
+                <Label Name="LblDownloadPath" Content="föalskdjf"/>
+            </StackPanel>
+            
+            <StackPanel Grid.Column="1">
+                <TextBlock Text="Changelog:" Classes="SubTitle" Margin="0, 0, 0, 15"/>
+                <TextBlock Name="TbxChangelog" Text="This is the changelog"/>
+            </StackPanel>
+        </Grid>
     </StackPanel>
 </UserControl>
