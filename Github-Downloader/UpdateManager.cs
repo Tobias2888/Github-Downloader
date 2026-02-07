@@ -94,11 +94,21 @@ public static class UpdateManager
             DownloadStatusViewModel.StatusText = $"Checking for {repo.Name}";
             ShowDialog();
         }
+
+        string responseUrl;
+        if (repo.TargetTag == "latest")
+        {
+            responseUrl = repo.Url;
+        }
+        else
+        {
+            responseUrl = $"https://api.github.com/repos/{repo.Name}/releases/tags/{repo.TargetTag}";
+        }
         
-        HttpResponseMessage httpResponse = await Api.GetRequest(repo.Url, FileManager.GetPat());
+        HttpResponseMessage httpResponse = await Api.GetRequest(responseUrl, FileManager.GetPat());
         if (!httpResponse.IsSuccessStatusCode)
         {
-            Console.WriteLine($"Failed to fetch release of: {repo.Url}");
+            Console.WriteLine($"Failed to fetch release of: {responseUrl}");
             return;
         }
         
@@ -107,8 +117,8 @@ public static class UpdateManager
         {
             repo.AssetNames = response.assets.ToList().Select(asset => asset.name).ToList();
             repo.DownloadUrls = response.assets.ToList().Select(asset => asset.url).ToList();
-            repo.Tag = response.tag_name;
             repo.LatestChangelog = response.body;
+            repo.Tag = response.tag_name;
         }
 
         string tagsUrl = $"https://api.github.com/repos/{repo.Name}/tags";
@@ -187,6 +197,7 @@ public static class UpdateManager
     
     private static async Task<Asset?> DownloadAsset(Repo repo, bool downloadAnyways = false)
     {
+        Console.WriteLine($"{repo.Tag} -> {repo.CurrentInstallTag}");
         if (!downloadAnyways && repo.Tag == repo.CurrentInstallTag)
         {
             return null;
@@ -227,7 +238,7 @@ public static class UpdateManager
             return;
         }
         
-        string installCommand = "pkexec apt-get install -y ";
+        string installCommand = "pkexec apt-get install -y --allow-downgrades ";
         foreach (string debPath in debPaths)
         {
             if (!debPath.Contains(".deb"))

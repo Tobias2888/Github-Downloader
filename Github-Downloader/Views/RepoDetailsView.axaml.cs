@@ -55,9 +55,10 @@ public partial class RepoDetailsView : UserControl
 
         CobVersion.ItemsSource = _repoDetailsViewModel.Repo.Tags;
         CobVersion.SelectedIndex = _repoDetailsViewModel.Repo.Tags.IndexOf(_repoDetailsViewModel.Repo.TargetTag);
-        CobVersion.SelectionChanged += (o, args) =>
+        CobVersion.SelectionChanged += async (o, args) =>
         {
             _repoDetailsViewModel.Repo.TargetTag = _repoDetailsViewModel.Repo.Tags[CobVersion.SelectedIndex];
+            await UpdateManager.SearchForUpdates(_repoDetailsViewModel.Repo);
             FileManager.SaveRepos(((App)Application.Current!).Repos);
         };
         
