@@ -13,15 +13,14 @@
   <!-- Layout -->
   <!-- ===================== -->
   <Grid RowDefinitions="Auto,*" Margin="20">
-
-    <!-- Header -->
-    <Border Background="#1E1E1E" CornerRadius="12" Padding="16">
-      <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
-          <TextBlock Text="GitHub Repository Tracker" Classes="Title"/>
-      </StackPanel>
-    </Border>
-
-    <!-- Content -->
+      <!-- Header -->
+      <Border Background="#1E1E1E" CornerRadius="12" Padding="16">
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
+              <TextBlock Text="GitHub Repository Tracker" Classes="Title"/>
+          </StackPanel>
+      </Border>
+      
+      <!-- Content -->
     <Grid Grid.Row="1"
           ColumnDefinitions="2*,20,3*"
           Margin="0,20,0,0">
@@ -58,8 +57,15 @@
             </Grid>
             <Separator Margin="0, 5, 0, 25"></Separator>
 
-            <Grid Name="GrdTrackedRepos" ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto">
-                
+            <Grid Name="GrdTrackedRepos" ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto" RowDefinitions="*">
+                <!--
+                <TextBlock Text="Repo name" Grid.Column="0" Classes="SubTitle" Margin="0, 0, 0, 15"/>
+                <TextBlock Text="1" Grid.Column="1" Classes="SubTitle" Margin="0, 0, 0, 15"/>
+                <TextBlock Text="2" Grid.Column="2" Classes="SubTitle" Margin="0, 0, 0, 15"/>
+                <TextBlock Text="Exclude from update-all" Grid.Column="3" Classes="SubTitle" Margin="0, 0, 0, 15"/>
+                <TextBlock Text="4" Grid.Column="4" Classes="SubTitle" Margin="0, 0, 0, 15"/>
+                <TextBlock Text="5" Grid.Column="5" Classes="SubTitle" Margin="0, 0, 0, 15"/>
+                -->
             </Grid>
         </StackPanel>
       </Border>

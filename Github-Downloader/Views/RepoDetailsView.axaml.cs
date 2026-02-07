@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Data;
@@ -26,9 +27,17 @@ public partial class RepoDetailsView : UserControl
 
     private void Control_OnLoaded(object? sender, RoutedEventArgs e)
     {
-        LblDownloadPath.DataContext = _repoDetailsViewModel.Repo;
-        LblDownloadPath.Bind(
-            ContentProperty,
+        if (Design.IsDesignMode) return;
+        
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && 
+            _repoDetailsViewModel.Repo.AssetNames[_repoDetailsViewModel.Repo.DownloadAssetIndex].EndsWith(".deb"))
+        {
+            StpDownloadPath.IsVisible = false;
+        }
+        
+        TbxDownloadPath.DataContext = _repoDetailsViewModel.Repo;
+        TbxDownloadPath.Bind(
+            TextBlock.TextProperty,
             new MultiBinding
             {
                 StringFormat = "Download Path: {0}",
@@ -44,12 +53,26 @@ public partial class RepoDetailsView : UserControl
         TbxDescription.DataContext = _repoDetailsViewModel.Repo;
         TbxDescription.Bind(TextBox.TextProperty, new Binding(nameof(_repoDetailsViewModel.Repo.Description)));
 
-        if (!Design.IsDesignMode)
-        {
-            TbxVersion.Text = "Version: " + (_repoDetailsViewModel.Repo.CurrentInstallTag == _repoDetailsViewModel.Repo.Tag
-                ? _repoDetailsViewModel.Repo.CurrentInstallTag
-                : $"{_repoDetailsViewModel.Repo.CurrentInstallTag} -> {_repoDetailsViewModel.Repo.Tag}");
-        }
+        CobVersion.Items.Add("latest");
+        CobVersion.SelectedIndex = 0;
+        
+        TbxVersion.DataContext = _repoDetailsViewModel.Repo;
+        TbxVersion.Bind(TextBox.TextProperty, new Binding(nameof(_repoDetailsViewModel.Repo.CurrentInstallTag)));
+        TbxVersion.Bind(IsVisibleProperty, new Binding(nameof(_repoDetailsViewModel.Repo.IsUpToDate)));
+        
+        TbxUpdateVersion.DataContext = _repoDetailsViewModel.Repo;
+        TbxUpdateVersion.Bind(
+            TextBox.TextProperty,
+            new MultiBinding
+            {
+                StringFormat = "{0} -> {1}",
+                Bindings =
+                {
+                    new Binding(nameof(_repoDetailsViewModel.Repo.CurrentInstallTag)),
+                    new Binding(nameof(_repoDetailsViewModel.Repo.Tag)),
+                }
+            });
+        TbxUpdateVersion.Bind(IsVisibleProperty, new Binding("!" + nameof(_repoDetailsViewModel.Repo.IsUpToDate)));
 
         TbxGithubLink.DataContext = _repoDetailsViewModel.Repo;
         TbxGithubLink.Bind(TextBlock.TextProperty, new Binding(nameof(_repoDetailsViewModel.Repo.GitHubLink)));
@@ -99,11 +122,19 @@ public partial class RepoDetailsView : UserControl
         });
     }
 
-    private async void Button_OnClick(object? sender, RoutedEventArgs e)
+    private async void BtnUpdate_OnClick(object? sender, RoutedEventArgs e)
     {
         List<Repo> repos = ((App)Application.Current!).Repos;
-        await UpdateManager.SearchForUpdates(repos);
+        await UpdateManager.SearchForUpdates(_repoDetailsViewModel.Repo);
         await UpdateManager.UpdateRepo(_repoDetailsViewModel.Repo);
+        FileManager.SaveRepos(repos);
+    }
+
+    private async void BtnReinstall_OnClick(object? sender, RoutedEventArgs e)
+    {
+        List<Repo> repos = ((App)Application.Current!).Repos;
+        await UpdateManager.SearchForUpdates(_repoDetailsViewModel.Repo);
+        await UpdateManager.UpdateRepo(_repoDetailsViewModel.Repo, true);
         FileManager.SaveRepos(repos);
     }
 }

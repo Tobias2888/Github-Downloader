@@ -89,7 +89,19 @@ public class Repo : INotifyPropertyChanged
 
     [JsonIgnore]
     public bool IsUpToDate => Tag == CurrentInstallTag;
-    public string DownloadPath { get; set; } = DirectoryHelper.GetUserDirPath();
+    private string _downloadPath = DirectoryHelper.GetUserDirPath();
+
+    public string DownloadPath
+    {
+        get => _downloadPath;
+        set
+        {
+            if (_downloadPath == value) return;
+            _downloadPath = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DownloadPath)));
+        }
+    }
+
     public bool ExcludedFromDownloadAll { get; set; } = false;
     
     public event PropertyChangedEventHandler? PropertyChanged;

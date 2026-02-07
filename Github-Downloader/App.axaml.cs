@@ -39,8 +39,10 @@ public partial class App : Application
     {
         if (Process.GetProcessesByName(Process.GetCurrentProcess().ProcessName).Length > 1)
         {
-            Console.WriteLine("Service already running");
-            //Environment.Exit(0);
+            #if !DEBUG
+                Console.WriteLine("Service already running");
+                Environment.Exit(0);
+            #endif
         }
         AvaloniaXamlLoader.Load(this);
     }

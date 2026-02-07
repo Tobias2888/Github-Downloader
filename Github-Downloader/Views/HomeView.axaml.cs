@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -45,14 +46,14 @@ public partial class HomeView : UserControl
 
     private void SendNotification()
     {
-        /*
+        
         Process.Start(new ProcessStartInfo
         {
             FileName = "notify-send",
             Arguments = $"\"Github-Downloader\" \"Notification\"",
             UseShellExecute = false,
             CreateNoWindow = true
-        });*/
+        });
     }
 
     private void LoadGrdTrackedRepos()
@@ -138,7 +139,7 @@ public partial class HomeView : UserControl
 
     private void CreateTrackedRepoEntry(Repo repo)
     {
-        GrdTrackedRepos.RowDefinitions.Add(new RowDefinition());
+        GrdTrackedRepos.RowDefinitions.Add(new RowDefinition(GridLength.Star));
 
         /*
         Button btnUninstall = new();
@@ -196,12 +197,21 @@ public partial class HomeView : UserControl
             });
         tbxUpdateVersion.Bind(IsVisibleProperty, new Binding("!" + nameof(Repo.IsUpToDate)));
 
+        TextBlock tbxVersion = new()
+        {
+            Text = "Version",
+            DataContext = repo
+        };
+        tbxVersion.Bind(TextBlock.TextProperty, new Binding(nameof(Repo.CurrentInstallTag)));
+        tbxVersion.Bind(IsVisibleProperty, new Binding(nameof(Repo.IsUpToDate)));
+
         StackPanel stpRepoLabel = new()
         {
             Orientation = Orientation.Horizontal,
             Children =
             {
                 tbxName,
+                tbxVersion,
                 tbxUpdateVersion,
             }
         };
@@ -215,35 +225,6 @@ public partial class HomeView : UserControl
             _repoDetailsViewModel.Repo = repo;
             _mainViewModel.SwitchPage(ViewNames.RepoDetails);
         };
-        
-        /*
-        Button btnFilePicker = new()
-        {
-            Content = "Select download location",
-            Background = Brushes.CornflowerBlue
-        };
-        btnFilePicker.Click += async (_, _) =>
-        {
-            TopLevel? topLevel = TopLevel.GetTopLevel(this);
-            if (topLevel is null)
-            {
-                return;
-            }
-
-            IReadOnlyList<IStorageFolder> folders = await topLevel.StorageProvider.OpenFolderPickerAsync(
-                new FolderPickerOpenOptions
-                {
-                    Title = "Select folder",
-                    AllowMultiple = false
-                });
-
-            if (folders.Count > 0)
-            {
-                string path = folders[0].Path.LocalPath;
-                repo.DownloadPath = path;
-                FileManager.SaveRepos(_repos);
-            }
-        };*/
 
         ComboBox cobAssets = new()
         {
@@ -256,18 +237,6 @@ public partial class HomeView : UserControl
         cobAssets.SelectionChanged += (_, _) =>
         {
             repo.DownloadAssetIndex = cobAssets.SelectedIndex;
-            /*
-            if (repo.AssetNames[repo.DownloadAssetIndex].Contains(".deb"))
-            {
-                GrdTrackedRepos.Children.Remove(btnFilePicker);
-            }
-            else
-            {
-                if (btnFilePicker.Parent == null)
-                {
-                    GrdTrackedRepos.Children.Add(btnFilePicker);
-                }
-            }*/
             FileManager.SaveRepos(_repos);
         };
 

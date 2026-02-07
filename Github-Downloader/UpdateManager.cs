@@ -73,7 +73,7 @@ public static class UpdateManager
         foreach (Repo repo in repos)
         {
             DownloadStatusViewModel.StatusText = $"Checking for {repo.Name}";
-            await SearchForUpdates(repo);
+            await SearchForUpdates(repo, true);
         }
         CloseDialog();
 
@@ -87,8 +87,14 @@ public static class UpdateManager
         MainViewModel.HasUpdates = false;
     }
 
-    private static async Task SearchForUpdates(Repo repo)
+    public static async Task SearchForUpdates(Repo repo, bool multiDownload = false)
     {
+        if (!multiDownload)
+        {
+            DownloadStatusViewModel.StatusText = $"Checking for {repo.Name}";
+            ShowDialog();
+        }
+        
         HttpResponseMessage httpResponse = await Api.GetRequest(repo.Url, FileManager.GetPat());
         if (!httpResponse.IsSuccessStatusCode)
         {
@@ -101,12 +107,14 @@ public static class UpdateManager
         repo.DownloadUrls = response.assets.ToList().Select(asset => asset.url).ToList();
         repo.Tag = response.tag_name;
         repo.LatestChangelog = response.body;
+        
+        if (!multiDownload) CloseDialog();
     }
 
-    public static async Task UpdateRepo(Repo repo)
+    public static async Task UpdateRepo(Repo repo, bool downloadAnyways = false)
     {
         ShowDialog();
-        UpdateRepos([await DownloadAsset(repo)]);
+        UpdateRepos([await DownloadAsset(repo, downloadAnyways)]);
     }
 
     public static async Task UpdateRepos(List<Repo> repos)
@@ -158,9 +166,9 @@ public static class UpdateManager
         MainViewModel.HasUpdates = false;
     }
     
-    private static async Task<Asset?> DownloadAsset(Repo repo)
+    private static async Task<Asset?> DownloadAsset(Repo repo, bool downloadAnyways = false)
     {
-        if (repo.Tag == repo.CurrentInstallTag)
+        if (!downloadAnyways && repo.Tag == repo.CurrentInstallTag)
         {
             return null;
         }
