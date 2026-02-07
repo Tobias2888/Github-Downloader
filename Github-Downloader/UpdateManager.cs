@@ -103,10 +103,29 @@ public static class UpdateManager
         }
         
         Response response = JsonSerializer.Deserialize<Response>(await httpResponse.Content.ReadAsStringAsync());
-        repo.AssetNames = response.assets.ToList().Select(asset => asset.name).ToList();
-        repo.DownloadUrls = response.assets.ToList().Select(asset => asset.url).ToList();
-        repo.Tag = response.tag_name;
-        repo.LatestChangelog = response.body;
+        if (response != null)
+        {
+            repo.AssetNames = response.assets.ToList().Select(asset => asset.name).ToList();
+            repo.DownloadUrls = response.assets.ToList().Select(asset => asset.url).ToList();
+            repo.Tag = response.tag_name;
+            repo.LatestChangelog = response.body;
+        }
+
+        string tagsUrl = $"https://api.github.com/repos/{repo.Name}/tags";
+        HttpResponseMessage httpResponseTags = await Api.GetRequest(tagsUrl, FileManager.GetPat());
+        if (!httpResponseTags.IsSuccessStatusCode)
+        {
+            Console.WriteLine($"Failed to fetch tags of: {tagsUrl}");
+            return;
+        }
+        
+        List<TagsResponse> tagsResponse = JsonSerializer.Deserialize<List<TagsResponse>>(await httpResponseTags.Content.ReadAsStringAsync());
+        if (tagsResponse != null)
+        {
+            List<string> tags = ["latest"];
+            tags.AddRange(tagsResponse.Select(tag => tag.name).ToList());
+            repo.Tags = tags;
+    }
         
         if (!multiDownload) CloseDialog();
     }

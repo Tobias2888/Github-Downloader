@@ -27,10 +27,24 @@ public class Repo : INotifyPropertyChanged
 
     public string Description { get; set; } = "No description available";
     public int DownloadAssetIndex { get; set; }
-    public required List<string> AssetNames { get; set; }
-    public required List<string> DownloadUrls { get; set; }
+
+    private List<string> _assetNames = [];
+
+    public List<string> AssetNames
+    {
+        get => _assetNames;
+        set
+        {
+            if (_assetNames == value) return;
+            _assetNames = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(AssetNames)));
+        }
+    }
+    
+    public List<string> DownloadUrls { get; set; } = [];
+    
     private string _tag = string.Empty;
-    public required string Tag
+    public string Tag
     {
         get => _tag;
         set
@@ -45,20 +59,43 @@ public class Repo : INotifyPropertyChanged
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsUpToDate)));
         }
     }
+    
     private string _currentInstallTag = string.Empty;
     public string CurrentInstallTag
     {
         get => _currentInstallTag;
         set
         {
-            if (_currentInstallTag == value)
-            {
-                return;
-            }
+            if (_currentInstallTag == value) return;
             
             _currentInstallTag = value;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CurrentInstallTag)));
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsUpToDate)));
+        }
+    }
+    
+    private string _targetTag = "latest";
+    public string TargetTag
+    {
+        get => _targetTag;
+        set
+        {
+            if (_targetTag == value) return;
+            
+            _targetTag = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TargetTag)));
+        }
+    }
+
+    private List<string> _tags = ["latest"];
+    public List<string> Tags
+    {
+        get => _tags;
+        set
+        {
+            if (_tags == value) return;
+            _tags = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Tags)));
         }
     }
     
@@ -89,6 +126,7 @@ public class Repo : INotifyPropertyChanged
 
     [JsonIgnore]
     public bool IsUpToDate => Tag == CurrentInstallTag;
+    
     private string _downloadPath = DirectoryHelper.GetUserDirPath();
 
     public string DownloadPath

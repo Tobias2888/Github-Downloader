@@ -121,11 +121,10 @@ public partial class HomeView : UserControl
         {
             Url = url,
             Name = repoResponse.full_name,
-            Description = repoResponse.description,
-            AssetNames = response.assets.ToList().Select(asset  => asset.name).ToList(),
-            DownloadUrls = response.assets.ToList().Select(asset => asset.url).ToList(),
-            Tag = response.tag_name
+            Description = repoResponse.description
         };
+
+        await UpdateManager.SearchForUpdates(repo);
         
         _repos.Add(repo);
 

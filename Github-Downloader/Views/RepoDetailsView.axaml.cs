@@ -53,8 +53,13 @@ public partial class RepoDetailsView : UserControl
         TbxDescription.DataContext = _repoDetailsViewModel.Repo;
         TbxDescription.Bind(TextBox.TextProperty, new Binding(nameof(_repoDetailsViewModel.Repo.Description)));
 
-        CobVersion.Items.Add("latest");
-        CobVersion.SelectedIndex = 0;
+        CobVersion.ItemsSource = _repoDetailsViewModel.Repo.Tags;
+        CobVersion.SelectedIndex = _repoDetailsViewModel.Repo.Tags.IndexOf(_repoDetailsViewModel.Repo.TargetTag);
+        CobVersion.SelectionChanged += (o, args) =>
+        {
+            _repoDetailsViewModel.Repo.TargetTag = _repoDetailsViewModel.Repo.Tags[CobVersion.SelectedIndex];
+            FileManager.SaveRepos(((App)Application.Current!).Repos);
+        };
         
         TbxVersion.DataContext = _repoDetailsViewModel.Repo;
         TbxVersion.Bind(TextBox.TextProperty, new Binding(nameof(_repoDetailsViewModel.Repo.CurrentInstallTag)));
