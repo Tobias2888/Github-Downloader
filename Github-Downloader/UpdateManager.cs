@@ -119,6 +119,7 @@ public static class UpdateManager
             repo.DownloadUrls = response.assets.ToList().Select(asset => asset.url).ToList();
             repo.LatestChangelog = response.body;
             repo.Tag = response.tag_name;
+            repo.ReleaseDate = response.published_at;
         }
 
         string tagsUrl = $"https://api.github.com/repos/{repo.Name}/tags";

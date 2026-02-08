@@ -85,6 +85,14 @@ public partial class RepoDetailsView : UserControl
         
         TbxChangelog.DataContext = _repoDetailsViewModel.Repo;
         TbxChangelog.Bind(TextBlock.TextProperty, new Binding(nameof(_repoDetailsViewModel.Repo.LatestChangelog)));
+        
+        TbxReleaseDate.DataContext = _repoDetailsViewModel.Repo;
+        TbxReleaseDate.Bind(
+            TextBlock.TextProperty,
+            new Binding(nameof(_repoDetailsViewModel.Repo.ReleaseDate))
+            {
+                Converter = new ReleaseDateStringToFormattedConverter()
+            });
     }
 
     private void BtnBack_OnClick(object? sender, RoutedEventArgs e)

@@ -99,6 +99,18 @@ public class Repo : INotifyPropertyChanged
         }
     }
     
+    private string _releaseDate = string.Empty;
+    public string ReleaseDate
+    {
+        get => _releaseDate;
+        set
+        {
+            if (_releaseDate == value) return;
+            _releaseDate = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ReleaseDate)));
+        }
+    }
+    
     private string _githubLink = string.Empty;
     public string GitHubLink
     {

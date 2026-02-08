@@ -20,7 +20,7 @@
                 Cursor="Hand"
                 PointerPressed="TbxGithubLink_OnPointerPressed"/>
         </Grid>
-        <Grid ColumnDefinitions="*, *">
+        <Grid ColumnDefinitions="2*, 3*">
             <StackPanel Grid.Column="0">
                 <StackPanel Name="StpVersion" Margin="0, 0, 0, 15" Orientation="Horizontal">
                     <ComboBox Name="CobVersion" Width="150" Margin="0, 0, 10, 0"/>
@@ -33,7 +33,7 @@
                 </StackPanel>
                 <StackPanel Margin="0, 0, 0, 15">
                     <TextBlock Text="Description:" Classes="SubTitle" Margin="0, 0, 0, 5"/>
-                    <TextBlock Name="TbxDescription" Text="This is the description"/>
+                    <TextBlock Name="TbxDescription" TextWrapping="Wrap" Text="This is the description"/>
                 </StackPanel>
                 <StackPanel Name="StpDownloadPath">
                     <Button Name="BtnFilePicker" Content="Select download location" Click="BtnFilePicker_OnClick"/>
@@ -42,8 +42,9 @@
             </StackPanel>
             
             <StackPanel Grid.Column="1">
+                <TextBlock Name="TbxReleaseDate" Text="Release-date" Margin="0, 0, 0, 20"/>
                 <TextBlock Text="Changelog:" Classes="SubTitle" Margin="0, 0, 0, 15"/>
-                <TextBlock Name="TbxChangelog" Text="This is the changelog"/>
+                <TextBlock Name="TbxChangelog" TextWrapping="Wrap" Text="This is the changelog"/>
             </StackPanel>
         </Grid>
     </StackPanel>
