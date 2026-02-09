@@ -24,4 +24,16 @@ public class DownloadStatusViewModel : ViewModelBase
             OnPropertyChanged();
         }
     }
+
+    private bool _isUpdating;
+
+    public bool IsUpdating
+    {
+        get => _isUpdating;
+        set
+        {
+            _isUpdating = value;
+            OnPropertyChanged();
+        }
+    }
 }

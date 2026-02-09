@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Data;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -25,6 +26,7 @@ public partial class HomeView : UserControl
     private readonly MainViewModel _mainViewModel;
     private readonly HomeViewModel _homeViewModel;
     private readonly RepoDetailsViewModel _repoDetailsViewModel;
+    private readonly DownloadStatusViewModel _downloadStatusViewModel;
     
     private const string ResPath = "avares://Github-Downloader/resources/";
     
@@ -34,12 +36,16 @@ public partial class HomeView : UserControl
         _mainViewModel = ((App)Application.Current!).MainViewModel;
         _homeViewModel = ((App)Application.Current!).HomeViewModel;
         _repoDetailsViewModel = ((App)Application.Current!).RepoDetailsViewModel;
+        _downloadStatusViewModel = App.DownloadStatusViewModel;
         DataContext = _homeViewModel;
     }
 
     private void Control_OnLoaded(object? sender, RoutedEventArgs e)
     {
         UpdateManager.Owner = ((App)Application.Current!).MainWindow;
+
+        PgbDownloading.DataContext = _downloadStatusViewModel;
+        PgbDownloading.Bind(IsVisibleProperty, new Binding(nameof(_downloadStatusViewModel.IsUpdating)));
         
         LoadGrdTrackedRepos();
     }
@@ -304,5 +310,10 @@ public partial class HomeView : UserControl
         ToastPopup.IsOpen = true;
         await Task.Delay(2500);
         ToastPopup.IsOpen = false;
+    }
+
+    private void PgbDownloading_OnPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        UpdateManager.ShowDialog();
     }
 }

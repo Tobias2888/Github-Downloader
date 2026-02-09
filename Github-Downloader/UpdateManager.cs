@@ -20,15 +20,17 @@ public static class UpdateManager
     private static readonly string AppImagesPath = Path.Join(DirectoryHelper.GetAppDataDirPath(), "github-downloader", "app-images");
     public static Window? Owner;
     
-    private static readonly DownloadStatusViewModel DownloadStatusViewModel = ((App)Application.Current!).DownloadStatusViewModel;
+    private static readonly DownloadStatusViewModel DownloadStatusViewModel = App.DownloadStatusViewModel;
     private static readonly MainViewModel MainViewModel = ((App)Application.Current!).MainViewModel;
 
     private static DownloadStatus? _downloadStatus;
     
     private readonly record struct Asset(Repo Repo, string TempAssetPath);
 
-    private static bool ShowDialog()
+    public static bool ShowDialog()
     {
+        DownloadStatusViewModel.IsUpdating  = true;
+        
         if (Owner is null) return false;
         if (!Owner.IsVisible) return false;
         
@@ -40,14 +42,18 @@ public static class UpdateManager
         return true;
     }
 
-    private static void CloseDialog()
+    private static void CloseDialog(bool shown)
     {
+        DownloadStatusViewModel.IsUpdating = false;
+        if (!shown) return;
         DownloadStatusViewModel.ProgressText = "";
         _downloadStatus?.Close();
     }
 
     public static async Task UpdateRepoDetails(List<Repo> repos)
     {
+        if (DownloadStatusViewModel.IsUpdating) return;
+        
         foreach (Repo repo in repos)
         {
             HttpResponseMessage httpRepoResponse = await Api.GetRequest(repo.Url.Replace("/releases/latest", ""), FileManager.GetPat());
@@ -71,13 +77,15 @@ public static class UpdateManager
 
     public static async Task SearchForUpdates(List<Repo> repos)
     {
+        if (DownloadStatusViewModel.IsUpdating) return;
+
         bool shown = ShowDialog();
         foreach (Repo repo in repos)
         {
             DownloadStatusViewModel.StatusText = $"Checking for {repo.Name}";
             await SearchForUpdates(repo, true);
         }
-        if (shown) CloseDialog();
+        CloseDialog(shown);
 
         foreach (Repo repo in repos)
         {
@@ -141,17 +149,21 @@ public static class UpdateManager
             repo.Tags = tags;
         }
         
-        if (!multiDownload && shown) CloseDialog();
+        if (!multiDownload) CloseDialog(shown);
     }
 
     public static async Task UpdateRepo(Repo repo, bool downloadAnyways = false)
     {
+        if (DownloadStatusViewModel.IsUpdating) return;
+
         ShowDialog();
         UpdateRepos([await DownloadAsset(repo, downloadAnyways)]);
     }
 
     public static async Task UpdateRepos(List<Repo> repos)
     {
+        if (DownloadStatusViewModel.IsUpdating) return;
+
         ShowDialog();
         DownloadStatusViewModel.StatusText = "Downloading updates...";
         
@@ -202,7 +214,7 @@ public static class UpdateManager
         HandleAppImages(appImages);
         InstallDebs(debs);
         
-        CloseDialog();
+        CloseDialog(true);
         MainViewModel.HasUpdates = false;
     }
 

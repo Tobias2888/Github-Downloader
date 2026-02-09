@@ -20,7 +20,7 @@ namespace Github_Downloader;
 public partial class App : Application
 {
     public MainViewModel MainViewModel { get; } = new();
-    public DownloadStatusViewModel DownloadStatusViewModel { get; } = new();
+    public static DownloadStatusViewModel DownloadStatusViewModel { get; } = new();
     public HomeViewModel HomeViewModel { get; } = new();
     public RepoDetailsViewModel RepoDetailsViewModel { get; } = new();
     

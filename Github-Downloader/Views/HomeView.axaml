@@ -50,10 +50,20 @@
               CornerRadius="12"
               Padding="16">
         <StackPanel>
-            <Grid ColumnDefinitions="*,Auto,Auto">
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto">
                 <TextBlock Text="Tracked Repositories" Classes="SubTitle"/>
-                <Button Name="BtnSearchForUpdates" Grid.Column="1" Click="BtnSearchForUpdates_OnClick">Search for updates</Button>
-                <Button Name="BtnUpdateAll" Grid.Column="2" Click="BtnUpdateAll_OnClick">Update All</Button>
+                <StackPanel 
+                    Name="PgbDownloading" 
+                    Grid.Column="1" 
+                    VerticalAlignment="Center" 
+                    Background="Transparent"
+                    IsVisible="False"
+                    PointerPressed="PgbDownloading_OnPointerPressed">
+                    
+                    <ProgressBar IsIndeterminate="True" Margin="10"/>
+                </StackPanel>
+                <Button Name="BtnSearchForUpdates" Grid.Column="2" Margin="10, 0" Click="BtnSearchForUpdates_OnClick">Search for updates</Button>
+                <Button Name="BtnUpdateAll" Grid.Column="3" Click="BtnUpdateAll_OnClick">Update All</Button>
             </Grid>
             <Separator Margin="0, 5, 0, 25"></Separator>
 
