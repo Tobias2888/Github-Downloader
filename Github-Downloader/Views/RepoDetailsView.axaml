@@ -8,7 +8,7 @@
              x:DataType="viewModels:RepoDetailsViewModel"
              Loaded="Control_OnLoaded">
     
-    <StackPanel Margin="25">
+    <Grid Margin="25" RowDefinitions="Auto,*">
         <Grid ColumnDefinitions="Auto, *, Auto" Margin="0, 0, 0, 15">
             <Image Source="../resources/arrow_back.png" Width="30" Height="30" PointerPressed="BtnBack_OnClick"/>
             <TextBlock Name="TbxRepoName" Text="Repo-name" Classes="Title" Grid.Column="1" Margin="20, 0"/>
@@ -20,7 +20,7 @@
                 Cursor="Hand"
                 PointerPressed="TbxGithubLink_OnPointerPressed"/>
         </Grid>
-        <Grid ColumnDefinitions="2*, 3*">
+        <Grid ColumnDefinitions="2*, 3*" Row="1">
             <StackPanel Grid.Column="0">
                 <StackPanel Name="StpVersion" Margin="0, 0, 0, 15" Orientation="Horizontal">
                     <ComboBox Name="CobVersion" Width="150" Margin="0, 0, 10, 0"/>
@@ -41,11 +41,13 @@
                 </StackPanel>
             </StackPanel>
             
-            <StackPanel Grid.Column="1">
-                <TextBlock Name="TbxReleaseDate" Text="Release-date" Margin="0, 0, 0, 20"/>
-                <TextBlock Text="Changelog:" Classes="SubTitle" Margin="0, 0, 0, 15"/>
-                <TextBlock Name="TbxChangelog" TextWrapping="Wrap" Text="This is the changelog"/>
-            </StackPanel>
+            <Grid RowDefinitions="Auto,Auto,*" Grid.Column="1">
+                <TextBlock Grid.Row="0" Name="TbxReleaseDate" Text="Release-date" Margin="0, 0, 0, 20"/>
+                <TextBlock Grid.Row="1" Text="Changelog:" Classes="SubTitle" Margin="0, 0, 0, 15"/>
+                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                    <TextBlock Name="TbxChangelog" TextWrapping="Wrap" Text="This is the changelog"/>
+                </ScrollViewer>
+            </Grid>
         </Grid>
-    </StackPanel>
+    </Grid>
 </UserControl>
