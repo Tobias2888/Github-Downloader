@@ -87,8 +87,6 @@ public partial class App : Application
         timer.Start();
         
         await UpdateManager.UpdateRepoDetails(Repos);
-        FileManager.SaveRepos(Repos);
-
         await UpdateManager.SearchForUpdates(Repos);
         FileManager.SaveRepos(Repos);
     }

@@ -1,4 +1,4 @@
-using Github_Downloader.ViewModels;
+namespace Github_Downloader.ViewModels;
 
 public class DownloadStatusViewModel : ViewModelBase
 {

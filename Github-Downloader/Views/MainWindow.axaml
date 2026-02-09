@@ -7,7 +7,6 @@
         x:Class="Github_Downloader.MainWindow"
         x:DataType="viewModels:MainViewModel"
         Title="Github Downloader"
-        Loaded="Control_OnLoaded"
         Closing="Window_OnClosing">
     
     <Window.Styles>
@@ -44,5 +43,5 @@
         </Style>
     </Window.Styles>
     
-    <ContentControl Grid.Column="1" Content="{Binding CurrentPage}" />
+    <ContentControl Content="{Binding CurrentPage}" />
 </Window>

@@ -3,6 +3,7 @@ using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
+using Avalonia;
 using FileLib;
 
 namespace Github_Downloader;
@@ -35,7 +36,7 @@ public static class Api
         return response;
     }
     
-    public static async Task DownloadFileAsync(string url, string outputPath, string token = "")
+    public static async Task DownloadFileAsync(string url, string outputPath, string token = "", IProgress<double>? progress = null)
     {
         using HttpClient client = new();
 
@@ -54,9 +55,26 @@ public static class Api
             url,
             HttpCompletionOption.ResponseHeadersRead
         );
-
+        
+        long? totalBytes = response.Content.Headers.ContentLength;
+        
         FileHelper.Create(outputPath);
         await using FileStream fs = File.OpenWrite(outputPath);
-        await response.Content.CopyToAsync(fs);
+        Stream stream = await response.Content.ReadAsStreamAsync();
+        
+        byte[] buffer = new byte[81920]; // 80 KB buffer
+        long totalRead = 0;
+        int bytesRead;
+
+        while ((bytesRead = await stream.ReadAsync(buffer)) > 0)
+        {
+            await fs.WriteAsync(buffer.AsMemory(0, bytesRead));
+            totalRead += bytesRead;
+
+            if (!totalBytes.HasValue || progress == null) continue;
+            
+            double percent = (double)totalRead / totalBytes.Value * 100;
+            progress.Report(percent);
+        }
     }
 }

@@ -17,6 +17,7 @@ namespace Github_Downloader;
 public static class UpdateManager
 {
     private static readonly string CachePath = Path.Join(DirectoryHelper.GetCacheDirPath(), "github-downloader");
+    private static readonly string AppImagesPath = Path.Join(DirectoryHelper.GetAppDataDirPath(), "github-downloader", "app-images");
     public static Window? Owner;
     
     private static readonly DownloadStatusViewModel DownloadStatusViewModel = ((App)Application.Current!).DownloadStatusViewModel;
@@ -26,16 +27,17 @@ public static class UpdateManager
     
     private readonly record struct Asset(Repo Repo, string TempAssetPath);
 
-    private static void ShowDialog()
+    private static bool ShowDialog()
     {
-        if (Owner is null) return;
-        if (!Owner.IsVisible) return;
+        if (Owner is null) return false;
+        if (!Owner.IsVisible) return false;
         
         _downloadStatus = new()
         {
             DataContext = DownloadStatusViewModel
         };
         _ = _downloadStatus.ShowDialog(Owner);
+        return true;
     }
 
     private static void CloseDialog()
@@ -69,13 +71,13 @@ public static class UpdateManager
 
     public static async Task SearchForUpdates(List<Repo> repos)
     {
-        ShowDialog();
+        bool shown = ShowDialog();
         foreach (Repo repo in repos)
         {
             DownloadStatusViewModel.StatusText = $"Checking for {repo.Name}";
             await SearchForUpdates(repo, true);
         }
-        CloseDialog();
+        if (shown) CloseDialog();
 
         foreach (Repo repo in repos)
         {
@@ -89,10 +91,11 @@ public static class UpdateManager
 
     public static async Task SearchForUpdates(Repo repo, bool multiDownload = false)
     {
+        bool shown = false;
         if (!multiDownload)
         {
             DownloadStatusViewModel.StatusText = $"Checking for {repo.Name}";
-            ShowDialog();
+            shown = ShowDialog();
         }
 
         string responseUrl;
@@ -136,9 +139,9 @@ public static class UpdateManager
             List<string> tags = ["latest"];
             tags.AddRange(tagsResponse.Select(tag => tag.name).ToList());
             repo.Tags = tags;
-    }
+        }
         
-        if (!multiDownload) CloseDialog();
+        if (!multiDownload && shown) CloseDialog();
     }
 
     public static async Task UpdateRepo(Repo repo, bool downloadAnyways = false)
@@ -152,7 +155,7 @@ public static class UpdateManager
         ShowDialog();
         DownloadStatusViewModel.StatusText = "Downloading updates...";
         
-        List<Asset?> assets = new();
+        List<Asset?> assets = [];
         foreach (var repo in repos)
         {
             if (repo.ExcludedFromDownloadAll)
@@ -169,7 +172,9 @@ public static class UpdateManager
 
     private static void UpdateRepos(List<Asset?> assets)
     {
-        List<string> debs = new();
+        List<string> debs = [];
+        List<Asset> appImages = [];
+        
         foreach (Asset? asset in assets)
         {
             if (asset == null)
@@ -177,9 +182,13 @@ public static class UpdateManager
                 continue;
             }
             
-            if (asset.Value.TempAssetPath.Contains(".deb"))
+            if (asset.Value.TempAssetPath.EndsWith(".deb"))
             {
                 debs.Add(asset.Value.TempAssetPath);
+            }
+            else if (asset.Value.TempAssetPath.EndsWith(".AppImage"))
+            {
+                appImages.Add(asset.Value);
             }
             else
             {
@@ -190,12 +199,86 @@ public static class UpdateManager
         
         DownloadStatusViewModel.StatusText = "Installing Updates...";
         
+        HandleAppImages(appImages);
         InstallDebs(debs);
         
         CloseDialog();
         MainViewModel.HasUpdates = false;
     }
-    
+
+    private static void HandleAppImages(List<Asset> assets)
+    {
+        foreach (Asset asset in assets)
+        {
+            string assetPath = Path.Join(AppImagesPath, asset.Repo.Name.Replace('/', '-'));
+            DirectoryHelper.CreateDir(assetPath);
+            string destPath = Path.Join(assetPath, asset.Repo.Name.Replace('/', '-') + ".AppImage");
+            string iconPath = Path.Join(assetPath, "icon.png");
+            File.Move(asset.TempAssetPath, destPath, overwrite: true);
+
+            Process chmod = new()
+            {
+                StartInfo = new()
+                {
+                    FileName = "chmod",
+                    ArgumentList = { "+x", destPath },
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false
+                }
+            };
+            chmod.Start();
+            chmod.WaitForExit();
+            
+            Process appImageExtract = new()
+            {
+                StartInfo = new()
+                {
+                    FileName = destPath,
+                    ArgumentList = { "--appimage-extract" },
+                    WorkingDirectory = CachePath,
+                    UseShellExecute = false
+                }
+            };
+            appImageExtract.Start();
+            appImageExtract.WaitForExit();
+
+            string tempIconPath = Path.Combine(CachePath, "squashfs-root", ".DirIcon");
+            do
+            {
+                FileInfo fileInfo = new(tempIconPath);
+                if (fileInfo.LinkTarget != null)
+                {
+                    tempIconPath = Path.Join(CachePath, "squashfs-root", fileInfo.LinkTarget);
+                }
+            } while (new FileInfo(tempIconPath).LinkTarget != null);
+
+            Console.WriteLine(tempIconPath);
+            File.Move(tempIconPath, iconPath, overwrite: true);
+
+            CreateStartMenuEntry(asset with { TempAssetPath = destPath }, iconPath);
+        }
+    }
+
+    private static void CreateStartMenuEntry(Asset asset, string iconPath)
+    {
+        string desktopFile = $"""
+                             [Desktop Entry]
+                             Name={asset.Repo.Name}
+                             Comment=Download {asset.Repo.Description}
+                             GenericName={asset.Repo.Name}
+                             Exec={asset.TempAssetPath}
+                             Icon={iconPath}
+                             Type=Application
+                             StartupNotify=false
+                             Categories=Utility;
+                             """;
+
+        string desktopFilePath = Path.Join(DirectoryHelper.GetUserDirPath(), ".local", "share", "applications", asset.Repo.Name.Replace('/', '-') + ".desktop");
+        FileHelper.Create(desktopFilePath);
+        File.WriteAllText(desktopFilePath, desktopFile);
+    }
+        
     private static async Task<Asset?> DownloadAsset(Repo repo, bool downloadAnyways = false)
     {
         Console.WriteLine($"{repo.Tag} -> {repo.CurrentInstallTag}");
@@ -206,8 +289,13 @@ public static class UpdateManager
         
         DownloadStatusViewModel.StatusText = $"Downloading {repo.Name}";
         
+        Progress<double> progress = new(p =>
+        {
+            DownloadStatusViewModel.ProgressText = $"Downloaded: {p:0.00}%";
+        });
+        
         string downloadAssetName = repo.AssetNames[repo.DownloadAssetIndex];
-        await Api.DownloadFileAsync(repo.DownloadUrls[repo.DownloadAssetIndex], Path.Join(CachePath, downloadAssetName), FileManager.GetPat());
+        await Api.DownloadFileAsync(repo.DownloadUrls[repo.DownloadAssetIndex], Path.Join(CachePath, downloadAssetName), FileManager.GetPat(), progress);
 
         repo.CurrentInstallTag = repo.Tag;
         
@@ -249,7 +337,7 @@ public static class UpdateManager
             installCommand += $"\"{debPath}\" ";
         }
 
-        if (installCommand == "pkexec apt-get install -y ")
+        if (installCommand == "pkexec apt-get install -y --allow-downgrades ")
         {
             return;
         }

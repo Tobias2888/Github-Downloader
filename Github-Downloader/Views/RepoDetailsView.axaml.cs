@@ -30,7 +30,8 @@ public partial class RepoDetailsView : UserControl
         if (Design.IsDesignMode) return;
         
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && 
-            _repoDetailsViewModel.Repo.AssetNames[_repoDetailsViewModel.Repo.DownloadAssetIndex].EndsWith(".deb"))
+            (_repoDetailsViewModel.Repo.AssetNames[_repoDetailsViewModel.Repo.DownloadAssetIndex].EndsWith(".deb") ||
+             _repoDetailsViewModel.Repo.AssetNames[_repoDetailsViewModel.Repo.DownloadAssetIndex].EndsWith(".AppImage")))
         {
             StpDownloadPath.IsVisible = false;
         }
