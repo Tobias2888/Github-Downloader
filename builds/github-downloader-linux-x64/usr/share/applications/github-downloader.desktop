@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Github Downloader
+Comment=Download Gihub-releases
+Comment[de]=Lade Github-releases herunter
+GenericName=Download Manager
+Exec=/opt/Github-Downloader/Github-Downloader
+Icon=/opt/Github-Downloader/resources/icon.png
+Type=Application
+StartupNotify=false
+Categories=System;
+

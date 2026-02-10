@@ -52,3 +52,10 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+builds/github-downloader-win-x64/*
+!builds/github-downloader-win-x64/.gitkeep
+builds/github-downloader-linux-x64/opt/Github-Downloader/*
+!builds/github-downloader-linux-x64/opt/Github-Downloader/.gitkeep
+builds/github-downloader-linux-x64.deb
+builds/github-downloader-win-x64.zip

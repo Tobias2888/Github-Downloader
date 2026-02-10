@@ -1,0 +1,6 @@
+Package: github-downloader
+Version: 1.3.2
+Section: utils
+Architecture: amd64
+Maintainer: Tobias2888
+Description: GitHub Downloader
