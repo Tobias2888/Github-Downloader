@@ -57,6 +57,10 @@ builds/github-downloader-win-x64/*
 !builds/github-downloader-win-x64/.gitkeep
 builds/github-downloader-osx-x64/*
 !builds/github-downloader-osx-x64/.gitkeep
+builds/github-downloader-win-arm64/*
+!builds/github-downloader-win-arm64/.gitkeep
+builds/github-downloader-osx-arm64/*
+!builds/github-downloader-osx-arm64/.gitkeep
 builds/github-downloader-linux-x64/opt/Github-Downloader/*
 !builds/github-downloader-linux-x64/opt/Github-Downloader/.gitkeep
 builds/github-downloader-linux-arm64/opt/Github-Downloader/*

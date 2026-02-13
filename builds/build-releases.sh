@@ -26,9 +26,25 @@ dotnet publish ../Github-Downloader/Github-Downloader.csproj \
 
 dotnet publish ../Github-Downloader/Github-Downloader.csproj \
     -c Release \
+    -r osx-arm64 \
+    --self-contained true \
+    --output ./github-downloader-osx-arm64 \
+    /p:PublishSingleFile=true \
+    /p:PublishReadyToRun=true
+
+dotnet publish ../Github-Downloader/Github-Downloader.csproj \
+    -c Release \
     -r win-x64 \
     --self-contained true \
     --output ./github-downloader-win-x64 \
+    /p:PublishSingleFile=true \
+    /p:PublishReadyToRun=true
+
+dotnet publish ../Github-Downloader/Github-Downloader.csproj \
+    -c Release \
+    -r win-arm64 \
+    --self-contained true \
+    --output ./github-downloader-win-arm64 \
     /p:PublishSingleFile=true \
     /p:PublishReadyToRun=true
 
@@ -61,6 +77,8 @@ dpkg-deb --build github-downloader-linux-arm64 ./release-assets
 
 zip -r release-assets/github-downloader-win-x64.zip github-downloader-win-x64
 zip -r release-assets/github-downloader-osx-x64.zip github-downloader-osx-x64
+zip -r release-assets/github-downloader-win-arm64.zip github-downloader-win-arm64
+zip -r release-assets/github-downloader-osx-arm64.zip github-downloader-osx-arm64
 
 printf "\nBuild Finished. Press Enter to exit"
 read _
