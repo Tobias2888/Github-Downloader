@@ -324,4 +324,9 @@ public partial class HomeView : UserControl
     {
         UpdateManager.ShowDialog();
     }
+
+    private void BtnRemovePat_OnClick(object? sender, RoutedEventArgs e)
+    {
+        File.WriteAllText(_mainViewModel.PatFilePath, "");
+    }
 }

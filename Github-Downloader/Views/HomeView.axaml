@@ -41,6 +41,7 @@
           
           <TextBox Name="TbxPat" Watermark="Personal Access token"/>
           <Button Name="BtnSetPat" Click="BtnSetPat_OnClick" Content="Set personal Access token"/>
+          <Button Name="BtnRemovePat" Click="BtnRemovePat_OnClick" Content="Remove personal Access token" Background="Red"/>
         </StackPanel>
       </Border>
 
