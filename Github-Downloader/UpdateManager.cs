@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -126,7 +127,12 @@ public static class UpdateManager
         Response response = JsonSerializer.Deserialize<Response>(await httpResponse.Content.ReadAsStringAsync());
         if (response != null)
         {
-            repo.AssetNames = response.assets.ToList().Select(asset => asset.name).ToList();
+            repo.AssetNames.Clear();
+            foreach (Assets asset in response.assets)
+            {
+                repo.AssetNames.Add(asset.name);
+            }
+            
             repo.DownloadUrls = response.assets.ToList().Select(asset => asset.url).ToList();
             repo.LatestChangelog = response.body;
             repo.Tag = response.tag_name;

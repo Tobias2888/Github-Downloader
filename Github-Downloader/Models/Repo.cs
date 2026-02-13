@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Text.Json.Serialization;
 using FileLib;
@@ -28,9 +29,8 @@ public class Repo : INotifyPropertyChanged
     public string Description { get; set; } = "No description available";
     public int DownloadAssetIndex { get; set; }
 
-    private List<string> _assetNames = [];
-
-    public List<string> AssetNames
+    private ObservableCollection<string> _assetNames = [];
+    public ObservableCollection<string> AssetNames
     {
         get => _assetNames;
         set

@@ -244,6 +244,14 @@ public partial class HomeView : UserControl
             repo.DownloadAssetIndex = cobAssets.SelectedIndex;
             FileManager.SaveRepos(_repos);
         };
+        
+        cobAssets.PropertyChanged += (sender, args) =>
+        {
+            if (args.Property == ComboBox.ItemCountProperty)
+            {
+                cobAssets.SelectedIndex = repo.DownloadAssetIndex;
+            }
+        };
 
         ToggleSwitch tglExcludeFromDownloadAll = new ToggleSwitch
         {
