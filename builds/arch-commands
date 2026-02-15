@@ -1,0 +1,11 @@
+date +%s
+du -sb pkgroot/usr | cut -f1
+
+tar --format=gnu \
+    --numeric-owner \
+    --owner=0 --group=0 \
+    -cf ../github-downloader-1.3.2-1-x86_64.pkg.tar \
+.PKGINFO etc opt usr
+
+zstd -19 github-downloader-1.3.2-1-x86_64.pkg.tar
+

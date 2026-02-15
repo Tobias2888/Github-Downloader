@@ -1,0 +1,12 @@
+pkgname = github-downloader
+pkgbase = github-downloader
+pkgver = 1.3.2-1
+pkgdesc = GitHub Downloader
+url = https://github.com/DEIN_USERNAME/Github-Downloader
+builddate = 1771098977
+packager = Tobias Hofinger <github.flashy834@passmail.net>
+size = 116553604
+arch = x86_64
+license = MIT
+depend = glibc
+

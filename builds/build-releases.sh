@@ -10,6 +10,14 @@ dotnet publish ../Github-Downloader/Github-Downloader.csproj \
 
 dotnet publish ../Github-Downloader/Github-Downloader.csproj \
     -c Release \
+    -r linux-x64 \
+    --self-contained true \
+    --output ./github-downloader-linux-x64-appimage/usr/bin \
+    /p:PublishSingleFile=true \
+    /p:PublishReadyToRun=true
+
+dotnet publish ../Github-Downloader/Github-Downloader.csproj \
+    -c Release \
     -r linux-arm64 \
     --self-contained true \
     --output ./github-downloader-linux-arm64/opt/Github-Downloader \
@@ -74,6 +82,9 @@ rm -rf release-assets/*
 
 dpkg-deb --build github-downloader-linux-x64 ./release-assets
 dpkg-deb --build github-downloader-linux-arm64 ./release-assets
+
+ARCH=x86_64 ./AppImage-appimagetool.AppImage ./github-downloader-linux-x64-appimage
+mv ./Github_Downloader-x86_64.AppImage release-assets/Github_Downloader-x86_64.AppImage
 
 zip -r release-assets/github-downloader-win-x64.zip github-downloader-win-x64
 zip -r release-assets/github-downloader-osx-x64.zip github-downloader-osx-x64
