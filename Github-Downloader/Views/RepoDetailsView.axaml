@@ -35,6 +35,11 @@
                     <TextBlock Text="Description:" Classes="SubTitle" Margin="0, 0, 0, 5"/>
                     <TextBlock Name="TbxDescription" TextWrapping="Wrap" Text="This is the description"/>
                 </StackPanel>
+                
+                <StackPanel Name="StpSaveFileAnyway" Orientation="Horizontal" Margin="0, 0, 0, 5">
+                    <TextBlock Text="Save file anyway: " VerticalAlignment="Center"/>
+                    <ToggleSwitch Name="TglSaveFileAnyway" OnContent="" OffContent="" Click="TglSaveFileAnyway_OnClick"/>
+                </StackPanel>
                 <StackPanel Name="StpDownloadPath">
                     <Button Name="BtnFilePicker" Content="Select download location" Click="BtnFilePicker_OnClick"/>
                     <TextBlock Name="TbxDownloadPath" Text="/home/{user}"/>

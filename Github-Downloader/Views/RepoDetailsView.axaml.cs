@@ -30,6 +30,7 @@ public partial class RepoDetailsView : UserControl
         if (Design.IsDesignMode) return;
         
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && 
+            !_repoDetailsViewModel.Repo.SaveFileAnyway &&
             (_repoDetailsViewModel.Repo.AssetNames[_repoDetailsViewModel.Repo.DownloadAssetIndex].EndsWith(".deb") ||
              _repoDetailsViewModel.Repo.AssetNames[_repoDetailsViewModel.Repo.DownloadAssetIndex].EndsWith(".AppImage")))
         {
@@ -94,6 +95,13 @@ public partial class RepoDetailsView : UserControl
             {
                 Converter = new ReleaseDateStringToFormattedConverter()
             });
+
+        TglSaveFileAnyway.IsChecked = _repoDetailsViewModel.Repo.SaveFileAnyway;
+        if (!(_repoDetailsViewModel.Repo.AssetNames[_repoDetailsViewModel.Repo.DownloadAssetIndex].EndsWith(".deb") ||
+              _repoDetailsViewModel.Repo.AssetNames[_repoDetailsViewModel.Repo.DownloadAssetIndex].EndsWith(".AppImage")))
+        {
+            StpSaveFileAnyway.IsVisible = false;
+        }
     }
 
     private void BtnBack_OnClick(object? sender, RoutedEventArgs e)
@@ -151,5 +159,11 @@ public partial class RepoDetailsView : UserControl
         await UpdateManager.SearchForUpdates(_repoDetailsViewModel.Repo);
         await UpdateManager.UpdateRepo(_repoDetailsViewModel.Repo, true);
         FileManager.SaveRepos(repos);
+    }
+
+    private void TglSaveFileAnyway_OnClick(object? sender, RoutedEventArgs e)
+    {
+        _repoDetailsViewModel.Repo.SaveFileAnyway = TglSaveFileAnyway.IsChecked == true;
+        StpDownloadPath.IsVisible = _repoDetailsViewModel.Repo.SaveFileAnyway;
     }
 }

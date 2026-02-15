@@ -124,7 +124,6 @@ public class Repo : INotifyPropertyChanged
     }
     
     private string _latestChangelog = string.Empty;
-
     public string LatestChangelog
     {
         get => _latestChangelog;
@@ -140,7 +139,6 @@ public class Repo : INotifyPropertyChanged
     public bool IsUpToDate => Tag == CurrentInstallTag;
     
     private string _downloadPath = DirectoryHelper.GetUserDirPath();
-
     public string DownloadPath
     {
         get => _downloadPath;
@@ -149,6 +147,18 @@ public class Repo : INotifyPropertyChanged
             if (_downloadPath == value) return;
             _downloadPath = value;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DownloadPath)));
+        }
+    }
+
+    private bool _saveFileAnyway;
+    public bool SaveFileAnyway
+    {
+        get => _saveFileAnyway;
+        set
+        {
+            if (_saveFileAnyway == value) return;
+            _saveFileAnyway = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SaveFileAnyway)));
         }
     }
 

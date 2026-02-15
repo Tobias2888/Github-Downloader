@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -203,16 +202,16 @@ public static class UpdateManager
             if (asset.Value.TempAssetPath.EndsWith(".deb"))
             {
                 debs.Add(asset.Value.TempAssetPath);
+                if (!asset.Value.Repo.SaveFileAnyway) continue;
             }
             else if (asset.Value.TempAssetPath.EndsWith(".AppImage"))
             {
                 appImages.Add(asset.Value);
+                if (!asset.Value.Repo.SaveFileAnyway) continue;
             }
-            else
-            {
-                DownloadStatusViewModel.StatusText = $"Move file {asset.Value.Repo.Name}";
-                MoveFile(asset.Value);
-            }
+
+            DownloadStatusViewModel.StatusText = $"Move file {asset.Value.Repo.Name}";
+            CopyFile(asset.Value);
         }
         
         DownloadStatusViewModel.StatusText = "Installing Updates...";
@@ -271,7 +270,6 @@ public static class UpdateManager
                 }
             } while (new FileInfo(tempIconPath).LinkTarget != null);
 
-            Console.WriteLine(tempIconPath);
             File.Move(tempIconPath, iconPath, overwrite: true);
 
             CreateStartMenuEntry(asset with { TempAssetPath = destPath }, iconPath);
@@ -292,7 +290,9 @@ public static class UpdateManager
                              Categories=Utility;
                              """;
 
-        string desktopFilePath = Path.Join(DirectoryHelper.GetUserDirPath(), ".local", "share", "applications", asset.Repo.Name.Replace('/', '-') + ".desktop");
+        string desktopDirectoryPath = Path.Join(DirectoryHelper.GetUserDirPath(), ".local", "share", "applications");
+        string desktopFilePath = Path.Join(desktopDirectoryPath, asset.Repo.Name.Replace('/', '-') + ".desktop");
+        DirectoryHelper.CreateDir(desktopDirectoryPath);
         FileHelper.Create(desktopFilePath);
         File.WriteAllText(desktopFilePath, desktopFile);
     }
@@ -328,14 +328,14 @@ public static class UpdateManager
         return asset;
     }
 
-    private static void MoveFile(Asset asset)
+    private static void CopyFile(Asset asset)
     {
         string destPath = Path.Join(asset.Repo.DownloadPath, asset.Repo.AssetNames[asset.Repo.DownloadAssetIndex]);
         if (File.Exists(destPath))
         {
             File.Delete(destPath);
         }
-        File.Move(Path.Join(asset.TempAssetPath), destPath);
+        File.Copy(Path.Join(asset.TempAssetPath), destPath);
     }
 
     private static void InstallDebs(List<string> debPaths)
