@@ -14,6 +14,7 @@ using Avalonia.Threading;
 using FileLib;
 using Github_Downloader.Enums;
 using Github_Downloader.ViewModels;
+using LoggerLib;
 
 namespace Github_Downloader;
 
@@ -64,6 +65,9 @@ public partial class App : Application
     {
         _appdataPath = Path.Join(DirectoryHelper.GetAppDataDirPath(), "github-downloader");
         _reposConfigFilePath = Path.Join(_appdataPath, "repos.json");
+        Logger.LogDir = Path.Join(_appdataPath, "logs");
+        //Logger.LogFirstChance = false;
+        Logger.CreateFile();
         
         if (File.Exists(_reposConfigFilePath))
         {

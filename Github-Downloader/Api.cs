@@ -3,8 +3,8 @@ using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
-using Avalonia;
 using FileLib;
+using LoggerLib;
 
 namespace Github_Downloader;
 
@@ -30,6 +30,7 @@ public static class Api
         catch (Exception)
         {
             Console.WriteLine($"Invalid url: {url}");
+            Logger.LogI("Invalid url");
             response = null!;
         }
 

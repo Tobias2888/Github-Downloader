@@ -1,5 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
+        <NoWarn>CS8767;CS8600;CS8618;CS8602;CS8604;CS8601</NoWarn>
         <OutputType>WinExe</OutputType>
         <TargetFramework>net8.0</TargetFramework>
         <Nullable>enable</Nullable>
@@ -23,6 +24,9 @@
     <ItemGroup>
       <Reference Include="FileLib">
         <HintPath>..\..\Libs\FileLib.dll</HintPath>
+      </Reference>
+      <Reference Include="LoggerLib">
+        <HintPath>..\..\Libs\LoggerLib.dll</HintPath>
       </Reference>
     </ItemGroup>
 

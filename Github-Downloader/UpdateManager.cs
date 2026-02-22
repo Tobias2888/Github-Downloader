@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Text.Json;
@@ -11,6 +12,7 @@ using Avalonia;
 using Avalonia.Controls;
 using FileLib;
 using Github_Downloader.ViewModels;
+using LoggerLib;
 
 namespace Github_Downloader;
 
@@ -61,6 +63,12 @@ public static class UpdateManager
             if (httpRepoResponse == null || !httpRepoResponse.IsSuccessStatusCode)
             {
                 Console.WriteLine("Failed to fetch repo");
+                Logger.LogW("Failed to fetch repo");
+                if (httpRepoResponse != null)
+                {
+                    Logger.LogW(httpRepoResponse.StatusCode.ToString());
+                    Logger.LogW(httpRepoResponse.ReasonPhrase);
+                }
                 return;
             }
         
@@ -121,6 +129,7 @@ public static class UpdateManager
         if (!httpResponse.IsSuccessStatusCode)
         {
             Console.WriteLine($"Failed to fetch release of: {responseUrl}");
+            Logger.LogW($"Failed to fetch release of: {responseUrl}");
             return;
         }
         
@@ -144,6 +153,7 @@ public static class UpdateManager
         if (!httpResponseTags.IsSuccessStatusCode)
         {
             Console.WriteLine($"Failed to fetch tags of: {tagsUrl}");
+            Logger.LogW($"Failed to fetch tags of: {tagsUrl}");
             return;
         }
         
@@ -300,7 +310,7 @@ public static class UpdateManager
         
     private static async Task<Asset?> DownloadAsset(Repo repo, bool downloadAnyways = false)
     {
-        Console.WriteLine($"{repo.Tag} -> {repo.CurrentInstallTag}");
+        Logger.LogI($"Downloading asset {repo.Name}, {repo.Tag}");
         if (!downloadAnyways && repo.Tag == repo.CurrentInstallTag)
         {
             return null;
@@ -323,8 +333,6 @@ public static class UpdateManager
             Repo = repo,
             TempAssetPath = Path.Join(CachePath, downloadAssetName)
         };
-
-        Console.WriteLine($"asset: {asset}");
         
         return asset;
     }
@@ -360,8 +368,6 @@ public static class UpdateManager
         {
             return;
         }
-
-        Console.WriteLine(installCommand);
         
         Process process = new()
         {
@@ -377,9 +383,11 @@ public static class UpdateManager
             EnableRaisingEvents = true
         };
         
+        Logger.LogI(installCommand);
         process.OutputDataReceived += (_, args) =>
         {
             Console.WriteLine(args.Data);
+            Logger.LogI(args.Data);
             DownloadStatusViewModel.ProgressText += args.Data + "\n";
         };
 

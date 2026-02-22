@@ -16,6 +16,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Github_Downloader.Enums;
 using Github_Downloader.ViewModels;
+using LoggerLib;
 
 namespace Github_Downloader.Views;
 
@@ -86,6 +87,7 @@ public partial class HomeView : UserControl
             }
             catch (Exception) {
                 Console.WriteLine($"Failed to parse url: {TbxUrl.Text}");
+                Logger.LogE($"Failed to parse url: {TbxUrl.Text}");
             }
         }
         else
@@ -102,6 +104,7 @@ public partial class HomeView : UserControl
         {
             Console.WriteLine("Failed to fetch repo");
             ToastText.Text = $"Failed to fetch repo: {repoUrl}";
+            Logger.LogE($"Failed to fetch repo: {repoUrl}");
             ToastPopup.IsOpen = true;
             await Task.Delay(2500);
             ToastPopup.IsOpen = false;
@@ -113,6 +116,7 @@ public partial class HomeView : UserControl
         {
             Console.WriteLine("Failed to fetch releases");
             ToastText.Text = $"Failed to fetch release of: {url}";
+            Logger.LogE($"Failed to fetch release of: {url}");
             ToastPopup.IsOpen = true;
             await Task.Delay(2500);
             ToastPopup.IsOpen = false;

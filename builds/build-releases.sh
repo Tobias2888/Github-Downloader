@@ -1,6 +1,8 @@
 read -p "Enter new version number: " NEW_VERSION
 
+dotnet restore ../Github-Downloader/Github-Downloader.csproj -r linux-x64
 dotnet publish ../Github-Downloader/Github-Downloader.csproj \
+    --no-restore \
     -c Release \
     -r linux-x64 \
     --self-contained true \
@@ -8,7 +10,9 @@ dotnet publish ../Github-Downloader/Github-Downloader.csproj \
     /p:PublishSingleFile=true \
     /p:PublishReadyToRun=true
 
+dotnet restore ../Github-Downloader/Github-Downloader.csproj -r linux-x64
 dotnet publish ../Github-Downloader/Github-Downloader.csproj \
+    --no-restore \
     -c Release \
     -r linux-x64 \
     --self-contained true \
@@ -16,7 +20,9 @@ dotnet publish ../Github-Downloader/Github-Downloader.csproj \
     /p:PublishSingleFile=true \
     /p:PublishReadyToRun=true
 
+dotnet restore ../Github-Downloader/Github-Downloader.csproj -r linux-arm64
 dotnet publish ../Github-Downloader/Github-Downloader.csproj \
+    --no-restore \
     -c Release \
     -r linux-arm64 \
     --self-contained true \
@@ -24,7 +30,9 @@ dotnet publish ../Github-Downloader/Github-Downloader.csproj \
     /p:PublishSingleFile=true \
     /p:PublishReadyToRun=true
 
+dotnet restore ../Github-Downloader/Github-Downloader.csproj -r osx-x64
 dotnet publish ../Github-Downloader/Github-Downloader.csproj \
+    --no-restore \
     -c Release \
     -r osx-x64 \
     --self-contained true \
@@ -32,7 +40,9 @@ dotnet publish ../Github-Downloader/Github-Downloader.csproj \
     /p:PublishSingleFile=true \
     /p:PublishReadyToRun=true
 
+dotnet restore ../Github-Downloader/Github-Downloader.csproj -r osx-arm64
 dotnet publish ../Github-Downloader/Github-Downloader.csproj \
+    --no-restore \
     -c Release \
     -r osx-arm64 \
     --self-contained true \
@@ -40,7 +50,9 @@ dotnet publish ../Github-Downloader/Github-Downloader.csproj \
     /p:PublishSingleFile=true \
     /p:PublishReadyToRun=true
 
+dotnet restore ../Github-Downloader/Github-Downloader.csproj -r win-x64
 dotnet publish ../Github-Downloader/Github-Downloader.csproj \
+    --no-restore \
     -c Release \
     -r win-x64 \
     --self-contained true \
@@ -48,7 +60,9 @@ dotnet publish ../Github-Downloader/Github-Downloader.csproj \
     /p:PublishSingleFile=true \
     /p:PublishReadyToRun=true
 
+dotnet restore ../Github-Downloader/Github-Downloader.csproj -r win-arm64
 dotnet publish ../Github-Downloader/Github-Downloader.csproj \
+    --no-restore \
     -c Release \
     -r win-arm64 \
     --self-contained true \

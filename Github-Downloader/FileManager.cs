@@ -4,6 +4,7 @@ using System.Text.Json;
 using Avalonia;
 using FileLib;
 using Github_Downloader.ViewModels;
+using LoggerLib;
 
 namespace Github_Downloader;
 
@@ -16,6 +17,7 @@ public static class FileManager
     
     public static void SaveRepos(List<Repo> repos)
     {
+        Logger.LogI("Saving repos");
         if (!File.Exists(ReposConfigFilePath))
         {
             FileHelper.Create(ReposConfigFilePath);
