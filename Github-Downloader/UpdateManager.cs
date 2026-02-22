@@ -33,7 +33,8 @@ public static class UpdateManager
         
         if (Owner is null) return false;
         if (!Owner.IsVisible) return false;
-        
+
+        DownloadStatusViewModel.ProgressText = "Downloading...";
         _downloadStatus = new()
         {
             DataContext = DownloadStatusViewModel
