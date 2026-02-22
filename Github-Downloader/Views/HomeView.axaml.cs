@@ -252,36 +252,50 @@ public partial class HomeView : UserControl
             }
         };
 
-        ToggleSwitch tglExcludeFromDownloadAll = new ToggleSwitch
+        ToggleSwitch tglExcludeFromUpdateAll = new()
         {
             OnContent = null,
             OffContent = null,
             IsChecked = repo.ExcludedFromDownloadAll
         };
-        tglExcludeFromDownloadAll.Click += (_, _) =>
+        tglExcludeFromUpdateAll.Click += (_, _) =>
         {
-            repo.ExcludedFromDownloadAll = tglExcludeFromDownloadAll.IsChecked == true;
+            repo.ExcludedFromDownloadAll = tglExcludeFromUpdateAll.IsChecked == true;
             FileManager.SaveRepos(_repos);
         };
-        
-        Grid.SetColumn(stpRepoLabel, 0);
+
+        CheckBox ckbUpdate = new()
+        {
+            IsChecked = !repo.ExcludedFromDownloadAll
+        };
+        ckbUpdate.Click += (_, _) =>
+        {
+            repo.ExcludedFromDownloadAll = ckbUpdate.IsChecked == false;
+            FileManager.SaveRepos(_repos);
+        };
+
+        int column = 0;
+        Grid.SetColumn(ckbUpdate, column++);
+        Grid.SetRow(ckbUpdate, GrdTrackedRepos.RowDefinitions.Count - 1);
+        GrdTrackedRepos.Children.Add(ckbUpdate);
+        Grid.SetColumn(stpRepoLabel, column++);
         Grid.SetRow(stpRepoLabel, GrdTrackedRepos.RowDefinitions.Count -1);
         GrdTrackedRepos.Children.Add(stpRepoLabel);
-        Grid.SetColumn(cobAssets, 2);
-        Grid.SetRow(cobAssets, GrdTrackedRepos.RowDefinitions.Count -1);
-        GrdTrackedRepos.Children.Add(cobAssets);
-        Grid.SetColumn(tglExcludeFromDownloadAll, 3);
-        Grid.SetRow(tglExcludeFromDownloadAll, GrdTrackedRepos.RowDefinitions.Count -1);
-        GrdTrackedRepos.Children.Add(tglExcludeFromDownloadAll);
-        Grid.SetColumn(btnUpdate, 4);
-        Grid.SetRow(btnUpdate, GrdTrackedRepos.RowDefinitions.Count -1);
-        GrdTrackedRepos.Children.Add(btnUpdate);
-        Grid.SetColumn(imgRemove, 5);
-        Grid.SetRow(imgRemove, GrdTrackedRepos.RowDefinitions.Count -1);
-        GrdTrackedRepos.Children.Add(imgRemove);
-        Grid.SetColumn(btnMore, 1);
+        Grid.SetColumn(btnMore, column++);
         Grid.SetRow(btnMore, GrdTrackedRepos.RowDefinitions.Count -1);
         GrdTrackedRepos.Children.Add(btnMore);
+        Grid.SetColumn(cobAssets, column++);
+        Grid.SetRow(cobAssets, GrdTrackedRepos.RowDefinitions.Count -1);
+        GrdTrackedRepos.Children.Add(cobAssets);
+        /*Grid.SetColumn(tglExcludeFromUpdateAll, column++);
+        Grid.SetRow(tglExcludeFromUpdateAll, GrdTrackedRepos.RowDefinitions.Count -1);
+        GrdTrackedRepos.Children.Add(tglExcludeFromUpdateAll);*/
+        Grid.SetColumn(btnUpdate, column++);
+        Grid.SetRow(btnUpdate, GrdTrackedRepos.RowDefinitions.Count -1);
+        GrdTrackedRepos.Children.Add(btnUpdate);
+        Grid.SetColumn(imgRemove, column++);
+        Grid.SetRow(imgRemove, GrdTrackedRepos.RowDefinitions.Count -1);
+        GrdTrackedRepos.Children.Add(imgRemove);
         
         //grid.Children.Add(btnUninstall);
 /*

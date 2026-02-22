@@ -64,11 +64,11 @@
                     <ProgressBar IsIndeterminate="True" Margin="10"/>
                 </StackPanel>
                 <Button Name="BtnSearchForUpdates" Grid.Column="2" Margin="10, 0" Click="BtnSearchForUpdates_OnClick">Search for updates</Button>
-                <Button Name="BtnUpdateAll" Grid.Column="3" Click="BtnUpdateAll_OnClick">Update All</Button>
+                <Button Name="BtnUpdateAll" Grid.Column="3" Click="BtnUpdateAll_OnClick">Update Selected</Button>
             </Grid>
             <Separator Margin="0, 5, 0, 25"></Separator>
 
-            <Grid Name="GrdTrackedRepos" ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto" RowDefinitions="*">
+            <Grid Name="GrdTrackedRepos" ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto" RowDefinitions="*">
                 <!--
                 <TextBlock Text="Repo name" Grid.Column="0" Classes="SubTitle" Margin="0, 0, 0, 15"/>
                 <TextBlock Text="1" Grid.Column="1" Classes="SubTitle" Margin="0, 0, 0, 15"/>
