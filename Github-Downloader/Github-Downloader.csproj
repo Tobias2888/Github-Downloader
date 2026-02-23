@@ -50,4 +50,8 @@
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
     </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Github-Downloader-lib\Github-Downloader-lib.csproj" />
+    </ItemGroup>
 </Project>

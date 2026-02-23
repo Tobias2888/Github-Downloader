@@ -35,7 +35,7 @@
                     <TextBlock Text="Description:" Classes="SubTitle" Margin="0, 0, 0, 5"/>
                     <TextBlock Name="TbxDescription" TextWrapping="Wrap" Text="This is the description"/>
                 </StackPanel>
-                
+                <Button Content="Report Bug" Click="Button_OnClick"/>
                 <StackPanel Name="StpSaveFileAnyway" Orientation="Horizontal" Margin="0, 0, 0, 5">
                     <TextBlock Text="Save file anyway: " VerticalAlignment="Center"/>
                     <ToggleSwitch Name="TglSaveFileAnyway" OnContent="" OffContent="" Click="TglSaveFileAnyway_OnClick"/>

@@ -21,11 +21,9 @@ namespace Github_Downloader;
 public partial class App : Application
 {
     public MainViewModel MainViewModel { get; } = new();
-    public static DownloadStatusViewModel DownloadStatusViewModel { get; } = new();
+    public DownloadStatusViewModel DownloadStatusViewModel { get; } = new();
     public HomeViewModel HomeViewModel { get; } = new();
     public RepoDetailsViewModel RepoDetailsViewModel { get; } = new();
-    
-    public List<Repo> Repos;
     
     public MainWindow? MainWindow;
     private TrayIcon _trayIcon;
@@ -69,13 +67,7 @@ public partial class App : Application
         //Logger.LogFirstChance = false;
         Logger.CreateFile();
         
-        if (File.Exists(_reposConfigFilePath))
-        {
-            string jsonString = File.ReadAllText(_reposConfigFilePath);
-            Repos = JsonSerializer.Deserialize<List<Repo>>(jsonString);
-        }
-
-        Repos ??= [];
+        await FileManager.LoadRepos(_ => {});
         
         DispatcherTimer timer = new();
         timer.Tick += async (_, _) =>
@@ -84,15 +76,16 @@ public partial class App : Application
             {
                 return;
             }
-            await UpdateManager.SearchForUpdates(Repos);
-            FileManager.SaveRepos(Repos);
+            DownloadStatusViewModel.IsUpdating = true;
+            await UpdateManager.SearchForUpdates(UpdateManager.Repos, statusText =>
+            {
+                DownloadStatusViewModel.StatusText = statusText;
+            });
+            DownloadStatusViewModel.IsUpdating = false;
+            FileManager.SaveRepos();
         };
         timer.Interval = TimeSpan.FromMinutes(UpdateInterval);
         timer.Start();
-        
-        await UpdateManager.UpdateRepoDetails(Repos);
-        await UpdateManager.SearchForUpdates(Repos);
-        FileManager.SaveRepos(Repos);
     }
     
     private void InitializeTrayIcon()
@@ -138,8 +131,16 @@ public partial class App : Application
         NativeMenuItem updateAllItem = new("Update All");
         updateAllItem.Click += async (_, _) =>
         {
-            await UpdateManager.UpdateRepos(Repos);
-            FileManager.SaveRepos(Repos);
+            DownloadStatusViewModel.IsUpdating = true;
+            await UpdateManager.UpdateRepos(UpdateManager.Repos, statusText =>
+            {
+                DownloadStatusViewModel.StatusText = statusText;
+            }, progressText =>
+            {
+                DownloadStatusViewModel.ProgressText = progressText;
+            });
+            DownloadStatusViewModel.IsUpdating = false;
+            FileManager.SaveRepos();
         };
 
         NativeMenuItem separatorItem = new NativeMenuItemSeparator();

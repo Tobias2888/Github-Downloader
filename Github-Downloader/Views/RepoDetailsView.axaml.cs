@@ -16,12 +16,14 @@ public partial class RepoDetailsView : UserControl
 {
     private readonly MainViewModel _mainViewModel;
     private readonly RepoDetailsViewModel _repoDetailsViewModel;
+    private readonly DownloadStatusViewModel _downloadStatusViewModel;
     
     public RepoDetailsView()
     {
         InitializeComponent();
         _mainViewModel = ((App)Application.Current!).MainViewModel;
         _repoDetailsViewModel = ((App)Application.Current!).RepoDetailsViewModel;
+        _downloadStatusViewModel = ((App)Application.Current!).DownloadStatusViewModel;
         DataContext = _repoDetailsViewModel;
     }
 
@@ -60,8 +62,14 @@ public partial class RepoDetailsView : UserControl
         CobVersion.SelectionChanged += async (o, args) =>
         {
             _repoDetailsViewModel.Repo.TargetTag = _repoDetailsViewModel.Repo.Tags[CobVersion.SelectedIndex];
-            await UpdateManager.SearchForUpdates(_repoDetailsViewModel.Repo);
-            FileManager.SaveRepos(((App)Application.Current!).Repos);
+            
+            _downloadStatusViewModel.IsUpdating = true;
+            await UpdateManager.SearchForUpdates(_repoDetailsViewModel.Repo, statusText =>
+            {
+                _downloadStatusViewModel.StatusText = statusText;
+            });
+            _downloadStatusViewModel.IsUpdating = false;
+            FileManager.SaveRepos();
         };
         
         TbxVersion.DataContext = _repoDetailsViewModel.Repo;
@@ -124,16 +132,15 @@ public partial class RepoDetailsView : UserControl
                 AllowMultiple = false
             });
 
-        if (folders.Count > 0)
+        if (folders.Count <= 0) return;
+        
+        if (_repoDetailsViewModel.Repo == null)
         {
-            if (_repoDetailsViewModel.Repo == null)
-            {
-                return;
-            }
-            string path = folders[0].Path.LocalPath;
-            _repoDetailsViewModel.Repo.DownloadPath = path;
-            FileManager.SaveRepos(((App)Application.Current!).Repos);
+            return;
         }
+        string path = folders[0].Path.LocalPath;
+        _repoDetailsViewModel.Repo.DownloadPath = path;
+        FileManager.SaveRepos();
     }
 
     private void TbxGithubLink_OnPointerPressed(object? sender, PointerPressedEventArgs e)
@@ -147,23 +154,48 @@ public partial class RepoDetailsView : UserControl
 
     private async void BtnUpdate_OnClick(object? sender, RoutedEventArgs e)
     {
-        List<Repo> repos = ((App)Application.Current!).Repos;
-        await UpdateManager.SearchForUpdates(_repoDetailsViewModel.Repo);
-        await UpdateManager.UpdateRepo(_repoDetailsViewModel.Repo);
-        FileManager.SaveRepos(repos);
+        _downloadStatusViewModel.IsUpdating = true;
+        await UpdateManager.SearchForUpdates(_repoDetailsViewModel.Repo, statusText =>
+        {
+            _downloadStatusViewModel.StatusText = statusText;
+        });
+        await UpdateManager.UpdateRepo(_repoDetailsViewModel.Repo, statusText =>
+        {
+            _downloadStatusViewModel.StatusText = statusText;
+        }, progressText =>
+        {
+            _downloadStatusViewModel.ProgressText = progressText;
+        });
+        _downloadStatusViewModel.IsUpdating = false;
+        FileManager.SaveRepos();
     }
 
     private async void BtnReinstall_OnClick(object? sender, RoutedEventArgs e)
     {
-        List<Repo> repos = ((App)Application.Current!).Repos;
-        await UpdateManager.SearchForUpdates(_repoDetailsViewModel.Repo);
-        await UpdateManager.UpdateRepo(_repoDetailsViewModel.Repo, true);
-        FileManager.SaveRepos(repos);
+        _downloadStatusViewModel.IsUpdating = true;
+        await UpdateManager.SearchForUpdates(_repoDetailsViewModel.Repo, statusText =>
+        {
+            _downloadStatusViewModel.StatusText = statusText;
+        });
+        await UpdateManager.UpdateRepo(_repoDetailsViewModel.Repo, statusText =>
+        {
+            _downloadStatusViewModel.StatusText = statusText;
+        }, progressText =>
+        {
+            _downloadStatusViewModel.ProgressText = progressText;
+        }, true);
+        _downloadStatusViewModel.IsUpdating = false;
+        FileManager.SaveRepos();
     }
 
     private void TglSaveFileAnyway_OnClick(object? sender, RoutedEventArgs e)
     {
         _repoDetailsViewModel.Repo.SaveFileAnyway = TglSaveFileAnyway.IsChecked == true;
         StpDownloadPath.IsVisible = _repoDetailsViewModel.Repo.SaveFileAnyway;
+    }
+
+    private async void Button_OnClick(object? sender, RoutedEventArgs e)
+    {
+        await Api.GetRequest("", FileManager.GetPat());
     }
 }

@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <RootNamespace>Github_Downloader_lib</RootNamespace>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <Reference Include="FileLib">
+        <HintPath>..\..\Libs\FileLib.dll</HintPath>
+      </Reference>
+      <Reference Include="LoggerLib">
+        <HintPath>..\..\Libs\LoggerLib.dll</HintPath>
+      </Reference>
+    </ItemGroup>
+
+</Project>

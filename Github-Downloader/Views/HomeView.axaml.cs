@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
@@ -22,7 +21,6 @@ namespace Github_Downloader.Views;
 
 public partial class HomeView : UserControl
 {
-    private List<Repo> _repos = ((App)Application.Current!).Repos;
     private readonly MainViewModel _mainViewModel;
     private readonly HomeViewModel _homeViewModel;
     private readonly RepoDetailsViewModel _repoDetailsViewModel;
@@ -36,14 +34,12 @@ public partial class HomeView : UserControl
         _mainViewModel = ((App)Application.Current!).MainViewModel;
         _homeViewModel = ((App)Application.Current!).HomeViewModel;
         _repoDetailsViewModel = ((App)Application.Current!).RepoDetailsViewModel;
-        _downloadStatusViewModel = App.DownloadStatusViewModel;
+        _downloadStatusViewModel = ((App)Application.Current!).DownloadStatusViewModel;
         DataContext = _homeViewModel;
     }
 
     private void Control_OnLoaded(object? sender, RoutedEventArgs e)
     {
-        UpdateManager.Owner = ((App)Application.Current!).MainWindow;
-
         PgbDownloading.DataContext = _downloadStatusViewModel;
         PgbDownloading.Bind(IsVisibleProperty, new Binding(nameof(_downloadStatusViewModel.IsUpdating)));
         
@@ -66,7 +62,7 @@ public partial class HomeView : UserControl
     {
         if (Design.IsDesignMode) return;
         
-        foreach (Repo repo in _repos)
+        foreach (Repo repo in UpdateManager.Repos)
         {
             CreateTrackedRepoEntry(repo);
         }
@@ -133,11 +129,16 @@ public partial class HomeView : UserControl
             Description = repoResponse.description
         };
 
-        await UpdateManager.SearchForUpdates(repo);
+        _downloadStatusViewModel.IsUpdating = true;
+        await UpdateManager.SearchForUpdates(repo, statusText =>
+        {
+            _downloadStatusViewModel.StatusText = statusText;
+        });
+        _downloadStatusViewModel.IsUpdating = false;
         
-        _repos.Add(repo);
+        UpdateManager.Repos.Add(repo);
 
-        FileManager.SaveRepos(_repos);
+        FileManager.SaveRepos();
         CreateTrackedRepoEntry(repo);
 
         TbxUrl.Text = "";
@@ -164,10 +165,10 @@ public partial class HomeView : UserControl
         };
         imgRemove.PointerPressed += (_, _) =>
         {
-            _repos.Remove(repo);
+            UpdateManager.Repos.Remove(repo);
             GrdTrackedRepos.Children.Clear();
             LoadGrdTrackedRepos();
-            FileManager.SaveRepos(_repos);
+            FileManager.SaveRepos();
         };
 
         Button btnUpdate = new()
@@ -176,8 +177,16 @@ public partial class HomeView : UserControl
         };
         btnUpdate.Click += async (_, _) =>
         {
-            await UpdateManager.UpdateRepo(repo);
-            FileManager.SaveRepos(_repos);
+            _downloadStatusViewModel.IsUpdating = true;
+            await UpdateManager.UpdateRepo(repo, statusText =>
+            {
+                _downloadStatusViewModel.StatusText = statusText;
+            }, progressText =>
+            {
+                _downloadStatusViewModel.ProgressText = progressText;
+            });
+            _downloadStatusViewModel.IsUpdating = false;
+            FileManager.SaveRepos();
         };
         
         TextBlock tbxName = new()
@@ -245,7 +254,7 @@ public partial class HomeView : UserControl
         cobAssets.SelectionChanged += (_, _) =>
         {
             repo.DownloadAssetIndex = cobAssets.SelectedIndex;
-            FileManager.SaveRepos(_repos);
+            FileManager.SaveRepos();
         };
         
         cobAssets.PropertyChanged += (sender, args) =>
@@ -265,7 +274,7 @@ public partial class HomeView : UserControl
         tglExcludeFromUpdateAll.Click += (_, _) =>
         {
             repo.ExcludedFromDownloadAll = tglExcludeFromUpdateAll.IsChecked == true;
-            FileManager.SaveRepos(_repos);
+            FileManager.SaveRepos();
         };
 
         CheckBox ckbUpdate = new()
@@ -275,7 +284,7 @@ public partial class HomeView : UserControl
         ckbUpdate.Click += (_, _) =>
         {
             repo.ExcludedFromDownloadAll = ckbUpdate.IsChecked == false;
-            FileManager.SaveRepos(_repos);
+            FileManager.SaveRepos();
         };
 
         int column = 0;
@@ -313,14 +322,27 @@ public partial class HomeView : UserControl
 
     private async void BtnSearchForUpdates_OnClick(object? sender, RoutedEventArgs e)
     {
-        await UpdateManager.SearchForUpdates(_repos);
-        FileManager.SaveRepos(_repos);
+        _downloadStatusViewModel.IsUpdating = true;
+        await UpdateManager.SearchForUpdates(UpdateManager.Repos, statusText =>
+        {
+            _downloadStatusViewModel.StatusText = statusText;
+        });
+        _downloadStatusViewModel.IsUpdating = false;
+        FileManager.SaveRepos();
     }
     
     public async void BtnUpdateAll_OnClick(object? sender, RoutedEventArgs e)
     {
-        await UpdateManager.UpdateRepos(_repos);
-        FileManager.SaveRepos(_repos);
+        _downloadStatusViewModel.IsUpdating = true;
+        await UpdateManager.UpdateRepos(UpdateManager.Repos, statusText =>
+        {
+            _downloadStatusViewModel.StatusText = statusText;
+        }, progressText =>
+        {
+            _downloadStatusViewModel.ProgressText = progressText;
+        });
+        _downloadStatusViewModel.IsUpdating = false;
+        FileManager.SaveRepos();
     }
 
     private async void BtnSetPat_OnClick(object? sender, RoutedEventArgs e)
@@ -339,7 +361,7 @@ public partial class HomeView : UserControl
 
     private void PgbDownloading_OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        UpdateManager.ShowDialog();
+        _downloadStatusViewModel.ShowDialog();
     }
 
     private void BtnRemovePat_OnClick(object? sender, RoutedEventArgs e)

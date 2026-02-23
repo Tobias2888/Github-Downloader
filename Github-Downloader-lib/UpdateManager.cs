@@ -1,62 +1,23 @@
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Net;
-using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Text.Json;
-using System.Threading.Tasks;
-using Avalonia;
-using Avalonia.Controls;
 using FileLib;
-using Github_Downloader.ViewModels;
 using LoggerLib;
 
 namespace Github_Downloader;
 
 public static class UpdateManager
 {
+    public static List<Repo> Repos;
+    
     private static readonly string CachePath = Path.Join(DirectoryHelper.GetCacheDirPath(), "github-downloader");
     private static readonly string AppImagesPath = Path.Join(DirectoryHelper.GetAppDataDirPath(), "github-downloader", "app-images");
-    public static Window? Owner;
-    
-    private static readonly DownloadStatusViewModel DownloadStatusViewModel = App.DownloadStatusViewModel;
-    private static readonly MainViewModel MainViewModel = ((App)Application.Current!).MainViewModel;
-
-    private static DownloadStatus? _downloadStatus;
     
     private readonly record struct Asset(Repo Repo, string TempAssetPath);
-
-    public static bool ShowDialog()
-    {
-        DownloadStatusViewModel.IsUpdating  = true;
-        
-        if (Owner is null) return false;
-        if (!Owner.IsVisible) return false;
-
-        DownloadStatusViewModel.ProgressText = "Downloading...";
-        _downloadStatus = new()
-        {
-            DataContext = DownloadStatusViewModel
-        };
-        _ = _downloadStatus.ShowDialog(Owner);
-        return true;
-    }
-
-    private static void CloseDialog(bool shown)
-    {
-        DownloadStatusViewModel.IsUpdating = false;
-        if (!shown) return;
-        DownloadStatusViewModel.ProgressText = "";
-        _downloadStatus?.Close();
-    }
+    
 
     public static async Task UpdateRepoDetails(List<Repo> repos)
     {
-        if (DownloadStatusViewModel.IsUpdating) return;
-        
         foreach (Repo repo in repos)
         {
             HttpResponseMessage httpRepoResponse = await Api.GetRequest(repo.Url.Replace("/releases/latest", ""), FileManager.GetPat());
@@ -84,35 +45,26 @@ public static class UpdateManager
         }
     }
 
-    public static async Task SearchForUpdates(List<Repo> repos)
+    public static async Task SearchForUpdates(List<Repo> repos, Action<string> statusText)
     {
-        if (DownloadStatusViewModel.IsUpdating) return;
-
-        bool shown = ShowDialog();
         foreach (Repo repo in repos)
         {
-            DownloadStatusViewModel.StatusText = $"Checking for {repo.Name}";
-            await SearchForUpdates(repo, true);
+            statusText.Invoke($"Checking for {repo.Name}");
+            await SearchForUpdates(repo, statusText, true);
         }
-        CloseDialog(shown);
 
         foreach (Repo repo in repos)
         {
             if (repo.Tag == repo.CurrentInstallTag) continue;
-            MainViewModel.HasUpdates = true;
             return;
         }
-        
-        MainViewModel.HasUpdates = false;
     }
 
-    public static async Task SearchForUpdates(Repo repo, bool multiDownload = false)
+    public static async Task SearchForUpdates(Repo repo, Action<string> statusText, bool multiDownload = false)
     {
-        bool shown = false;
         if (!multiDownload)
         {
-            DownloadStatusViewModel.StatusText = $"Checking for {repo.Name}";
-            shown = ShowDialog();
+            statusText.Invoke($"Checking for {repo.Name}");
         }
 
         string responseUrl;
@@ -164,24 +116,16 @@ public static class UpdateManager
             tags.AddRange(tagsResponse.Select(tag => tag.name).ToList());
             repo.Tags = tags;
         }
-        
-        if (!multiDownload) CloseDialog(shown);
     }
 
-    public static async Task UpdateRepo(Repo repo, bool downloadAnyways = false)
+    public static async Task UpdateRepo(Repo repo, Action<string> statusText, Action<string> progressText, bool downloadAnyways = false)
     {
-        if (DownloadStatusViewModel.IsUpdating) return;
-
-        ShowDialog();
-        UpdateRepos([await DownloadAsset(repo, downloadAnyways)]);
+        UpdateRepos([await DownloadAsset(repo, statusText, progressText, downloadAnyways)], statusText, progressText);
     }
 
-    public static async Task UpdateRepos(List<Repo> repos)
+    public static async Task UpdateRepos(List<Repo> repos, Action<string> statusText, Action<string> progressText)
     {
-        if (DownloadStatusViewModel.IsUpdating) return;
-
-        ShowDialog();
-        DownloadStatusViewModel.StatusText = "Downloading updates...";
+        statusText.Invoke("Downloading updates...");
         
         List<Asset?> assets = [];
         foreach (var repo in repos)
@@ -191,14 +135,14 @@ public static class UpdateManager
                 continue;
             }
             
-            Asset? asset = await DownloadAsset(repo);
+            Asset? asset = await DownloadAsset(repo, statusText, progressText);
             assets.Add(asset);
         }
 
-        UpdateRepos(assets);
+        UpdateRepos(assets, statusText, progressText);
     }
 
-    private static void UpdateRepos(List<Asset?> assets)
+    private static void UpdateRepos(List<Asset?> assets, Action<string> statusText, Action<string> progressText)
     {
         List<string> debs = [];
         List<Asset> appImages = [];
@@ -221,17 +165,14 @@ public static class UpdateManager
                 if (!asset.Value.Repo.SaveFileAnyway) continue;
             }
 
-            DownloadStatusViewModel.StatusText = $"Move file {asset.Value.Repo.Name}";
+            statusText.Invoke($"Move file {asset.Value.Repo.Name}");
             CopyFile(asset.Value);
         }
         
-        DownloadStatusViewModel.StatusText = "Installing Updates...";
+        statusText.Invoke("Installing Updates...");
         
         HandleAppImages(appImages);
-        InstallDebs(debs);
-        
-        CloseDialog(true);
-        MainViewModel.HasUpdates = false;
+        InstallDebs(debs, progressText);
     }
 
     private static void HandleAppImages(List<Asset> assets)
@@ -308,7 +249,7 @@ public static class UpdateManager
         File.WriteAllText(desktopFilePath, desktopFile);
     }
         
-    private static async Task<Asset?> DownloadAsset(Repo repo, bool downloadAnyways = false)
+    private static async Task<Asset?> DownloadAsset(Repo repo, Action<string> statusText, Action<string> progressText, bool downloadAnyways = false)
     {
         Logger.LogI($"Downloading asset {repo.Name}, {repo.Tag}");
         if (!downloadAnyways && repo.Tag == repo.CurrentInstallTag)
@@ -316,11 +257,11 @@ public static class UpdateManager
             return null;
         }
         
-        DownloadStatusViewModel.StatusText = $"Downloading {repo.Name}";
+        statusText.Invoke( $"Downloading {repo.Name}");
         
         Progress<double> progress = new(p =>
         {
-            DownloadStatusViewModel.ProgressText = $"Downloaded: {p:0.00}%";
+            progressText.Invoke($"Downloaded: {p:0.00}%");
         });
         
         string downloadAssetName = repo.AssetNames[repo.DownloadAssetIndex];
@@ -347,7 +288,7 @@ public static class UpdateManager
         File.Copy(Path.Join(asset.TempAssetPath), destPath);
     }
 
-    private static void InstallDebs(List<string> debPaths)
+    private static void InstallDebs(List<string> debPaths, Action<string> progressText)
     {
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         {
@@ -388,7 +329,7 @@ public static class UpdateManager
         {
             Console.WriteLine(args.Data);
             Logger.LogI(args.Data);
-            DownloadStatusViewModel.ProgressText += args.Data + "\n";
+            progressText.Invoke(args.Data + "\n");
         };
 
         process.Start();
