@@ -1,5 +1,6 @@
 using System.Text.Json;
 using FileLib;
+using Github_Downloader.Enums;
 using LoggerLib;
 
 namespace Github_Downloader;
@@ -26,7 +27,7 @@ public static class FileManager
         File.WriteAllText(ReposConfigFilePath, jsonString);
     }
 
-    public static async Task LoadRepos(Action<string> statusText)
+    public static async Task LoadRepos(Platform platform, Action<string> statusText)
     {
         if (File.Exists(ReposConfigFilePath))
         {
@@ -35,6 +36,11 @@ public static class FileManager
         }
 
         UpdateManager.Repos ??= [];
+
+        if (platform != Platform.Avalonia)
+        {
+            return;
+        }
         
         await UpdateManager.UpdateRepoDetails(UpdateManager.Repos);
         await UpdateManager.SearchForUpdates(UpdateManager.Repos, statusText);

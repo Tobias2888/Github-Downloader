@@ -67,7 +67,7 @@ public partial class App : Application
         //Logger.LogFirstChance = false;
         Logger.CreateFile();
         
-        await FileManager.LoadRepos(_ => {});
+        await FileManager.LoadRepos(Platform.Avalonia, _ => {});
         
         DispatcherTimer timer = new();
         timer.Tick += async (_, _) =>

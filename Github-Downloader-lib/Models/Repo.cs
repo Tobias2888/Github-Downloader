@@ -163,6 +163,11 @@ public class Repo : INotifyPropertyChanged
     }
 
     public bool ExcludedFromDownloadAll { get; set; } = false;
+
+    public override string ToString()
+    {
+        return $"{Name} - {CurrentInstallTag}";
+    }
     
     public event PropertyChangedEventHandler? PropertyChanged;
 }
