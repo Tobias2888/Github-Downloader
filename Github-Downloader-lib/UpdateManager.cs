@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using FileLib;
+using Github_Downloader.Enums;
 using LoggerLib;
 
 namespace Github_Downloader;
@@ -9,6 +10,7 @@ namespace Github_Downloader;
 public static class UpdateManager
 {
     public static List<Repo> Repos;
+    public static Platform CurPlatform;
     
     private static readonly string CachePath = Path.Join(DirectoryHelper.GetCacheDirPath(), "github-downloader");
     private static readonly string AppImagesPath = Path.Join(DirectoryHelper.GetAppDataDirPath(), "github-downloader", "app-images");
@@ -327,7 +329,8 @@ public static class UpdateManager
             return;
         }
         
-        string installCommand = "pkexec apt-get install -y --allow-downgrades ";
+        string installCommand = (CurPlatform == Platform.Avalonia ? "pkexec" : "sudo") + " apt-get install -y --allow-downgrades ";
+        Console.WriteLine(installCommand);
         foreach (string debPath in debPaths)
         {
             if (!debPath.Contains(".deb"))
@@ -337,7 +340,7 @@ public static class UpdateManager
             installCommand += $"\"{debPath}\" ";
         }
 
-        if (installCommand == "pkexec apt-get install -y --allow-downgrades ")
+        if (installCommand is "pkexec apt-get install -y --allow-downgrades " or "sudo apt-get install -y --allow-downgrades ")
         {
             return;
         }
@@ -346,7 +349,7 @@ public static class UpdateManager
         {
             StartInfo = new()
             {
-                FileName = "pkexec",
+                FileName = CurPlatform == Platform.Avalonia ? "pkexec" : "sudo",
                 Arguments = installCommand,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -359,7 +362,6 @@ public static class UpdateManager
         Logger.LogI(installCommand);
         process.OutputDataReceived += (_, args) =>
         {
-            Console.WriteLine(args.Data);
             Logger.LogI(args.Data);
             progressText.Invoke(args.Data + "\n");
         };

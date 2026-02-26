@@ -166,7 +166,7 @@ public class Repo : INotifyPropertyChanged
 
     public override string ToString()
     {
-        return $"{Name} - {CurrentInstallTag}";
+        return $"{Name} - " + (Tag == CurrentInstallTag ? CurrentInstallTag : "\x1b[38;2;255;165;0m" + CurrentInstallTag + " -> " + Tag + "\x1b[0m");
     }
     
     public event PropertyChangedEventHandler? PropertyChanged;

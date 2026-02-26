@@ -27,7 +27,7 @@ public static class FileManager
         File.WriteAllText(ReposConfigFilePath, jsonString);
     }
 
-    public static async Task LoadRepos(Platform platform, Action<string> statusText)
+    public static async Task LoadRepos(Action<string> statusText)
     {
         if (File.Exists(ReposConfigFilePath))
         {
@@ -37,7 +37,7 @@ public static class FileManager
 
         UpdateManager.Repos ??= [];
 
-        if (platform != Platform.Avalonia)
+        if (UpdateManager.CurPlatform != Platform.Avalonia)
         {
             return;
         }
