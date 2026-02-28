@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <NoWarn>CS8767;CS8600;CS8618;CS8602;CS8604;CS8601</NoWarn>
+        <NoWarn>CS8767;CS8600;CS8618;CS8602;CS8604;CS8601;CS4014</NoWarn>
         <OutputType>WinExe</OutputType>
         <TargetFramework>net8.0</TargetFramework>
         <Nullable>enable</Nullable>

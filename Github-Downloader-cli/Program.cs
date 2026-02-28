@@ -109,7 +109,6 @@ public static class Program
                     default:
                         Console.WriteLine("Invalid arguments");
                         return;
-                        break;
                 }
 
                 if (repo == null)
@@ -166,6 +165,7 @@ public static class Program
             }
 
             case "repo":
+            {
                 if (args.Length <= 1)
                 {
                     Console.WriteLine("\nSpecify repository id:\n\n" +
@@ -179,6 +179,8 @@ public static class Program
                     return;
                 }
 
+                int repoId = int.Parse(args[1]);
+
                 switch (args[2])
                 {
                     case "set-asset":
@@ -188,18 +190,21 @@ public static class Program
                                               $"{cliName} repo set-asset (asset id)\n");
                             return;
                         }
-                        
+
                         int assetId = int.Parse(args[3]);
-                        if (assetId < 0 || assetId > UpdateManager.Repos.Count)
+                        if (assetId < 0 || assetId > UpdateManager.Repos[repoId].AssetNames.Count)
                         {
                             Console.WriteLine($"asset id {assetId} out of range");
                             return;
                         }
-                        UpdateManager.Repos[int.Parse(args[1])].DownloadAssetIndex = int.Parse(args[3]);
+
+                        UpdateManager.Repos[repoId].DownloadAssetIndex = assetId;
                         FileManager.SaveRepos();
                         break;
                 }
+
                 break;
+            }
 
             case "remove":
             {
