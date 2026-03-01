@@ -9,6 +9,7 @@
         Title="Github Downloader"
         Closing="Window_OnClosing">
     
+    
     <Window.Styles>
         <Style Selector="TextBlock.Title">
             <Setter Property="FontSize" Value="22"/>
