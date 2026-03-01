@@ -190,6 +190,7 @@ public static class UpdateManager
     private static void UpdateRepos(List<Asset?> assets, Action<string> statusText, Action<string> progressText)
     {
         List<string> debs = [];
+        List<string> exes = [];
         List<Asset> appImages = [];
         
         foreach (Asset? asset in assets)
@@ -209,6 +210,11 @@ public static class UpdateManager
                 appImages.Add(asset.Value);
                 if (!asset.Value.Repo.SaveFileAnyway) continue;
             }
+            else if (asset.Value.TempAssetPath.EndsWith(".exe"))
+            {
+                exes.Add(asset.Value.TempAssetPath);
+                if (!asset.Value.Repo.SaveFileAnyway) continue;
+            }
 
             statusText.Invoke($"Move file {asset.Value.Repo.Name}");
             CopyFile(asset.Value);
@@ -218,6 +224,7 @@ public static class UpdateManager
         
         HandleAppImages(appImages);
         InstallDebs(debs, progressText);
+        InstallExe(exes, progressText);
     }
 
     private static void HandleAppImages(List<Asset> assets)
@@ -383,5 +390,34 @@ public static class UpdateManager
         process.BeginErrorReadLine();
 
         process.WaitForExit();
+    }
+
+    private static void InstallExe(List<string> exePaths, Action<string> progressText)
+    {
+        foreach (string exePath in exePaths)
+        {
+            Logger.LogI($"Installing {exePath}");
+            
+            Process process = new()
+            {
+                StartInfo = new()
+                    {
+                    FileName = exePath,
+                    UseShellExecute = true // Important to open GUI installer
+                }
+            };
+
+            process.Start();
+
+            process.WaitForExit();
+            if (process.ExitCode == 0)
+            {
+                Logger.LogI("Installation complete");
+            }
+            else
+            {
+                Logger.LogE($"Installation failed with exit code {process.ExitCode}");
+            }
+        }
     }
 }
