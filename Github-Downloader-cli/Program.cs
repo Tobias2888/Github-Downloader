@@ -1,6 +1,6 @@
-﻿using System.Globalization;
-using FileLib;
-using Github_Downloader;
+﻿using FileLib;
+using Github_Downloader_lib;
+using Github_Downloader_lib.Models;
 using Github_Downloader.Enums;
 using LoggerLib;
 
@@ -8,9 +8,9 @@ namespace Github_Downloader_cli;
 
 public static class Program
 {
-    private static string cliName = "gdh";
-    
-    static async Task Main(string[] args)
+    private const string CliName = "ghd";
+
+    private static async Task Main(string[] args)
     {
         Logger.LogDir = Path.Join(DirectoryHelper.GetAppDataDirPath(), "github-downloader", "logs");
         Logger.CreateFile();
@@ -55,7 +55,7 @@ public static class Program
                         if (args.Length <= 2)
                         {
                             Console.WriteLine("\nSpecify repository id:\n\n" +
-                                              $"{cliName} list assets (repo id)\n");
+                                              $"{CliName} list assets (repo id)\n");
                             return;
                         }
 
@@ -135,7 +135,8 @@ public static class Program
                         count++; 
                     }
                 });
-                Console.WriteLine($"{count} updates available execute {cliName} list to view details");
+                FileManager.SaveRepos();
+                Console.WriteLine($"{count} updates available execute {CliName} list to view details");
                 break;
 
             case "update":
@@ -169,7 +170,7 @@ public static class Program
                 if (args.Length <= 1)
                 {
                     Console.WriteLine("\nSpecify repository id:\n\n" +
-                                      $"{cliName} repo (repo id)\n");
+                                      $"{CliName} repo (repo id)\n");
                     return;
                 }
 
@@ -187,7 +188,7 @@ public static class Program
                         if (args.Length <= 3)
                         {
                             Console.WriteLine("\nSpecify asset id:\n\n" +
-                                              $"{cliName} repo set-asset (asset id)\n");
+                                              $"{CliName} repo set-asset (asset id)\n");
                             return;
                         }
 
@@ -237,7 +238,7 @@ public static class Program
                     case "set":
                         if (args.Length <= 2)
                         {
-                            Console.WriteLine($"Specify personal access token: {cliName} pat set (personal access token)");
+                            Console.WriteLine($"Specify personal access token: {CliName} pat set (personal access token)");
                             return;
                         }
                         
@@ -261,7 +262,7 @@ public static class Program
         Console.WriteLine($"""
 
                            Command:
-                            {cliName} [list of arguments]
+                            {CliName} [list of arguments]
                             
                            Arguments:
                             -h / --help - Show this menu

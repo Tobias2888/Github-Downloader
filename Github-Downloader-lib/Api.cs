@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using FileLib;
 using LoggerLib;
 
-namespace Github_Downloader;
+namespace Github_Downloader_lib;
 
 public static class Api
 {

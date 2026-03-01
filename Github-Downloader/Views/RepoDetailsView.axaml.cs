@@ -7,6 +7,7 @@ using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using Github_Downloader_lib;
 using Github_Downloader.Enums;
 using Github_Downloader.ViewModels;
 

@@ -2,18 +2,16 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using FileLib;
+using Github_Downloader_lib.Models;
 using Github_Downloader.Enums;
 using LoggerLib;
 
-namespace Github_Downloader;
+namespace Github_Downloader_lib;
 
 public static class UpdateManager
 {
     public static List<Repo> Repos;
     public static Platform CurPlatform;
-    
-    private static readonly string CachePath = Path.Join(DirectoryHelper.GetCacheDirPath(), "github-downloader");
-    private static readonly string AppImagesPath = Path.Join(DirectoryHelper.GetAppDataDirPath(), "github-downloader", "app-images");
     
     private readonly record struct Asset(Repo Repo, string TempAssetPath);
 
@@ -224,7 +222,7 @@ public static class UpdateManager
     {
         foreach (Asset asset in assets)
         {
-            string assetPath = Path.Join(AppImagesPath, asset.Repo.Name.Replace('/', '-'));
+            string assetPath = Path.Join(FileManager.AppImagesPath, asset.Repo.Name.Replace('/', '-'));
             DirectoryHelper.CreateDir(assetPath);
             string destPath = Path.Join(assetPath, asset.Repo.Name.Replace('/', '-') + ".AppImage");
             string iconPath = Path.Join(assetPath, "icon.png");
@@ -250,20 +248,20 @@ public static class UpdateManager
                 {
                     FileName = destPath,
                     ArgumentList = { "--appimage-extract" },
-                    WorkingDirectory = CachePath,
+                    WorkingDirectory = FileManager.CachePath,
                     UseShellExecute = false
                 }
             };
             appImageExtract.Start();
             appImageExtract.WaitForExit();
 
-            string tempIconPath = Path.Combine(CachePath, "squashfs-root", ".DirIcon");
+            string tempIconPath = Path.Combine(FileManager.CachePath, "squashfs-root", ".DirIcon");
             do
             {
                 FileInfo fileInfo = new(tempIconPath);
                 if (fileInfo.LinkTarget != null)
                 {
-                    tempIconPath = Path.Join(CachePath, "squashfs-root", fileInfo.LinkTarget);
+                    tempIconPath = Path.Join(FileManager.CachePath, "squashfs-root", fileInfo.LinkTarget);
                 }
             } while (new FileInfo(tempIconPath).LinkTarget != null);
 
@@ -310,14 +308,14 @@ public static class UpdateManager
         });
         
         string downloadAssetName = repo.AssetNames[repo.DownloadAssetIndex];
-        await Api.DownloadFileAsync(repo.DownloadUrls[repo.DownloadAssetIndex], Path.Join(CachePath, downloadAssetName), FileManager.GetPat(), progress);
+        await Api.DownloadFileAsync(repo.DownloadUrls[repo.DownloadAssetIndex], Path.Join(FileManager.CachePath, downloadAssetName), FileManager.GetPat(), progress);
 
         repo.CurrentInstallTag = repo.Tag;
         
         Asset asset = new()
         {
             Repo = repo,
-            TempAssetPath = Path.Join(CachePath, downloadAssetName)
+            TempAssetPath = Path.Join(FileManager.CachePath, downloadAssetName)
         };
         
         return asset;
@@ -340,7 +338,7 @@ public static class UpdateManager
             return;
         }
         
-        string installCommand = (CurPlatform == Platform.Avalonia ? "pkexec" : "sudo") + " apt-get install -y --allow-downgrades ";
+        string installCommand = (CurPlatform == Platform.Avalonia ? "pkexec" : "sudo") + " apt-get install -y --allow-downgrades --reinstall ";
         Console.WriteLine(installCommand);
         foreach (string debPath in debPaths)
         {
@@ -351,7 +349,7 @@ public static class UpdateManager
             installCommand += $"\"{debPath}\" ";
         }
 
-        if (installCommand is "pkexec apt-get install -y --allow-downgrades " or "sudo apt-get install -y --allow-downgrades ")
+        if (installCommand is "pkexec apt-get install -y --allow-downgrades --reinstall " or "sudo apt-get install -y --allow-downgrades --reinstall ")
         {
             return;
         }

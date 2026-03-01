@@ -10,6 +10,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
 using FileLib;
+using Github_Downloader_lib;
 using Github_Downloader.Enums;
 using Github_Downloader.ViewModels;
 using LoggerLib;

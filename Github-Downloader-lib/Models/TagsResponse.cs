@@ -1,4 +1,4 @@
-namespace Github_Downloader;
+namespace Github_Downloader_lib.Models;
 
 public class TagsResponse
 {

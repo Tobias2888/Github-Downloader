@@ -4,7 +4,7 @@ using System.ComponentModel;
 using System.Text.Json.Serialization;
 using FileLib;
 
-namespace Github_Downloader;
+namespace Github_Downloader_lib.Models;
 
 public class Repo : INotifyPropertyChanged
 {

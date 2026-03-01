@@ -1,3 +1,5 @@
+namespace Github_Downloader_lib.Models;
+
 public class Response
 {
     public string url { get; set; }

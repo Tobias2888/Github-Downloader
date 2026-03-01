@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Github_Downloader;
+namespace Github_Downloader_lib.Models;
 
 public class RepoResponse
 {
