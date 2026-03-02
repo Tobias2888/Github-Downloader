@@ -78,23 +78,6 @@
                 <TextBlock Text="5" Grid.Column="5" Classes="SubTitle" Margin="0, 0, 0, 15"/>
                 -->
             </Grid>
-            
-
-            <TreeView>
-                <TreeViewItem Header="Fruits">
-                    <TreeViewItem Header="Apple"/>
-                    <TreeViewItem Header="Banana"/>
-                    <TreeViewItem Header="Orange"/>
-                </TreeViewItem>
-                <TreeViewItem Header="Vegetables">
-                    <TreeViewItem Header="Carrot"/>
-                    <TreeViewItem Header="Broccoli"/>
-                </TreeViewItem>
-                <TreeViewItem Header="Grains">
-                    <TreeViewItem Header="Rice"/>
-                    <TreeViewItem Header="Wheat"/>
-                </TreeViewItem>
-            </TreeView>
         </StackPanel>
       </Border>
 

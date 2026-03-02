@@ -34,6 +34,11 @@ public static class Program
             case "--help":
                 ShowHelpPage();
                 break;
+            
+            case "-v":
+            case "--version":
+                Console.WriteLine(AppInfo.Version);
+                break;
 
             case "list":
                 if (args.Length <= 1)
