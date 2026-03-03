@@ -56,7 +56,7 @@ public static class ArgRepo
                     return;
                 }
 
-                UpdateManager.Repos[repoId].Tag = version;
+                UpdateManager.Repos[repoId].TargetTag = version;
                 FileManager.SaveRepos();
                         
                 break;

@@ -76,13 +76,13 @@ public static class ArgList
                 for (int i = UpdateManager.Repos[repoId].Tags.Count - 1; i >= 0; i--)
                 {
                     string curTag = UpdateManager.Repos[repoId].Tags[i];
-                    if (curTag == UpdateManager.Repos[repoId].Tag)
+                    if (curTag == UpdateManager.Repos[repoId].TargetTag)
                     {
                         Console.Write("\x1b[32m");
                     }
 
                     Console.WriteLine(curTag);
-                    if (curTag == UpdateManager.Repos[repoId].Tag)
+                    if (curTag == UpdateManager.Repos[repoId].TargetTag)
                     {
                         Console.Write("\x1b[0m");
                     }

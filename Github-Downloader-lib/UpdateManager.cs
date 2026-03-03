@@ -379,7 +379,7 @@ public static class UpdateManager
         process.OutputDataReceived += (_, args) =>
         {
             Logger.LogI(args.Data);
-            progressText.Invoke(args.Data + "\n");
+            progressText.Invoke(args.Data);
         };
 
         process.Start();

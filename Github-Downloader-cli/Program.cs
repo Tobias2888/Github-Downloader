@@ -123,6 +123,7 @@ public static class Program
 
                 if (args[1] == "--all")
                 {
+                    await UpdateManager.SearchForUpdates(UpdateManager.Repos, Console.WriteLine);
                     await UpdateManager.UpdateRepos(UpdateManager.Repos,
                         Console.WriteLine,
                         Console.WriteLine);
@@ -131,7 +132,8 @@ public static class Program
                 }
 
                 int repoId = int.Parse(args[1]);
-                
+
+                await UpdateManager.SearchForUpdates(UpdateManager.Repos[repoId], Console.WriteLine);
                 await UpdateManager.UpdateRepo(UpdateManager.Repos[repoId],
                     Console.WriteLine,
                     Console.WriteLine);
