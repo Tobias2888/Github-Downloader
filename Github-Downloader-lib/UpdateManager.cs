@@ -166,7 +166,7 @@ public static class UpdateManager
         UpdateRepos([await DownloadAsset(repo, statusText, progressText, downloadAnyways)], statusText, progressText);
     }
 
-    public static async Task UpdateRepos(List<Repo> repos, Action<string> statusText, Action<string> progressText)
+    public static async Task UpdateRepos(List<Repo> repos, Action<string> statusText, Action<string> progressText, bool downloadAnyways = false)
     {
         statusText.Invoke("Downloading updates...");
         
@@ -178,7 +178,7 @@ public static class UpdateManager
                 continue;
             }
             
-            Asset? asset = await DownloadAsset(repo, statusText, progressText);
+            Asset? asset = await DownloadAsset(repo, statusText, progressText, downloadAnyways);
             assets.Add(asset);
         }
 
@@ -344,8 +344,8 @@ public static class UpdateManager
         {
             return;
         }
-        
-        string installCommand = (CurPlatform == Platform.Avalonia ? "pkexec" : "sudo") + " apt-get install -y --allow-downgrades --reinstall ";
+
+        string installCommand = "apt-get install -y --allow-downgrades --reinstall ";
         Console.WriteLine(installCommand);
         foreach (string debPath in debPaths)
         {
@@ -356,7 +356,7 @@ public static class UpdateManager
             installCommand += $"\"{debPath}\" ";
         }
 
-        if (installCommand is "pkexec apt-get install -y --allow-downgrades --reinstall " or "sudo apt-get install -y --allow-downgrades --reinstall ")
+        if (installCommand == "apt-get install -y --allow-downgrades --reinstall ")
         {
             return;
         }
@@ -365,7 +365,7 @@ public static class UpdateManager
         {
             StartInfo = new()
             {
-                FileName = CurPlatform == Platform.Avalonia ? "pkexec" : "sudo",
+                FileName = "/usr/bin/" + (CurPlatform == Platform.Avalonia ? "pkexec" : "sudo"),
                 Arguments = installCommand,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
