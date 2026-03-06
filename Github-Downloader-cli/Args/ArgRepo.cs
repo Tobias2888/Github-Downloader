@@ -1,4 +1,5 @@
 using Github_Downloader_lib;
+using Github_Downloader_lib.Models;
 
 namespace Github_Downloader_cli.Args;
 
@@ -13,12 +14,26 @@ public static class ArgRepo
             return;
         }
 
+        int repoId = int.Parse(args[1]);
+
+        if (repoId < 0 || repoId >= UpdateManager.Repos.Count)
+        {
+            Console.WriteLine($"repo id {repoId} out of range");
+        }
+        
         if (args.Length <= 2)
         {
+            Repo repo = UpdateManager.Repos[repoId];
+            Console.WriteLine($"Name: {repo.Name}\n" +
+                              "Version: " + (repo.Tag == repo.CurrentInstallTag
+                                  ? repo.CurrentInstallTag
+                                  : "\x1b[38;2;255;165;0m" + repo.CurrentInstallTag + " -> " + repo.Tag + "\x1b[0m") + "\n" +
+                              $"Release Date: {repo.ReleaseDate}\n" +
+                              $"Download Path: {repo.DownloadPath}\n" +
+                              $"Selected Asset: {repo.AssetNames[repo.DownloadAssetIndex]}"
+                              );
             return;
         }
-
-        int repoId = int.Parse(args[1]);
 
         switch (args[2])
         {
@@ -59,6 +74,25 @@ public static class ArgRepo
                 UpdateManager.Repos[repoId].TargetTag = version;
                 FileManager.SaveRepos();
                         
+                break;
+            
+            case "set-downloadpath":
+                if (args.Length <= 3)
+                {
+                    Console.WriteLine("\nSpecify download-path:\n\n" +
+                                      $"{AppInfo.CliName} repo set-downloadpath (downloadpath)\n");
+                    return;
+                }
+                
+                string downloadpath = args[3];
+                if (!Directory.Exists(downloadpath))
+                {
+                    Console.WriteLine($"Download path {downloadpath} does not exist");
+                    return;
+                }
+                UpdateManager.Repos[repoId].DownloadPath = args[3];
+                FileManager.SaveRepos();
+                
                 break;
         }
 
