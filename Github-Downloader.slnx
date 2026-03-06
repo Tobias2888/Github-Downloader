@@ -1,5 +1,4 @@
 <Solution>
-  <Project Path="../MetadataGenerator/MetadataGenerator/MetadataGenerator.csproj" />
   <Project Path="Github-Downloader-cli/Github-Downloader-cli.csproj" />
   <Project Path="Github-Downloader-lib/Github-Downloader-lib.csproj" />
   <Project Path="Github-Downloader/Github-Downloader.csproj" />

@@ -21,7 +21,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\..\MetadataGenerator\MetadataGenerator\MetadataGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+        <Analyzer Include="..\libs\MetadataGenerator.dll" />
         <AdditionalFiles Include="../builds/github-downloader-linux-x64/DEBIAN/control" />
     </ItemGroup>
 

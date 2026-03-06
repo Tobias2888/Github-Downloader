@@ -22,18 +22,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Reference Include="FileLib">
-        <HintPath>..\libs\FileLib.dll</HintPath>
-      </Reference>
-      <Reference Include="LoggerLib">
-        <HintPath>..\libs\LoggerLib.dll</HintPath>
-      </Reference>
-      <Reference Include="SecretsLib">
-        <HintPath>..\libs\SecretsLib.dll</HintPath>
-      </Reference>
-    </ItemGroup>
-
-    <ItemGroup>
       <Compile Update="Views\MainWindow.axaml.cs">
         <DependentUpon>MainWindow.axaml</DependentUpon>
         <SubType>Code</SubType>
@@ -55,7 +43,18 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\..\LoggerLib\LoggerLib\LoggerLib.csproj" />
       <ProjectReference Include="..\Github-Downloader-lib\Github-Downloader-lib.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Reference Include="FileLib">
+        <HintPath>..\libs\FileLib.dll</HintPath>
+      </Reference>
+      <Reference Include="LoggerLib">
+        <HintPath>..\libs\LoggerLib.dll</HintPath>
+      </Reference>
+      <Reference Include="SecretsLib">
+        <HintPath>..\libs\SecretsLib.dll</HintPath>
+      </Reference>
     </ItemGroup>
 </Project>

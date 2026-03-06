@@ -11,9 +11,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\..\FileLib\FileLib\FileLib.csproj" />
-      <ProjectReference Include="..\..\LoggerLib\LoggerLib\LoggerLib.csproj" />
-      <ProjectReference Include="..\..\SecretsLib\SecretsLib\SecretsLib.csproj" />
       <ProjectReference Include="..\Github-Downloader-lib\Github-Downloader-lib.csproj" />
     </ItemGroup>
 
@@ -23,6 +20,9 @@
       </Reference>
       <Reference Include="LoggerLib">
         <HintPath>..\libs\LoggerLib.dll</HintPath>
+      </Reference>
+      <Reference Include="SecretsLib">
+        <HintPath>..\libs\SecretsLib.dll</HintPath>
       </Reference>
     </ItemGroup>
 
