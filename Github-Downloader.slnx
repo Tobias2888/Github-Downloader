@@ -1,4 +1,7 @@
 <Solution>
+  <Project Path="..\FileLib\FileLib\FileLib.csproj" Type="Classic C#" />
+  <Project Path="..\LoggerLib\LoggerLib\LoggerLib.csproj" Type="Classic C#" />
+  <Project Path="..\SecretsLib\SecretsLib\SecretsLib.csproj" Type="Classic C#" />
   <Project Path="Github-Downloader-cli/Github-Downloader-cli.csproj" />
   <Project Path="Github-Downloader-lib/Github-Downloader-lib.csproj" />
   <Project Path="Github-Downloader/Github-Downloader.csproj" />

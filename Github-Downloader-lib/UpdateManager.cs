@@ -5,6 +5,7 @@ using FileLib;
 using Github_Downloader_lib.Models;
 using Github_Downloader.Enums;
 using LoggerLib;
+using SecretsLib;
 
 namespace Github_Downloader_lib;
 
@@ -40,7 +41,7 @@ public static class UpdateManager
         string url = $"https://api.github.com/repos/{publisherName}/{repoName}/releases/latest";
         string repoUrl = $"https://api.github.com/repos/{publisherName}/{repoName}";
         
-        HttpResponseMessage httpRepoResponse = await Api.GetRequest(repoUrl, FileManager.GetPat());
+        HttpResponseMessage httpRepoResponse = await Api.GetRequest(repoUrl, SecretsManager.LookupSecret("pat"));
         if (httpRepoResponse == null || !httpRepoResponse.IsSuccessStatusCode)
         {
             Logger.LogE($"Failed to fetch repo: {repoUrl}");
@@ -63,7 +64,7 @@ public static class UpdateManager
     {
         foreach (Repo repo in repos)
         {
-            HttpResponseMessage httpRepoResponse = await Api.GetRequest(repo.Url.Replace("/releases/latest", ""), FileManager.GetPat());
+            HttpResponseMessage httpRepoResponse = await Api.GetRequest(repo.Url.Replace("/releases/latest", ""), SecretsManager.LookupSecret("pat"));
             if (httpRepoResponse == null || !httpRepoResponse.IsSuccessStatusCode)
             {
                 Console.WriteLine("Failed to fetch repo");
@@ -120,7 +121,7 @@ public static class UpdateManager
             responseUrl = $"https://api.github.com/repos/{repo.Name}/releases/tags/{repo.TargetTag}";
         }
         
-        HttpResponseMessage httpResponse = await Api.GetRequest(responseUrl, FileManager.GetPat());
+        HttpResponseMessage httpResponse = await Api.GetRequest(responseUrl, SecretsManager.LookupSecret("pat"));
         if (!httpResponse.IsSuccessStatusCode)
         {
             Console.WriteLine($"Failed to fetch release of: {responseUrl}");
@@ -144,7 +145,7 @@ public static class UpdateManager
         }
 
         string tagsUrl = $"https://api.github.com/repos/{repo.Name}/tags";
-        HttpResponseMessage httpResponseTags = await Api.GetRequest(tagsUrl, FileManager.GetPat());
+        HttpResponseMessage httpResponseTags = await Api.GetRequest(tagsUrl, SecretsManager.LookupSecret("pat"));
         if (!httpResponseTags.IsSuccessStatusCode)
         {
             Console.WriteLine($"Failed to fetch tags of: {tagsUrl}");
@@ -315,7 +316,7 @@ public static class UpdateManager
         });
         
         string downloadAssetName = repo.AssetNames[repo.DownloadAssetIndex];
-        await Api.DownloadFileAsync(repo.DownloadUrls[repo.DownloadAssetIndex], Path.Join(FileManager.CachePath, downloadAssetName), FileManager.GetPat(), progress);
+        await Api.DownloadFileAsync(repo.DownloadUrls[repo.DownloadAssetIndex], Path.Join(FileManager.CachePath, downloadAssetName), SecretsManager.LookupSecret("pat"), progress);
 
         repo.CurrentInstallTag = repo.Tag;
         
@@ -335,6 +336,7 @@ public static class UpdateManager
         {
             File.Delete(destPath);
         }
+        
         File.Copy(Path.Join(asset.TempAssetPath), destPath);
     }
 

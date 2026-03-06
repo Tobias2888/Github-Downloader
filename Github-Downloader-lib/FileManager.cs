@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using FileLib;
 using Github_Downloader_lib.Models;
@@ -12,11 +10,9 @@ public static class FileManager
 {
     private static readonly string AppdataPath = Path.Join(DirectoryHelper.GetAppDataDirPath(), "github-downloader");
     private static readonly string ReposConfigFilePath = Path.Join(AppdataPath, "repos.json");
-    private static readonly string PatFilePath = Path.Join(AppdataPath, "pat");
+    //private static readonly string PatFilePath = Path.Join(AppdataPath, "pat");
     public static readonly string CachePath = Path.Join(DirectoryHelper.GetCacheDirPath(), "github-downloader");
     public static readonly string AppImagesPath = Path.Join(DirectoryHelper.GetAppDataDirPath(), "github-downloader", "app-images");
-    private static readonly byte[] Key = Encoding.UTF8.GetBytes("12345678901234567890123456789012");
-    private static readonly byte[] IV = Encoding.UTF8.GetBytes("1234567890123456");
     
     public static void SaveRepos()
     {
@@ -57,7 +53,7 @@ public static class FileManager
         SaveRepos();
     }
     
-    public static void SetPat(string pat)
+    /*public static void SetPat(string pat)
     {
         if (string.IsNullOrEmpty(pat))
         {
@@ -82,7 +78,7 @@ public static class FileManager
 
     public static string GetPat()
     {
-        if (!File.Exists(PatFilePath))
+        /*if (!File.Exists(PatFilePath))
         {
             return "";
         }
@@ -99,6 +95,9 @@ public static class FileManager
         using CryptoStream cs = new(ms, decryptor, CryptoStreamMode.Read);
         using StreamReader sr = new(cs);
 
-        return sr.ReadToEnd();
-    }
+        string pat = sr.ReadToEnd();
+        Debug.WriteLine(pat);
+
+        return pat;
+    }*/
 }

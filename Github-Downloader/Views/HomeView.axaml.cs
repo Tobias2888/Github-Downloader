@@ -16,6 +16,7 @@ using Github_Downloader_lib;
 using Github_Downloader_lib.Models;
 using Github_Downloader.Enums;
 using Github_Downloader.ViewModels;
+using SecretsLib;
 
 namespace Github_Downloader.Views;
 
@@ -321,7 +322,7 @@ public partial class HomeView : UserControl
 
     private async void BtnSetPat_OnClick(object? sender, RoutedEventArgs e)
     {
-        FileManager.SetPat(TbxPat.Text);
+        SecretsManager.StoreSecret("pat", TbxPat.Text);
         TbxPat.Text = "";
         ToastText.Text = "Personal access token saved successfully!";
         ToastPopup.IsOpen = true;
@@ -336,6 +337,7 @@ public partial class HomeView : UserControl
 
     private void BtnRemovePat_OnClick(object? sender, RoutedEventArgs e)
     {
-        File.WriteAllText(_mainViewModel.PatFilePath, "");
+        SecretsManager.ClearSecret("pat");
+        //File.WriteAllText(_mainViewModel.PatFilePath, "");
     }
 }

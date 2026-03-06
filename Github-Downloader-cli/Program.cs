@@ -4,6 +4,7 @@ using Github_Downloader_lib;
 using Github_Downloader_lib.Models;
 using Github_Downloader.Enums;
 using LoggerLib;
+using SecretsLib;
 
 namespace Github_Downloader_cli;
 
@@ -13,7 +14,12 @@ public static class Program
     {
         Logger.LogDir = Path.Join(DirectoryHelper.GetAppDataDirPath(), "github-downloader", "logs");
         Logger.CreateFile();
-
+        
+        if (!SecretsManager.Initialized)
+        {
+            SecretsManager.Initialize("hofinga.gh-downloader.secret");
+        }
+        
         UpdateManager.CurPlatform = Platform.Terminal;
         
         await FileManager.LoadRepos(Console.WriteLine);
@@ -183,11 +189,11 @@ public static class Program
                             return;
                         }
                         
-                        FileManager.SetPat(args[3]);
+                        SecretsManager.StoreSecret("pat", args[3]);
                         break;
                     
                     case "remove":
-                        FileManager.SetPat("");
+                        SecretsManager.ClearSecret("pat");
                         break;
                 }
                 break;

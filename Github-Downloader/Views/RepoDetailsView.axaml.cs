@@ -10,6 +10,7 @@ using Avalonia.Platform.Storage;
 using Github_Downloader_lib;
 using Github_Downloader.Enums;
 using Github_Downloader.ViewModels;
+using SecretsLib;
 
 namespace Github_Downloader.Views;
 
@@ -197,6 +198,6 @@ public partial class RepoDetailsView : UserControl
 
     private async void Button_OnClick(object? sender, RoutedEventArgs e)
     {
-        await Api.GetRequest("", FileManager.GetPat());
+        await Api.GetRequest("", SecretsManager.LookupSecret("pat"));
     }
 }
