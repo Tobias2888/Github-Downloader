@@ -42,6 +42,11 @@
                 <StackPanel Name="StpDownloadPath">
                     <Button Name="BtnFilePicker" Content="Select download location" Click="BtnFilePicker_OnClick"/>
                     <TextBlock Name="TbxDownloadPath" Text="/home/{user}"/>
+                    <StackPanel Orientation="Horizontal" Margin="0, 15, 0, 0">
+                        <TextBlock Text="Rename file: " VerticalAlignment="Center"/>
+                        <ToggleSwitch Name="TglRenameFile" OnContent="" OffContent="" Click="TglRenameFile_OnClick"/>
+                    </StackPanel>
+                    <TextBox Name="TbxRenameFile" TextChanged="TbxRenameFile_OnTextChanged"/>
                 </StackPanel>
             </StackPanel>
             

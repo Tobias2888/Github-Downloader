@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -112,6 +113,8 @@ public partial class RepoDetailsView : UserControl
         {
             StpSaveFileAnyway.IsVisible = false;
         }
+        
+        TbxRenameFile.IsVisible = TglRenameFile.IsChecked == true;
     }
 
     private void BtnBack_OnClick(object? sender, RoutedEventArgs e)
@@ -196,8 +199,13 @@ public partial class RepoDetailsView : UserControl
         StpDownloadPath.IsVisible = _repoDetailsViewModel.Repo.SaveFileAnyway;
     }
 
-    private async void Button_OnClick(object? sender, RoutedEventArgs e)
+    private void TglRenameFile_OnClick(object? sender, RoutedEventArgs e)
     {
-        await Api.GetRequest("", SecretsManager.LookupSecret("pat"));
+        TbxRenameFile.IsVisible = TglRenameFile.IsChecked == true;
+    }
+
+    private void TbxRenameFile_OnTextChanged(object? sender, TextChangedEventArgs e)
+    {
+        //Console.WriteLine(TbxRenameFile.Text);
     }
 }
