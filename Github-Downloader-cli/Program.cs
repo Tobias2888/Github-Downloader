@@ -249,6 +249,8 @@ public static class Program
                             list assets (repo id) - List all available assets of a specific repo
                             list versions (repo id) - List all available versions of a specific repo
                             repo (repo id) set-asset (asset id) - Select specific asset to download from repository by id
+                            repo (repo id) set-version (version) - Select specific version to download from repository
+                            repo (repo id) set-downloadpath (path) - Select specific download path
                             add (repo link) - Add a repository with github-link of repository
                             add add (publisher name) (repo name) - Add a repository with publisher-name and repository-name
                             remove (repo id) - Remove repository by id
@@ -256,6 +258,8 @@ public static class Program
                             check (repo id) - Check for available updates of specific repository
                             update --all - Update all repositories if updates available
                             update (repo id) - Update specific repository by id
+                            reinstall --all - Reinstall all repositories
+                            reinstall (repo id) - Reinstall specific repository by id
                             pat set (pat) - Set a personal access token to access private repositories and increase rate-limit
                             pat remove - Remove personal access token
 
