@@ -147,7 +147,37 @@ public static class Program
 
                 break;
             }
+            
+            case "reinstall":
+            {
+                if (args.Length <= 1)
+                {
+                    return;
+                }
 
+                if (args[1] == "--all")
+                {
+                    await UpdateManager.SearchForUpdates(UpdateManager.Repos, Console.WriteLine);
+                    await UpdateManager.UpdateRepos(UpdateManager.Repos,
+                        Console.WriteLine,
+                        Console.WriteLine, 
+                        true);
+                    FileManager.SaveRepos();
+                    return;
+                }
+
+                int repoId = int.Parse(args[1]);
+
+                await UpdateManager.SearchForUpdates(UpdateManager.Repos[repoId], Console.WriteLine);
+                await UpdateManager.UpdateRepo(UpdateManager.Repos[repoId],
+                    Console.WriteLine,
+                    Console.WriteLine,
+                    true);
+                FileManager.SaveRepos();
+
+                break;
+            }
+                
             case "repo":
             {
                 ArgRepo.Execute(args);

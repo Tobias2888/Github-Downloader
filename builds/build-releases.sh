@@ -1,5 +1,37 @@
 read -p "Enter new version number: " NEW_VERSION
 
+CONTROL_FILE_X64="./github-downloader-linux-x64/DEBIAN/control"
+CONTROL_FILE_ARM64="./github-downloader-linux-arm64/DEBIAN/control"
+CONTROL_FILE_X64_CLI="./github-downloader-cli-linux-x64/DEBIAN/control"
+CONTROL_FILE_ARM64_CLI="./github-downloader-cli-linux-arm64/DEBIAN/control"
+
+if [ ! -f "$CONTROL_FILE_X64" ]; then
+    echo "Control file not found at $CONTROL_FILE_X64"
+    exit 1
+fi
+if [ ! -f "$CONTROL_FILE_ARM64" ]; then
+    echo "Control file not found at $CONTROL_FILE_ARM64"
+    exit 1
+fi
+if [ ! -f "$CONTROL_FILE_X64_CLI" ]; then
+    echo "Control file not found at $CONTROL_FILE_X64_CLI"
+    exit 1
+fi
+if [ ! -f "$CONTROL_FILE_ARM64_CLI" ]; then
+    echo "Control file not found at $CONTROL_FILE_ARM64_CLI"
+    exit 1
+fi
+
+if [ -z "$NEW_VERSION" ]; then
+    echo "No version entered. Exiting."
+    exit 1
+fi
+
+sed -i "s/^Version: .*/Version: $NEW_VERSION/" "$CONTROL_FILE_X64"
+sed -i "s/^Version: .*/Version: $NEW_VERSION/" "$CONTROL_FILE_ARM64"
+sed -i "s/^Version: .*/Version: $NEW_VERSION/" "$CONTROL_FILE_X64_CLI"
+sed -i "s/^Version: .*/Version: $NEW_VERSION/" "$CONTROL_FILE_ARM64_CLI"
+
 dotnet restore ../Github-Downloader-cli/Github-Downloader-cli.csproj -r linux-x64
 dotnet publish ../Github-Downloader-cli/Github-Downloader-cli.csproj \
     --no-restore \
@@ -93,39 +125,6 @@ dotnet publish ../Github-Downloader/Github-Downloader.csproj \
     --output ./github-downloader-win-arm64 \
     /p:PublishSingleFile=true \
     /p:PublishReadyToRun=true
-
-
-CONTROL_FILE_X64="./github-downloader-linux-x64/DEBIAN/control"
-CONTROL_FILE_ARM64="./github-downloader-linux-arm64/DEBIAN/control"
-CONTROL_FILE_X64_CLI="./github-downloader-cli-linux-x64/DEBIAN/control"
-CONTROL_FILE_ARM64_CLI="./github-downloader-cli-linux-arm64/DEBIAN/control"
-
-if [ ! -f "$CONTROL_FILE_X64" ]; then
-    echo "Control file not found at $CONTROL_FILE_X64"
-    exit 1
-fi
-if [ ! -f "$CONTROL_FILE_ARM64" ]; then
-    echo "Control file not found at $CONTROL_FILE_ARM64"
-    exit 1
-fi
-if [ ! -f "$CONTROL_FILE_X64_CLI" ]; then
-    echo "Control file not found at $CONTROL_FILE_X64_CLI"
-    exit 1
-fi
-if [ ! -f "$CONTROL_FILE_ARM64_CLI" ]; then
-    echo "Control file not found at $CONTROL_FILE_ARM64_CLI"
-    exit 1
-fi
-
-if [ -z "$NEW_VERSION" ]; then
-    echo "No version entered. Exiting."
-    exit 1
-fi
-
-sed -i "s/^Version: .*/Version: $NEW_VERSION/" "$CONTROL_FILE_X64"
-sed -i "s/^Version: .*/Version: $NEW_VERSION/" "$CONTROL_FILE_ARM64"
-sed -i "s/^Version: .*/Version: $NEW_VERSION/" "$CONTROL_FILE_X64_CLI"
-sed -i "s/^Version: .*/Version: $NEW_VERSION/" "$CONTROL_FILE_ARM64_CLI"
 
 
 rm -rf release-assets/*
