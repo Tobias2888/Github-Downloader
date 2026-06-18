@@ -110,7 +110,7 @@ public static class Program
                 FileManager.SaveRepos();
                 
                 int count = 0;
-                UpdateManager.Repos.ForEach(repo =>
+                UpdateManager.Repos.ToList().ForEach(repo =>
                 {
                     if (repo.Tag != repo.CurrentInstallTag)
                     {
