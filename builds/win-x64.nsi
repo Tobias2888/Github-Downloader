@@ -1,7 +1,7 @@
 !define APPNAME "Github-Downloader"
 !define COMPANY "tobias2888"
 !define EXE "Github-Downloader.exe"
-!define VERSION "2.6.4"
+!define VERSION "2.6.5"
 
 Name "${APPNAME}"
 OutFile "release-assets/${APPNAME}-Setup-x64-${VERSION}.exe"
