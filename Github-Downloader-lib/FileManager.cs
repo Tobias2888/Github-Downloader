@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Text.Json;
 using FileLib;
 using Github_Downloader_lib.Models;
@@ -40,10 +41,11 @@ public static class FileManager
         if (File.Exists(ReposConfigFilePath))
         {
             string jsonString = await File.ReadAllTextAsync(ReposConfigFilePath);
-            UpdateManager.Repos = JsonSerializer.Deserialize<List<Repo>>(jsonString);
+            UpdateManager.Repos = JsonSerializer.Deserialize<ObservableCollection<Repo>>(jsonString);
         }
 
         UpdateManager.Repos ??= [];
+        UpdateManager.WatchRepos();
 
         if (UpdateManager.CurPlatform != Platform.Avalonia)
         {
@@ -69,15 +71,15 @@ public static class FileManager
         }
     }
 
-    public static void ExportRepoConfig(string destPath)
+    public static void ExportRepoConfig(string destFile)
     {
         if (!File.Exists(ReposConfigFilePath))
         {
-            Logger.LogI($"Folder {destPath} not found");
+            Logger.LogI($"Source file {ReposConfigFilePath} not found");
             return;
         }
         
-        File.Copy(ReposConfigFilePath, Path.Join(destPath, "repos.json"), true);
+        File.Copy(ReposConfigFilePath, destFile, true);
     }
 
     public static void ImportRepoConfig(string sourceFile)

@@ -1,14 +1,8 @@
-using System;
-using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
-using Avalonia.Interactivity;
-using Avalonia.Platform.Storage;
-using Github_Downloader_lib;
 using Github_Downloader.Enums;
 using Github_Downloader.ViewModels;
-using LoggerLib;
 
 namespace Github_Downloader.Views;
 
@@ -19,124 +13,12 @@ public partial class SettingsView : UserControl
     public SettingsView()
     {
         InitializeComponent();
-        _mainViewModel = ((App)Application.Current!).MainViewModel;
-    }
-
-    private void Control_OnLoaded(object? sender, RoutedEventArgs e)
-    {
-        if (Design.IsDesignMode)
-        {
-            return;
-        }
-        
-        CobWindowState.SelectedIndex = _mainViewModel.AppSettings.WindowState switch
-        {
-            WindowState.Normal => 0,
-            WindowState.Maximized => 1,
-            WindowState.FullScreen => 2,
-            _ => 0
-        };
-        
-        TglAutoCheckForUpdates.IsChecked = _mainViewModel.AppSettings.AutoCheckForUpdates;
-        NudAutoCheckForUpdatesInterval.Value = _mainViewModel.AppSettings.CheckForUpdatesInterval;
-    }
-
-    private async void BtnExport_OnClick(object? sender, RoutedEventArgs e)
-    {
-        Logger.LogI("Exporting repo.json");
-        
-        TopLevel? topLevel = TopLevel.GetTopLevel(this);
-        if (topLevel is null)
-        {
-            return;
-        }
-        
-        IReadOnlyList<IStorageFolder> folders = await topLevel.StorageProvider.OpenFolderPickerAsync(
-            new FolderPickerOpenOptions
-            {
-                Title = "Select folder",
-                AllowMultiple = false
-            });
-
-        if (folders.Count <= 0) return;
-        
-        string path = folders[0].Path.LocalPath;
-
-        FileManager.ExportRepoConfig(path);
-    }
-
-    private async void BtnImport_OnClick(object? sender, RoutedEventArgs e)
-    {
-        Logger.LogI("Selecting file");
-
-        TopLevel? topLevel = TopLevel.GetTopLevel(this);
-        if (topLevel is null)
-        {
-            return;
-        }
-
-        IReadOnlyList<IStorageFile> files = await topLevel.StorageProvider.OpenFilePickerAsync(
-            new FilePickerOpenOptions
-            {
-                Title = "Select file",
-                AllowMultiple = false,
-            });
-
-        if (files.Count == 0) return;
-
-        string path = files[0].Path.LocalPath;
-
-        FileManager.ImportRepoConfig(path);
+        _mainViewModel = ((App) Application.Current).MainViewModel;
+        DataContext = new SettingsViewModel();
     }
 
     private void ImgBack_OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         _mainViewModel.SwitchPage(ViewNames.Home);
-    }
-
-    private void CobWindowState_OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
-    {
-        _mainViewModel.AppSettings.WindowState = CobWindowState.SelectedIndex switch
-        {
-            0 => WindowState.Normal,
-            1 => WindowState.Maximized,
-            2 => WindowState.FullScreen,
-            _ => _mainViewModel.AppSettings.WindowState
-        };
-        _mainViewModel.AppSettings.Save();
-        Logger.LogI("Change default window state");
-    }
-
-    private void TglAutoCheckForUpdates_OnClick(object? sender, RoutedEventArgs e)
-    {
-        _mainViewModel.AppSettings.AutoCheckForUpdates = TglAutoCheckForUpdates.IsChecked == true;
-        _mainViewModel.AppSettings.Save();
-        if (_mainViewModel.AppSettings.AutoCheckForUpdates)
-        {
-            Logger.LogI("Enable auto check for updates");
-            _mainViewModel.AutoCheckForUpdatesTimer.Start();
-        }
-        else
-        {
-            Logger.LogI("Disable auto check for updates");
-            _mainViewModel.AutoCheckForUpdatesTimer.Stop();
-        }
-    }
-
-    private void NudAutoCheckForUpdatesInterval_OnValueChanged(object? sender, NumericUpDownValueChangedEventArgs e)
-    {
-        if (NudAutoCheckForUpdatesInterval.Value == null)
-        {
-            return;
-        }
-        int interval = (int) (NudAutoCheckForUpdatesInterval.Value ?? 0);
-        if (interval < 1)
-        {
-            return;
-        }
-        _mainViewModel.AppSettings.CheckForUpdatesInterval = interval;
-        _mainViewModel.AppSettings.Save();
-        _mainViewModel.AutoCheckForUpdatesTimer.Interval = TimeSpan.FromMinutes(_mainViewModel.AppSettings.CheckForUpdatesInterval);
-        Logger.LogI($"Set auto check for updates interval to {_mainViewModel.AppSettings.CheckForUpdatesInterval}");
     }
 }

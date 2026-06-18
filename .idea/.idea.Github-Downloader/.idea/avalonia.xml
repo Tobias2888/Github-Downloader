@@ -10,6 +10,7 @@
         <entry key="Github-Downloader/Views/HomeView.axaml" value="Github-Downloader/Github-Downloader.csproj" />
         <entry key="Github-Downloader/Views/MainWindow.axaml" value="Github-Downloader/Github-Downloader.csproj" />
         <entry key="Github-Downloader/Views/RepoDetailsView.axaml" value="Github-Downloader/Github-Downloader.csproj" />
+        <entry key="Github-Downloader/Views/RepoEntryControl.axaml" value="Github-Downloader/Github-Downloader.csproj" />
         <entry key="Github-Downloader/Views/SettingsView.axaml" value="Github-Downloader/Github-Downloader.csproj" />
       </map>
     </option>

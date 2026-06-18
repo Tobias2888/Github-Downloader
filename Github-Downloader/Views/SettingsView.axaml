@@ -3,36 +3,313 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:viewModels="clr-namespace:Github_Downloader.ViewModels"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             xmlns:conv="clr-namespace:Github_Downloader.Converter"
+             xmlns:ac="using:Avalonia.Controls"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
              x:Class="Github_Downloader.Views.SettingsView"
              x:DataType="viewModels:SettingsViewModel"
-             Loaded="Control_OnLoaded">
+             Background="#222226">
     
-    <StackPanel>
-        <Image Name="ImgBack" HorizontalAlignment="Left" Source="../resources/arrow_back.png" Height="35" Width="35" PointerPressed="ImgBack_OnPointerPressed"/>
-        <Button Name="BtnImport" Content="Import" Click="BtnImport_OnClick"/>
-        <Button Name="BtnExport" Content="Export" Click="BtnExport_OnClick"/>
-        <StackPanel Name="StpWindowState" Orientation="Horizontal">
-            <TextBlock Text="Default start mode:" VerticalAlignment="Center"/>
-            <ComboBox Name="CobWindowState" SelectionChanged="CobWindowState_OnSelectionChanged">
-                <ComboBoxItem Content="Normal"/>
-                <ComboBoxItem Content="Maximized"/>
-                <ComboBoxItem Content="Fullscreen"/>
-            </ComboBox>
-        </StackPanel>
-        <StackPanel Orientation="Horizontal">
-            <TextBlock Text="Enable automatic check for Updates: " VerticalAlignment="Center"/>
-            <ToggleSwitch Name="TglAutoCheckForUpdates" OnContent="" OffContent="" Click="TglAutoCheckForUpdates_OnClick"/>
-        </StackPanel>
-        <StackPanel Orientation="Horizontal">
-            <TextBlock Text="Auto check for updates interval (minutes): " VerticalAlignment="Center"/>
-            <NumericUpDown 
-                Name="NudAutoCheckForUpdatesInterval" 
-                HorizontalAlignment="Left"
-                Width="120" 
-                Minimum="1"
-                FormatString="F0"
-                ValueChanged="NudAutoCheckForUpdatesInterval_OnValueChanged"/>
-        </StackPanel>
-    </StackPanel>
+    <UserControl.Resources>
+        <conv:EnumToBoolConverter x:Key="EnumToBoolConverter"/>
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <Style Selector="RadioButton.StateButton">
+            <Setter Property="Background" Value="#2B2B35"/>
+            <Setter Property="BorderBrush" Value="#444"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="15"/>
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}"
+                            Padding="{TemplateBinding Padding}">
+                        
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        
+        <Style Selector="RadioButton.StateButton:pointerover">
+            <Setter Property="Background"
+                    Value="#383842"/>
+            
+            <Setter Property="BorderBrush"
+                    Value="#555"/>
+        </Style>
+        
+        <Style Selector="RadioButton.StateButton:checked">
+            <Setter Property="BorderBrush"
+                    Value="#009EA4"/>
+            
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0%,0%"
+                                         EndPoint="0%,100%">
+                        
+                        <GradientStop Color="#3A3A42"
+                                      Offset="0"/>
+                        
+                        <GradientStop Color="#2B2B35"
+                                      Offset="1"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        <Style Selector="PathIcon">
+            <Setter Property="Foreground"
+                    Value="White"/>
+            
+            <Setter Property="Width"
+                    Value="32"/>
+            
+            <Setter Property="Height"
+                    Value="32"/>
+        </Style>
+    </UserControl.Styles>
+
+    <ScrollViewer>
+        <Grid RowDefinitions="Auto,*"
+          Margin="20">
+        
+        <Border CornerRadius="12"
+                Padding="16">
+            
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0%,50%"
+                                     EndPoint="100%,50%">
+                    
+                    <GradientStop Color="#2B2B35"
+                                  Offset="0"/>
+                    
+                    <GradientStop Color="#313131"
+                                  Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+          
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="Settings"
+                           VerticalAlignment="Center"
+                           Classes="Title"/>
+                
+                <Image Source="../resources/close.png"
+                       PointerPressed="ImgBack_OnPointerPressed"
+                       Cursor="Hand"
+                       HorizontalAlignment="Right"
+                       Height="30" Width="30"
+                       Grid.Column="1"/>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1"
+              ColumnDefinitions="1*,20,1*"
+              Margin="0,20,0,0">
+            
+            <StackPanel Grid.Column="0"
+                        Spacing="20">
+                
+                <Border CornerRadius="12"
+                        Padding="16">
+                    
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="50%,100%"
+                                             EndPoint="50%,0%">
+                            
+                            <GradientStop Color="#2B2B35"
+                                          Offset="0"/>
+                            
+                            <GradientStop Color="#313131"
+                                          Offset="1"/>
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    
+                    <StackPanel Spacing="15">
+                        <TextBlock Text="Default Start Mode"
+                                   Classes="SubTitle"/>
+                        
+                        <UniformGrid Columns="3"
+                                     Margin="20 0 0 0">
+                            
+                            <RadioButton Classes="StateButton" 
+                                         GroupName="WindowState"
+                                         IsChecked="{Binding WindowState, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static ac:WindowState.Normal}, Mode=OneWay}"
+                                         Command="{Binding SetWindowState}"
+                                         CommandParameter="{x:Static ac:WindowState.Normal}">
+                                
+                                <StackPanel Spacing="10">
+                                    <Image Source="../resources/normal.png"
+                                           Width="125"/>
+                                    
+                                    <TextBlock Text="Normal"
+                                               HorizontalAlignment="Center"
+                                               FontSize="16"/>
+                                </StackPanel>
+                            </RadioButton>
+                            
+                            <RadioButton Classes="StateButton" 
+                                         GroupName="WindowState"
+                                         IsChecked="{Binding WindowState, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static ac:WindowState.Maximized}, Mode=OneWay}"
+                                         Command="{Binding SetWindowState}"
+                                         CommandParameter="{x:Static ac:WindowState.Maximized}">
+                                
+                                <StackPanel Spacing="10">
+                                    <Image Source="../resources/maximize.png"
+                                           Width="125"/>
+                                    
+                                    <TextBlock Text="Maximized"
+                                               HorizontalAlignment="Center"
+                                               FontSize="16"/>
+                                </StackPanel>
+                            </RadioButton>
+                            
+                            <RadioButton Classes="StateButton" 
+                                         GroupName="WindowState"
+                                         IsChecked="{Binding WindowState, Converter={StaticResource EnumToBoolConverter}, ConverterParameter={x:Static ac:WindowState.FullScreen}, Mode=OneWay}"
+                                         Command="{Binding SetWindowState}"
+                                         CommandParameter="{x:Static ac:WindowState.FullScreen}">
+                                
+                                <StackPanel Spacing="10">
+                                    <Image Source="../resources/fullscreen.png"
+                                           Width="125"/>
+                                    
+                                    <TextBlock Text="Fullscreen"
+                                               HorizontalAlignment="Center"
+                                               FontSize="16"/>
+                                </StackPanel>
+                            </RadioButton>
+                        </UniformGrid>
+                    </StackPanel>
+                </Border>
+
+                <Border CornerRadius="12"
+                        Padding="16">
+                    
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="50%,100%"
+                                             EndPoint="50%,0%">
+                            
+                            <GradientStop Color="#2B2B35"
+                                          Offset="0"/>
+                            
+                            <GradientStop Color="#313131"
+                                          Offset="1"/>
+                            
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    
+                    <StackPanel Spacing="15">
+                        <TextBlock Text="Updates"
+                                   Classes="SubTitle"/>
+                        
+                        <Grid ColumnDefinitions="*, Auto">
+                            <TextBlock Text="Automatically check for updates"
+                                       VerticalAlignment="Center"/>
+                            
+                            <ToggleSwitch Grid.Column="1"
+                                          IsChecked="{Binding AutoCheckForUpdates}"
+                                          OnContent=""
+                                          OffContent=""/>
+                        </Grid>
+                        
+                        <StackPanel Spacing="5"
+                                    IsEnabled="{Binding AutoCheckForUpdates}">
+                            
+                            <TextBlock Text="Check Interval (minutes)"/>
+                            
+                            <NumericUpDown Name="NudInterval"
+                                           Value="{Binding CheckForUpdatesInterval}"
+                                           Minimum="1"
+                                           FormatString="F0"
+                                           FontSize="16"
+                                           VerticalContentAlignment="Center"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <StackPanel Grid.Column="2"
+                        Spacing="20">
+                
+                <Border CornerRadius="12"
+                        Padding="16">
+                    
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="50%,100%"
+                                             EndPoint="50%,0%">
+                            
+                            <GradientStop Color="#2B2B35"
+                                          Offset="0"/>
+                            
+                            <GradientStop Color="#313131"
+                                          Offset="1"/>
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    
+                    <StackPanel Spacing="15">
+                        <TextBlock Text="Download Path"
+                                   Classes="SubTitle"/>
+                        
+                        <Grid ColumnDefinitions="*, Auto">
+                            <TextBox Text="{Binding GlobalDownloadPath}"
+                                     IsReadOnly="True"
+                                     Watermark="Select download directory..."
+                                     IsEnabled="False"/>
+                            
+                            <Button Grid.Column="1" 
+                                    Content="..." 
+                                    Margin="10,0,0,0" 
+                                    Padding="15,0"
+                                    Height="30"
+                                    Command="{Binding BrowseDownloadPath}"
+                                    CommandParameter="{Binding $parent[UserControl]}"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <Border CornerRadius="12"
+                        Padding="16">
+                    
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="50%,100%"
+                                             EndPoint="50%,0%">
+                            
+                            <GradientStop Color="#2B2B35"
+                                          Offset="0"/>
+                            
+                            <GradientStop Color="#313131"
+                                          Offset="1"/>
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    
+                    <StackPanel Spacing="15">
+                        <TextBlock Text="Data Management"
+                                   Classes="SubTitle"/>
+                        
+                        <Button Content="Import Repository Configuration" 
+                                HorizontalAlignment="Stretch" 
+                                Command="{Binding ImportConfig}"
+                                CommandParameter="{Binding $parent[UserControl]}"/>
+                        
+                        <Button Content="Export Repository Configuration" 
+                                HorizontalAlignment="Stretch"
+                                Command="{Binding ExportConfig}"
+                                CommandParameter="{Binding $parent[UserControl]}"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Grid>
+    </Grid>
+    </ScrollViewer>
 </UserControl>

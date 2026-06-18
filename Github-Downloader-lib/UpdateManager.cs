@@ -1,4 +1,8 @@
+using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Diagnostics;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using FileLib;
@@ -11,8 +15,59 @@ namespace Github_Downloader_lib;
 
 public static class UpdateManager
 {
-    public static List<Repo> Repos;
+    public static ObservableCollection<Repo> Repos;
     public static Platform CurPlatform;
+
+    public static void WatchRepos()
+    {
+        if (Repos == null) return;
+        
+        Repos.CollectionChanged += Repos_CollectionChanged;
+        foreach (var repo in Repos)
+        {
+            repo.PropertyChanged += Repo_PropertyChanged;
+        }
+    }
+
+    private static void Repos_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (e.NewItems != null)
+        {
+            foreach (Repo repo in e.NewItems)
+            {
+                repo.PropertyChanged += Repo_PropertyChanged;
+            }
+        }
+
+        if (e.OldItems != null)
+        {
+            foreach (Repo repo in e.OldItems)
+            {
+                repo.PropertyChanged -= Repo_PropertyChanged;
+            }
+        }
+        
+        FileManager.SaveRepos();
+    }
+
+    private static void Repo_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        string[] persistedProperties = 
+        { 
+            nameof(Repo.DownloadAssetIndex), 
+            nameof(Repo.ExcludedFromDownloadAll), 
+            nameof(Repo.TargetTag), 
+            nameof(Repo.DownloadPath),
+            nameof(Repo.SaveFileAnyway),
+            nameof(Repo.NewFileName),
+            nameof(Repo.CurrentInstallTag)
+        };
+
+        if (persistedProperties.Contains(e.PropertyName))
+        {
+            FileManager.SaveRepos();
+        }
+    }
     
     private readonly record struct Asset(Repo Repo, string TempAssetPath);
 
@@ -64,7 +119,7 @@ public static class UpdateManager
         return repo;
     }
 
-    public static async Task UpdateRepoDetails(List<Repo> repos)
+    public static async Task UpdateRepoDetails(IEnumerable<Repo> repos)
     {
         Logger.LogI("Updating repo-details");
         
@@ -92,10 +147,15 @@ public static class UpdateManager
             repo.Name = repoResponse.full_name;
             repo.Description = repoResponse.description;
             repo.GitHubLink = repoResponse.html_url;
+
+            if (repo.AssetNames.Count == 0)
+            {
+                await SearchForUpdates(repo, _ => { }, true);
+            }
         }
     }
 
-    public static async Task SearchForUpdates(List<Repo> repos, Action<string> statusText)
+    public static async Task SearchForUpdates(IEnumerable<Repo> repos, Action<string> statusText)
     {
         Logger.LogI("Searching for updates");
         
@@ -138,6 +198,7 @@ public static class UpdateManager
         Response response = JsonSerializer.Deserialize<Response>(await httpResponse.Content.ReadAsStringAsync());
         if (response != null)
         {
+            int oldIndex = repo.DownloadAssetIndex;
             repo.AssetNames.Clear();
             foreach (Assets asset in response.assets)
             {
@@ -148,6 +209,11 @@ public static class UpdateManager
             repo.LatestChangelog = response.body;
             repo.Tag = response.tag_name;
             repo.ReleaseDate = response.published_at;
+
+            if (oldIndex >= 0 && oldIndex < repo.AssetNames.Count)
+            {
+                repo.DownloadAssetIndex = oldIndex;
+            }
         }
 
         string tagsUrl = $"https://api.github.com/repos/{repo.Name}/tags";
@@ -167,6 +233,11 @@ public static class UpdateManager
             List<string> tags = ["latest"];
             tags.AddRange(tagsResponse.Select(tag => tag.name).ToList());
             repo.Tags = tags;
+
+            if (repo.TargetTag != "latest" && !repo.Tags.Contains(repo.TargetTag))
+            {
+                repo.TargetTag = "latest";
+            }
         }
     }
 
@@ -175,7 +246,7 @@ public static class UpdateManager
         UpdateRepos([await DownloadAsset(repo, statusText, progressText, downloadAnyways)], statusText, progressText);
     }
 
-    public static async Task UpdateRepos(List<Repo> repos, Action<string> statusText, Action<string> progressText, bool downloadAnyways = false)
+    public static async Task UpdateRepos(IEnumerable<Repo> repos, Action<string> statusText, Action<string> progressText, bool downloadAnyways = false)
     {
         statusText.Invoke("Downloading updates...");
         

@@ -8,7 +8,17 @@ namespace Github_Downloader_lib.Models;
 
 public class Repo : INotifyPropertyChanged
 {
-    public required string Url { get; set; }
+    private string _url = string.Empty;
+    public required string Url 
+    { 
+        get => _url;
+        set
+        {
+            if (_url == value) return;
+            _url = value;
+            OnPropertyChanged(nameof(Url));
+        }
+    }
     
     private string _name = string.Empty;
     public required string Name
@@ -16,18 +26,35 @@ public class Repo : INotifyPropertyChanged
         get => _name;
         set
         {
-            if (_name == value)
-            {
-                return;
-            }
-            
+            if (_name == value) return;
             _name = value;
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Name)));
+            OnPropertyChanged(nameof(Name));
         }
     }
 
-    public string Description { get; set; } = "No description available";
-    public int DownloadAssetIndex { get; set; }
+    private string _description = "No description available";
+    public string Description 
+    { 
+        get => _description;
+        set
+        {
+            if (_description == value) return;
+            _description = value;
+            OnPropertyChanged(nameof(Description));
+        }
+    }
+
+    private int _downloadAssetIndex;
+    public int DownloadAssetIndex 
+    { 
+        get => _downloadAssetIndex;
+        set
+        {
+            if (_downloadAssetIndex == value) return;
+            _downloadAssetIndex = value;
+            OnPropertyChanged(nameof(DownloadAssetIndex));
+        }
+    }
 
     private ObservableCollection<string> _assetNames = [];
     public ObservableCollection<string> AssetNames
@@ -35,13 +62,23 @@ public class Repo : INotifyPropertyChanged
         get => _assetNames;
         set
         {
-            if (_assetNames == value) return;
+            if (_assetNames == value || value == null) return;
             _assetNames = value;
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(AssetNames)));
+            OnPropertyChanged(nameof(AssetNames));
         }
     }
     
-    public List<string> DownloadUrls { get; set; } = [];
+    private List<string> _downloadUrls = [];
+    public List<string> DownloadUrls 
+    { 
+        get => _downloadUrls;
+        set
+        {
+            if (_downloadUrls == value || value == null) return;
+            _downloadUrls = value;
+            OnPropertyChanged(nameof(DownloadUrls));
+        }
+    }
     
     private string _tag = string.Empty;
     public string Tag
@@ -49,14 +86,10 @@ public class Repo : INotifyPropertyChanged
         get => _tag;
         set
         {
-            if (_tag == value)
-            {
-                return;
-            }
-            
+            if (_tag == value) return;
             _tag = value;
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Tag)));
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsUpToDate)));
+            OnPropertyChanged(nameof(Tag));
+            OnPropertyChanged(nameof(IsUpToDate));
         }
     }
     
@@ -67,10 +100,9 @@ public class Repo : INotifyPropertyChanged
         set
         {
             if (_currentInstallTag == value) return;
-            
             _currentInstallTag = value;
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CurrentInstallTag)));
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsUpToDate)));
+            OnPropertyChanged(nameof(CurrentInstallTag));
+            OnPropertyChanged(nameof(IsUpToDate));
         }
     }
     
@@ -80,10 +112,9 @@ public class Repo : INotifyPropertyChanged
         get => _targetTag;
         set
         {
-            if (_targetTag == value) return;
-            
+            if (_targetTag == value || value == null) return;
             _targetTag = value;
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TargetTag)));
+            OnPropertyChanged(nameof(TargetTag));
         }
     }
 
@@ -93,9 +124,9 @@ public class Repo : INotifyPropertyChanged
         get => _tags;
         set
         {
-            if (_tags == value) return;
+            if (_tags == value || value == null) return;
             _tags = value;
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Tags)));
+            OnPropertyChanged(nameof(Tags));
         }
     }
     
@@ -107,7 +138,7 @@ public class Repo : INotifyPropertyChanged
         {
             if (_releaseDate == value) return;
             _releaseDate = value;
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ReleaseDate)));
+            OnPropertyChanged(nameof(ReleaseDate));
         }
     }
     
@@ -119,7 +150,7 @@ public class Repo : INotifyPropertyChanged
         {
             if (_githubLink == value) return;
             _githubLink = value;
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(GitHubLink)));
+            OnPropertyChanged(nameof(GitHubLink));
         }
     }
     
@@ -131,7 +162,7 @@ public class Repo : INotifyPropertyChanged
         {
             if (_latestChangelog == value) return;
             _latestChangelog = value;
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LatestChangelog)));
+            OnPropertyChanged(nameof(LatestChangelog));
         }
     }
 
@@ -146,7 +177,7 @@ public class Repo : INotifyPropertyChanged
         {
             if (_downloadPath == value) return;
             _downloadPath = value;
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(DownloadPath)));
+            OnPropertyChanged(nameof(DownloadPath));
         }
     }
 
@@ -158,12 +189,11 @@ public class Repo : INotifyPropertyChanged
         {
             if (_saveFileAnyway == value) return;
             _saveFileAnyway = value;
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SaveFileAnyway)));
+            OnPropertyChanged(nameof(SaveFileAnyway));
         }
     }
     
     private string _newFileName = string.Empty;
-
     public string NewFileName
     {
         get => _newFileName;
@@ -171,11 +201,29 @@ public class Repo : INotifyPropertyChanged
         {
             if (_newFileName == value) return;
             _newFileName = value;
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(NewFileName)));
+            OnPropertyChanged(nameof(NewFileName));
         }
     }
 
-    public bool ExcludedFromDownloadAll { get; set; } = false;
+    private bool _excludedFromDownloadAll;
+    public bool ExcludedFromDownloadAll 
+    { 
+        get => _excludedFromDownloadAll;
+        set
+        {
+            if (_excludedFromDownloadAll == value) return;
+            _excludedFromDownloadAll = value;
+            OnPropertyChanged(nameof(ExcludedFromDownloadAll));
+            OnPropertyChanged(nameof(IsSelected));
+        }
+    }
+
+    [JsonIgnore]
+    public bool IsSelected
+    {
+        get => !ExcludedFromDownloadAll;
+        set => ExcludedFromDownloadAll = !value;
+    }
 
     public override string ToString()
     {
@@ -183,4 +231,9 @@ public class Repo : INotifyPropertyChanged
     }
     
     public event PropertyChangedEventHandler? PropertyChanged;
+
+    protected virtual void OnPropertyChanged(string propertyName)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
 }

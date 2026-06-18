@@ -1,11 +1,16 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Converters;
+using Avalonia.Controls.Documents;
 using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Layout;
+using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Github_Downloader_lib;
 using Github_Downloader_lib.Models;
@@ -44,21 +49,14 @@ public partial class RepoDetailsView : UserControl
         
         TbxDownloadPath.DataContext = _repoDetailsViewModel.Repo;
         TbxDownloadPath.Bind(
-            TextBlock.TextProperty,
-            new MultiBinding
-            {
-                StringFormat = "Download Path: {0}",
-                Bindings =
-                {
-                    new Binding(nameof(_repoDetailsViewModel.Repo.DownloadPath))
-                }
-            });
+            TextBox.TextProperty,
+            new Binding(nameof(_repoDetailsViewModel.Repo.DownloadPath)));
 
         TbxRepoName.DataContext = _repoDetailsViewModel.Repo;
-        TbxRepoName.Bind(TextBox.TextProperty, new Binding(nameof(_repoDetailsViewModel.Repo.Name)));
+        TbxRepoName.Bind(TextBlock.TextProperty, new Binding(nameof(_repoDetailsViewModel.Repo.Name)));
         
         TbxDescription.DataContext = _repoDetailsViewModel.Repo;
-        TbxDescription.Bind(TextBox.TextProperty, new Binding(nameof(_repoDetailsViewModel.Repo.Description)));
+        TbxDescription.Bind(TextBlock.TextProperty, new Binding(nameof(_repoDetailsViewModel.Repo.Description)));
 
         CobVersion.ItemsSource = _repoDetailsViewModel.Repo.Tags;
         CobVersion.SelectedIndex = _repoDetailsViewModel.Repo.Tags.IndexOf(_repoDetailsViewModel.Repo.TargetTag);
@@ -86,12 +84,12 @@ public partial class RepoDetailsView : UserControl
         };
         
         TbxVersion.DataContext = _repoDetailsViewModel.Repo;
-        TbxVersion.Bind(TextBox.TextProperty, new Binding(nameof(_repoDetailsViewModel.Repo.CurrentInstallTag)));
+        TbxVersion.Bind(TextBlock.TextProperty, new Binding(nameof(_repoDetailsViewModel.Repo.CurrentInstallTag)));
         TbxVersion.Bind(IsVisibleProperty, new Binding(nameof(_repoDetailsViewModel.Repo.IsUpToDate)));
         
         TbxUpdateVersion.DataContext = _repoDetailsViewModel.Repo;
         TbxUpdateVersion.Bind(
-            TextBox.TextProperty,
+            TextBlock.TextProperty,
             new MultiBinding
             {
                 StringFormat = "{0} -> {1}",
@@ -106,8 +104,14 @@ public partial class RepoDetailsView : UserControl
         TbxGithubLink.DataContext = _repoDetailsViewModel.Repo;
         TbxGithubLink.Bind(TextBlock.TextProperty, new Binding(nameof(_repoDetailsViewModel.Repo.GitHubLink)));
         
-        TbxChangelog.DataContext = _repoDetailsViewModel.Repo;
-        TbxChangelog.Bind(TextBlock.TextProperty, new Binding(nameof(_repoDetailsViewModel.Repo.LatestChangelog)));
+        _repoDetailsViewModel.Repo.PropertyChanged += (o, args) =>
+        {
+            if (args.PropertyName == nameof(Repo.LatestChangelog))
+            {
+                PopulateChangelog(_repoDetailsViewModel.Repo.LatestChangelog);
+            }
+        };
+        PopulateChangelog(_repoDetailsViewModel.Repo.LatestChangelog);
         
         TbxReleaseDate.DataContext = _repoDetailsViewModel.Repo;
         TbxReleaseDate.Bind(
@@ -129,6 +133,59 @@ public partial class RepoDetailsView : UserControl
         TglRenameFile.IsChecked = _repoDetailsViewModel.Repo.NewFileName != ""; 
         TbxRenameFile.IsVisible = TglRenameFile.IsChecked == true;
         TbxRenameFile.Text = _repoDetailsViewModel.Repo.NewFileName;
+    }
+
+    private void PopulateChangelog(string? text)
+    {
+        TbxChangelog.Inlines?.Clear();
+        if (string.IsNullOrEmpty(text)) return;
+
+        string baseUrl = _repoDetailsViewModel.Repo.GitHubLink;
+        if (baseUrl.EndsWith("/")) baseUrl = baseUrl.Substring(0, baseUrl.Length - 1);
+        
+        var regex = new Regex(@"#(\d+)");
+        int lastIndex = 0;
+
+        foreach (Match match in regex.Matches(text))
+        {
+            if (match.Index > lastIndex)
+            {
+                TbxChangelog.Inlines?.Add(new Run(text.Substring(lastIndex, match.Index - lastIndex)));
+            }
+
+            string issueNumber = match.Groups[1].Value;
+            string issueUrl = $"{baseUrl}/issues/{issueNumber}";
+            
+            var link = new InlineUIContainer
+            {
+                Child = new TextBlock
+                {
+                    Text = match.Value,
+                    Foreground = new SolidColorBrush(new Color(255, 0, 158, 164)),
+                    Cursor = new Cursor(StandardCursorType.Hand),
+                    TextDecorations = TextDecorations.Underline,
+                    FontSize = 14,
+                    VerticalAlignment = VerticalAlignment.Stretch,
+                    Margin =  new Thickness(0),
+                }
+            };
+            link.Child.PointerPressed += (s, e) =>
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = issueUrl,
+                    UseShellExecute = true
+                });
+            };
+            
+            TbxChangelog.Inlines?.Add(link);
+            lastIndex = match.Index + match.Length;
+        }
+
+        if (lastIndex < text.Length)
+        {
+            TbxChangelog.Inlines?.Add(new Run(text.Substring(lastIndex)));
+        }
     }
 
     private void BtnBack_OnClick(object? sender, RoutedEventArgs e)

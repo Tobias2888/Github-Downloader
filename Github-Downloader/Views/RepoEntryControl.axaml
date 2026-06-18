@@ -1,0 +1,57 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:models="clr-namespace:Github_Downloader_lib.Models;assembly=Github-Downloader-lib"
+             mc:Ignorable="d" d:DesignWidth="800"
+             x:Class="Github_Downloader.Views.RepoEntryControl"
+             x:DataType="models:Repo">
+    
+    <Border Background="#2B2B35" CornerRadius="8" Padding="12" Margin="0 0 0 8">
+        <Grid ColumnDefinitions="Auto, *, Auto, Auto, Auto">
+            <CheckBox IsChecked="{Binding IsSelected}" 
+                      VerticalAlignment="Center" 
+                      Margin="0,0,15,0"/>
+            
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
+                <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="16" Foreground="White"/>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Border Background="#3D3D4D" CornerRadius="4" Padding="6,2">
+                        <TextBlock Text="{Binding CurrentInstallTag}" FontSize="12" Foreground="#CCC"/>
+                    </Border>
+                    
+                    <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding !IsUpToDate}">
+                        <TextBlock Text="→" Foreground="Orange" VerticalAlignment="Center"/>
+                        <Border Background="#4D3D2D" CornerRadius="4" Padding="6,2">
+                            <TextBlock Text="{Binding Tag}" FontSize="12" Foreground="Orange" FontWeight="Bold"/>
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
+            </StackPanel>
+            
+            <ComboBox Grid.Column="2" 
+                      ItemsSource="{Binding AssetNames}" 
+                      SelectedIndex="{Binding DownloadAssetIndex}" 
+                      Width="250" 
+                      VerticalAlignment="Center" 
+                      Margin="15,0"
+                      MaxDropDownHeight="300"/>
+            
+            <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Button Name="BtnUpdate" Content="Update" IsEnabled="{Binding !IsUpToDate}" Click="BtnUpdate_OnClick"/>
+                <Button Name="BtnMore" Content="More" Click="BtnMore_OnClick"/>
+            </StackPanel>
+            
+            <Button Grid.Column="4" 
+                    Name="BtnRemove"
+                    Background="Transparent" 
+                    BorderThickness="0" 
+                    Padding="8"
+                    Margin="10,0,0,0"
+                    VerticalAlignment="Center"
+                    Click="BtnRemove_OnClick">
+                <Image Source="avares://Github-Downloader/resources/trash.png" Width="20" Height="20" Opacity="0.6"/>
+            </Button>
+        </Grid>
+    </Border>
+</UserControl>

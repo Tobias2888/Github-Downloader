@@ -3,60 +3,123 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:viewModels="clr-namespace:Github_Downloader.ViewModels"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
              x:Class="Github_Downloader.Views.RepoDetailsView"
              x:DataType="viewModels:RepoDetailsViewModel"
+             Background="#222226"
              Loaded="Control_OnLoaded">
     
-    <Grid Margin="25" RowDefinitions="Auto,*">
-        <Grid ColumnDefinitions="Auto, *, Auto" Margin="0, 0, 0, 15">
-            <Image Source="../resources/arrow_back.png" Width="30" Height="30" PointerPressed="BtnBack_OnClick"/>
-            <TextBlock Name="TbxRepoName" Text="Repo-name" Classes="Title" Grid.Column="1" Margin="20, 0"/>
-            <TextBlock Grid.Column="2" 
-                Name="TbxGithubLink" 
-                Text="Link" 
-                Foreground="DodgerBlue"
-                TextDecorations="Underline"
-                Cursor="Hand"
-                PointerPressed="TbxGithubLink_OnPointerPressed"/>
-        </Grid>
-        <Grid ColumnDefinitions="2*, 3*" Row="1">
-            <StackPanel Grid.Column="0">
-                <StackPanel Name="StpVersion" Margin="0, 0, 0, 15" Orientation="Horizontal">
-                    <ComboBox Name="CobVersion" Width="150" Margin="0, 0, 10, 0"/>
-                    <TextBlock Name="TbxUpdateVersion" Text="UpdateVersion" Foreground="Orange"/>
-                    <TextBlock Name="TbxVersion" Text="Version" />
-                </StackPanel>
-                <StackPanel Margin="0, 0, 0, 25" Orientation="Horizontal">
-                    <Button Name="BtnUpdate" Content="Update" Click="BtnUpdate_OnClick" Margin="0, 0, 5, 0"/>
-                    <Button Name="BtnReinstall" Content="Reinstall" Click="BtnReinstall_OnClick"/>
-                </StackPanel>
-                <StackPanel Margin="0, 0, 0, 15">
-                    <TextBlock Text="Description:" Classes="SubTitle" Margin="0, 0, 0, 5"/>
-                    <TextBlock Name="TbxDescription" TextWrapping="Wrap" Text="This is the description"/>
-                </StackPanel>
-                <StackPanel Name="StpSaveFileAnyway" Orientation="Horizontal" Margin="0, 0, 0, 5">
-                    <TextBlock Text="Save file anyway: " VerticalAlignment="Center"/>
-                    <ToggleSwitch Name="TglSaveFileAnyway" OnContent="" OffContent="" Click="TglSaveFileAnyway_OnClick"/>
-                </StackPanel>
-                <StackPanel Name="StpDownloadPath">
-                    <Button Name="BtnFilePicker" Content="Select download location" Click="BtnFilePicker_OnClick"/>
-                    <TextBlock Name="TbxDownloadPath" Text="/home/{user}"/>
-                    <StackPanel Orientation="Horizontal" Margin="0, 15, 0, 0">
-                        <TextBlock Text="Rename file: " VerticalAlignment="Center"/>
-                        <ToggleSwitch Name="TglRenameFile" OnContent="" OffContent="" Click="TglRenameFile_OnClick"/>
-                    </StackPanel>
-                    <TextBox Name="TbxRenameFile" TextChanged="TbxRenameFile_OnTextChanged"/>
-                </StackPanel>
-            </StackPanel>
+    <Grid Margin="20" RowDefinitions="Auto,*">
+        <Border CornerRadius="12" Padding="16">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0%,50%" EndPoint="100%,50%">
+                    <GradientStop Color="#2B2B35" Offset="0"/>
+                    <GradientStop Color="#313131" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
             
-            <Grid RowDefinitions="Auto,Auto,*" Grid.Column="1">
-                <TextBlock Grid.Row="0" Name="TbxReleaseDate" Text="Release-date" Margin="0, 0, 0, 20"/>
-                <TextBlock Grid.Row="1" Text="Changelog:" Classes="SubTitle" Margin="0, 0, 0, 15"/>
-                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
-                    <TextBlock Name="TbxChangelog" TextWrapping="Wrap" Text="This is the changelog"/>
-                </ScrollViewer>
+            <Grid ColumnDefinitions="Auto, *, Auto">
+                <Image Source="../resources/arrow_back.png" Width="30" Height="30" PointerPressed="BtnBack_OnClick" Cursor="Hand"/>
+                <TextBlock Name="TbxRepoName" Text="Repo-name" Classes="Title" Grid.Column="1" Margin="20, 5" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="2" 
+                    Name="TbxGithubLink" 
+                    Text="View on GitHub" 
+                    Foreground="#009EA4"
+                    TextDecorations="Underline"
+                    Cursor="Hand"
+                    VerticalAlignment="Center"
+                    PointerPressed="TbxGithubLink_OnPointerPressed"/>
             </Grid>
-        </Grid>
+        </Border>
+
+        <ScrollViewer Grid.Row="1" Margin="0, 20, 0, 0" VerticalScrollBarVisibility="Auto">
+            <Grid ColumnDefinitions="1*, 20, 1.5*" Margin="0, 0, 10, 0">
+                <StackPanel Grid.Column="0" Spacing="20">
+                    <Border CornerRadius="12" Padding="16">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="50%,100%" EndPoint="50%,0%">
+                                <GradientStop Color="#2B2B35" Offset="0"/>
+                                <GradientStop Color="#313131" Offset="1"/>
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        
+                        <StackPanel Spacing="15">
+                            <TextBlock Text="Repository Information" Classes="SubTitle"/>
+                            
+                            <StackPanel Name="StpVersion" Spacing="10" Orientation="Horizontal">
+                                <ComboBox Name="CobVersion" Width="150"/>
+                                <TextBlock Name="TbxUpdateVersion" Text="UpdateVersion" Foreground="Orange" VerticalAlignment="Center"/>
+                                <TextBlock Name="TbxVersion" Text="Version" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            
+                            <StackPanel Spacing="10" Orientation="Horizontal">
+                                <Button Name="BtnUpdate" Content="Update" Click="BtnUpdate_OnClick"/>
+                                <Button Name="BtnReinstall" Content="Reinstall" Click="BtnReinstall_OnClick" Background="#444"/>
+                            </StackPanel>
+                            
+                            <StackPanel Spacing="5">
+                                <TextBlock Text="Description:" FontWeight="SemiBold"/>
+                                <TextBlock Name="TbxDescription" TextWrapping="Wrap" Text="This is the description" Opacity="0.8"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <Border CornerRadius="12" Padding="16">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="50%,100%" EndPoint="50%,0%">
+                                <GradientStop Color="#2B2B35" Offset="0"/>
+                                <GradientStop Color="#313131" Offset="1"/>
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        
+                        <StackPanel Name="StpSaveFileAnyway" Spacing="15">
+                            <TextBlock Text="Download Settings" Classes="SubTitle"/>
+                            
+                            <Grid ColumnDefinitions="*, Auto">
+                                <TextBlock Text="Save file anyway" VerticalAlignment="Center"/>
+                                <ToggleSwitch Name="TglSaveFileAnyway" Grid.Column="1" OnContent="" OffContent="" Click="TglSaveFileAnyway_OnClick"/>
+                            </Grid>
+                            
+                            <StackPanel Name="StpDownloadPath" Spacing="10">
+                                <TextBlock Text="Download Location" FontWeight="SemiBold"/>
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <TextBox Name="TbxDownloadPath" Text="/home/{user}" IsReadOnly="True"/>
+                                    <Button Name="BtnFilePicker" Content="..." Grid.Column="1" Margin="10, 0, 0, 0" Click="BtnFilePicker_OnClick"/>
+                                </Grid>
+                                
+                                <Grid ColumnDefinitions="*, Auto" Margin="0, 5, 0, 0">
+                                    <TextBlock Text="Rename file" VerticalAlignment="Center"/>
+                                    <ToggleSwitch Name="TglRenameFile" Grid.Column="1" OnContent="" OffContent="" Click="TglRenameFile_OnClick"/>
+                                </Grid>
+                                <TextBox Name="TbxRenameFile" Watermark="New filename" TextChanged="TbxRenameFile_OnTextChanged"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+                
+                <Border Grid.Column="2" CornerRadius="12" Padding="16">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="50%,100%" EndPoint="50%,0%">
+                            <GradientStop Color="#2B2B35" Offset="0"/>
+                            <GradientStop Color="#313131" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    
+                    <Grid RowDefinitions="Auto, Auto, *">
+                        <Grid ColumnDefinitions="*, Auto" Margin="0, 0, 0, 15">
+                            <TextBlock Text="Release Details" Classes="SubTitle"/>
+                            <TextBlock Grid.Column="1" Name="TbxReleaseDate" Text="Release-date" Opacity="0.7" VerticalAlignment="Center"/>
+                        </Grid>
+                        
+                        <Separator Grid.Row="1" Margin="0, 0, 0, 15" Background="#444"/>
+                        
+                        <StackPanel Grid.Row="2" Spacing="10">
+                            <TextBlock Text="Changelog" FontWeight="SemiBold"/>
+                            <TextBlock Name="TbxChangelog" TextWrapping="Wrap" Text="This is the changelog" Opacity="0.9"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+        </ScrollViewer>
     </Grid>
 </UserControl>

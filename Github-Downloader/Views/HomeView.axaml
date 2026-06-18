@@ -3,55 +3,75 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:viewModel="clr-namespace:Github_Downloader.ViewModels"
+             xmlns:views="clr-namespace:Github_Downloader.Views"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="Github_Downloader.Views.HomeView"
              x:DataType="viewModel:HomeViewModel"
+             Background="#222226"
              Loaded="Control_OnLoaded">
     
-    
-  <!-- ===================== -->
-  <!-- Layout -->
-  <!-- ===================== -->
   <Grid RowDefinitions="Auto,*" Margin="20">
-      <!-- Header -->
-      <Border Background="#1E1E1E" CornerRadius="12" Padding="16">
+      <Border CornerRadius="12" Padding="16">
+          <Border.Background>
+              <LinearGradientBrush StartPoint="0%,50%" EndPoint="100%,50%">
+                  <GradientStop Color="#2B2B35" Offset="0"/>
+                  <GradientStop Color="#313131" Offset="1"/>
+              </LinearGradientBrush>
+          </Border.Background>
+          
           <Grid ColumnDefinitions="*,Auto">
               <TextBlock Text="GitHub Repository Tracker" Classes="Title"/>
-              <Image Grid.Column="1" Source="../resources/settings.png" PointerPressed="InputElement_OnPointerPressed" Height="30" Width="30"/>
+              <Image Grid.Column="1" Source="../resources/settings.png" Cursor="Hand" PointerPressed="InputElement_OnPointerPressed" Height="30" Width="30"/>
           </Grid>
       </Border>
       
-      <!-- Content -->
     <Grid Grid.Row="1"
           ColumnDefinitions="1*,20,3*"
           Margin="0,20,0,0">
 
-      <!-- Add Repository -->
       <Border Grid.Column="0"
-              Background="#1E1E1E"
               CornerRadius="12"
               Padding="16">
-        <StackPanel Spacing="10">
-          <TextBlock Text="Add Repository" Classes="SubTitle"/>
           
-          <TextBox Name="TbxUrl" Watermark="Repository-Url"/>
-          <TextBox Name="TbxOwner" Watermark="Owner (e.g. torvalds)"/>
-          <TextBox Name="TbxRepo" Watermark="Repository name (e.g. linux)"/>
-
-          <Button Name="BtnAddRepo" Click="BtnAddRepo_OnClick" Content="Add Repository"/>
+          <Border.Background>
+              <LinearGradientBrush StartPoint="50%,100%" EndPoint="50%,0%">
+                  <GradientStop Color="#2B2B35" Offset="0"/>
+                  <GradientStop Color="#313131" Offset="1"/>
+              </LinearGradientBrush>
+          </Border.Background>
           
-          <TextBox Name="TbxPat" Watermark="Personal Access token"/>
-          <Button Name="BtnSetPat" Click="BtnSetPat_OnClick" Content="Set personal Access token"/>
-          <Button Name="BtnRemovePat" Click="BtnRemovePat_OnClick" Content="Remove personal Access token" Background="Red"/>
-        </StackPanel>
+          <ScrollViewer>
+            <StackPanel Spacing="10">
+              <TextBlock Text="Add Repository" Classes="SubTitle"/>
+              
+              <TextBox Name="TbxUrl" Watermark="Repository-Url"/>
+              
+              <Label Content="--- or ---" FontSize="14" Margin="0 2 0 2" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
+              
+              <TextBox Name="TbxOwner" Watermark="Owner (e.g. torvalds)"/>
+              <TextBox Name="TbxRepo" Watermark="Repository name (e.g. linux)"/>
+              <Button Name="BtnAddRepo" Click="BtnAddRepo_OnClick" Content="Add Repository" Margin="0 0 0 40"/>
+              
+              <TextBlock Text="Manage Personal Access Token" Classes="SubTitle"/>
+              <TextBox Name="TbxPat" Watermark="Personal Access Token"/>
+              <Button Name="BtnSetPat" Click="BtnSetPat_OnClick" Content="Set personal Access Token"/>
+              <Button Name="BtnRemovePat" Click="BtnRemovePat_OnClick" Content="Remove personal Access Token" Background="#EC4C4C"/>
+            </StackPanel>
+          </ScrollViewer>
       </Border>
 
-      <!-- Repository List -->
       <Border Grid.Column="2"
-              Background="#1E1E1E"
               CornerRadius="12"
               Padding="16">
-        <StackPanel>
+          
+          <Border.Background>
+              <LinearGradientBrush StartPoint="50%,100%" EndPoint="50%,0%">
+                  <GradientStop Color="#2B2B35" Offset="0"/>
+                  <GradientStop Color="#313131" Offset="1"/>
+              </LinearGradientBrush>
+          </Border.Background>
+          
+          <Grid RowDefinitions="Auto,Auto,*">
             <Grid ColumnDefinitions="*,Auto,Auto,Auto">
                 <TextBlock Text="Tracked Repositories" Classes="SubTitle"/>
                 <StackPanel 
@@ -67,19 +87,18 @@
                 <Button Name="BtnSearchForUpdates" Grid.Column="2" Margin="10, 0" Click="BtnSearchForUpdates_OnClick">Search for updates</Button>
                 <Button Name="BtnUpdateAll" Grid.Column="3" Click="BtnUpdateAll_OnClick">Update Selected</Button>
             </Grid>
-            <Separator Margin="0, 5, 0, 25"></Separator>
+            <Separator Grid.Row="1" Margin="0, 5, 0, 25"></Separator>
 
-            <Grid Name="GrdTrackedRepos" ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto" RowDefinitions="*">
-                <!--
-                <TextBlock Text="Repo name" Grid.Column="0" Classes="SubTitle" Margin="0, 0, 0, 15"/>
-                <TextBlock Text="1" Grid.Column="1" Classes="SubTitle" Margin="0, 0, 0, 15"/>
-                <TextBlock Text="2" Grid.Column="2" Classes="SubTitle" Margin="0, 0, 0, 15"/>
-                <TextBlock Text="Exclude from update-all" Grid.Column="3" Classes="SubTitle" Margin="0, 0, 0, 15"/>
-                <TextBlock Text="4" Grid.Column="4" Classes="SubTitle" Margin="0, 0, 0, 15"/>
-                <TextBlock Text="5" Grid.Column="5" Classes="SubTitle" Margin="0, 0, 0, 15"/>
-                -->
-            </Grid>
-        </StackPanel>
+            <ScrollViewer Grid.Row="2">
+                <ItemsControl ItemsSource="{Binding Repos}" ClipToBounds="True" Padding="0 4 0 0">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <views:RepoEntryControl/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
       </Border>
 
     </Grid>
