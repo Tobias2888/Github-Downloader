@@ -158,7 +158,7 @@ public partial class App : Application
         updateAllItem.Click += async (_, _) =>
         {
             DownloadStatusViewModel.IsUpdating = true;
-            await UpdateManager.UpdateRepos(UpdateManager.Repos, statusText =>
+            await UpdateManager.UpdateReposAsync(UpdateManager.Repos, statusText =>
             {
                 DownloadStatusViewModel.StatusText = statusText;
             }, progressText =>

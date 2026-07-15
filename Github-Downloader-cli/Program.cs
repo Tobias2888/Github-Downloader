@@ -131,7 +131,7 @@ public static class Program
                 if (args[1] == "--all")
                 {
                     await UpdateManager.SearchForUpdates(UpdateManager.Repos, Console.WriteLine);
-                    await UpdateManager.UpdateRepos(UpdateManager.Repos,
+                    await UpdateManager.UpdateReposAsync(UpdateManager.Repos,
                         Console.WriteLine,
                         Console.WriteLine);
                     FileManager.SaveRepos();
@@ -159,7 +159,7 @@ public static class Program
                 if (args[1] == "--all")
                 {
                     await UpdateManager.SearchForUpdates(UpdateManager.Repos, Console.WriteLine);
-                    await UpdateManager.UpdateRepos(UpdateManager.Repos,
+                    await UpdateManager.UpdateReposAsync(UpdateManager.Repos,
                         Console.WriteLine,
                         Console.WriteLine, 
                         true);

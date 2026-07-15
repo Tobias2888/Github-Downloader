@@ -89,7 +89,7 @@ public partial class HomeView : UserControl
     public async void BtnUpdateAll_OnClick(object? sender, RoutedEventArgs e)
     {
         _downloadStatusViewModel.IsUpdating = true;
-        await UpdateManager.UpdateRepos(UpdateManager.Repos, statusText =>
+        await UpdateManager.UpdateReposAsync(UpdateManager.Repos, statusText =>
         {
             _downloadStatusViewModel.StatusText = statusText;
         }, progressText =>

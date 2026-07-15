@@ -243,10 +243,10 @@ public static class UpdateManager
 
     public static async Task UpdateRepo(Repo repo, Action<string> statusText, Action<string> progressText, bool downloadAnyways = false)
     {
-        UpdateRepos([await DownloadAsset(repo, statusText, progressText, downloadAnyways)], statusText, progressText);
+        await UpdateReposAsync([await DownloadAsset(repo, statusText, progressText, downloadAnyways)], statusText, progressText);
     }
 
-    public static async Task UpdateRepos(IEnumerable<Repo> repos, Action<string> statusText, Action<string> progressText, bool downloadAnyways = false)
+    public static async Task UpdateReposAsync(IEnumerable<Repo> repos, Action<string> statusText, Action<string> progressText, bool downloadAnyways = false)
     {
         statusText.Invoke("Downloading updates...");
         
@@ -262,10 +262,10 @@ public static class UpdateManager
             assets.Add(asset);
         }
 
-        UpdateRepos(assets, statusText, progressText);
+        await UpdateReposAsync(assets, statusText, progressText);
     }
 
-    private static void UpdateRepos(List<Asset?> assets, Action<string> statusText, Action<string> progressText)
+    private static async Task UpdateReposAsync(List<Asset?> assets, Action<string> statusText, Action<string> progressText)
     {
         Logger.LogI("Updating repos");
         
@@ -304,8 +304,8 @@ public static class UpdateManager
         statusText.Invoke("Installing Updates...");
         
         HandleAppImages(appImages);
-        InstallDebs(debs, progressText);
-        InstallExe(exes, progressText);
+        await InstallDebsAsync(debs, progressText);
+        await InstallExeAsync(exes, progressText);
     }
 
     private static void HandleAppImages(List<Asset> assets)
@@ -426,7 +426,7 @@ public static class UpdateManager
         File.Copy(Path.Join(asset.TempAssetPath), destPath);
     }
 
-    private static void InstallDebs(List<string> debPaths, Action<string> progressText)
+    private static async Task InstallDebsAsync(List<string> debPaths, Action<string> progressText)
     {
         Logger.LogI($"Installing debs: {debPaths}");
         
@@ -479,7 +479,7 @@ public static class UpdateManager
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
 
-        process.WaitForExit();
+        await process.WaitForExitAsync();
         
         if (process.ExitCode == 0)
         {
@@ -491,7 +491,7 @@ public static class UpdateManager
         }
     }
 
-    private static void InstallExe(List<string> exePaths, Action<string> progressText)
+    private static async Task InstallExeAsync(List<string> exePaths, Action<string> progressText)
     {
         foreach (string exePath in exePaths)
         {
@@ -508,7 +508,8 @@ public static class UpdateManager
 
             process.Start();
 
-            process.WaitForExit();
+            await process.WaitForExitAsync();
+            
             if (process.ExitCode == 0)
             {
                 Logger.LogI("Installation complete");
