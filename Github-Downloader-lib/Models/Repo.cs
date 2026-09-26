@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Text.Json.Serialization;
 using FileLib;
@@ -8,6 +9,15 @@ namespace Github_Downloader_lib.Models;
 
 public class Repo : INotifyPropertyChanged
 {
+    public Repo()
+    {
+        AssetNames.CollectionChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(HasAssets));
+            OnPropertyChanged(nameof(SelectedAssetName));
+        };
+    }
+
     private string _url = string.Empty;
     public required string Url 
     { 
@@ -53,6 +63,7 @@ public class Repo : INotifyPropertyChanged
             if (_downloadAssetIndex == value) return;
             _downloadAssetIndex = value;
             OnPropertyChanged(nameof(DownloadAssetIndex));
+            OnPropertyChanged(nameof(SelectedAssetName));
         }
     }
 
@@ -63,9 +74,19 @@ public class Repo : INotifyPropertyChanged
         set
         {
             if (_assetNames == value || value == null) return;
+            _assetNames.CollectionChanged -= AssetNamesOnCollectionChanged;
             _assetNames = value;
+            _assetNames.CollectionChanged += AssetNamesOnCollectionChanged;
             OnPropertyChanged(nameof(AssetNames));
+            OnPropertyChanged(nameof(HasAssets));
+            OnPropertyChanged(nameof(SelectedAssetName));
         }
+    }
+
+    private void AssetNamesOnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        OnPropertyChanged(nameof(HasAssets));
+        OnPropertyChanged(nameof(SelectedAssetName));
     }
     
     private List<string> _downloadUrls = [];
@@ -168,6 +189,33 @@ public class Repo : INotifyPropertyChanged
 
     [JsonIgnore]
     public bool IsUpToDate => Tag == CurrentInstallTag;
+
+    private bool _hasRelease = true;
+    public bool HasRelease
+    {
+        get => _hasRelease;
+        set
+        {
+            if (_hasRelease == value) return;
+            _hasRelease = value;
+            OnPropertyChanged(nameof(HasRelease));
+        }
+    }
+
+    [JsonIgnore]
+    public bool HasAssets => AssetNames.Count > 0;
+
+    [JsonIgnore]
+    public string SelectedAssetName =>
+        DownloadAssetIndex >= 0 && DownloadAssetIndex < AssetNames.Count
+            ? AssetNames[DownloadAssetIndex]
+            : string.Empty;
+
+    [JsonIgnore]
+    public string SelectedAssetUrl =>
+        DownloadAssetIndex >= 0 && DownloadAssetIndex < DownloadUrls.Count
+            ? DownloadUrls[DownloadAssetIndex]
+            : string.Empty;
     
     private string _downloadPath = DirectoryHelper.GetUserDirPath();
     public string DownloadPath

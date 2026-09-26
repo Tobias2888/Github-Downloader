@@ -30,7 +30,7 @@ public static class ArgRepo
                                   : "\x1b[38;2;255;165;0m" + repo.CurrentInstallTag + " -> " + repo.Tag + "\x1b[0m") + "\n" +
                               $"Release Date: {repo.ReleaseDate}\n" +
                               $"Download Path: {repo.DownloadPath}\n" +
-                              $"Selected Asset: {repo.AssetNames[repo.DownloadAssetIndex]}"
+                              $"Selected Asset: {repo.SelectedAssetName}"
                               );
             return;
         }
@@ -46,7 +46,7 @@ public static class ArgRepo
                 }
 
                 int assetId = int.Parse(args[3]);
-                if (assetId < 0 || assetId > UpdateManager.Repos[repoId].AssetNames.Count)
+                if (assetId < 0 || assetId >= UpdateManager.Repos[repoId].AssetNames.Count)
                 {
                     Console.WriteLine($"asset id {assetId} out of range");
                     return;

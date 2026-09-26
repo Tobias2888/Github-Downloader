@@ -3,6 +3,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
+using System.Net;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using FileLib;
@@ -98,12 +99,15 @@ public static class UpdateManager
         
         Logger.LogI($"Adding repo: {repoUrl}");
         
-        HttpResponseMessage httpRepoResponse = await Api.GetRequest(repoUrl, SecretsManager.LookupSecret("pat"));
-        if (httpRepoResponse == null || !httpRepoResponse.IsSuccessStatusCode)
+        using HttpResponseMessage? httpRepoResponse = await Api.GetRequest(repoUrl, SecretsManager.LookupSecret("pat"));
+        if (httpRepoResponse is not { IsSuccessStatusCode: true })
         {
             Logger.LogE($"Failed to fetch repo: {repoUrl}");
-            Logger.LogE(httpRepoResponse.StatusCode.ToString());
-            Logger.LogE(httpRepoResponse.ReasonPhrase);
+            if (httpRepoResponse != null)
+            {
+                Logger.LogE(httpRepoResponse.StatusCode.ToString());
+                Logger.LogE(httpRepoResponse.ReasonPhrase ?? "");
+            }
             return null;
         }
         
@@ -125,23 +129,24 @@ public static class UpdateManager
         
         foreach (Repo repo in repos)
         {
-            HttpResponseMessage httpRepoResponse = await Api.GetRequest(repo.Url.Replace("/releases/latest", ""), SecretsManager.LookupSecret("pat"));
-            if (httpRepoResponse == null || !httpRepoResponse.IsSuccessStatusCode)
+            using HttpResponseMessage? httpRepoResponse = await Api.GetRequest(repo.Url.Replace("/releases/latest", ""), SecretsManager.LookupSecret("pat"));
+            if (httpRepoResponse is not { IsSuccessStatusCode: true })
             {
                 Console.WriteLine("Failed to fetch repo");
-                Logger.LogE("Failed to fetch repo");
+                Logger.LogE($"Failed to fetch repo: {repo.Name}");
                 if (httpRepoResponse != null)
                 {
                     Logger.LogE(httpRepoResponse.StatusCode.ToString());
-                    Logger.LogE(httpRepoResponse.ReasonPhrase);
+                    Logger.LogE(httpRepoResponse.ReasonPhrase ?? "");
                 }
-                return;
+                continue;
             }
         
-            RepoResponse repoResponse = JsonSerializer.Deserialize<RepoResponse>(await httpRepoResponse.Content.ReadAsStringAsync());
+            RepoResponse? repoResponse = JsonSerializer.Deserialize<RepoResponse>(await httpRepoResponse.Content.ReadAsStringAsync());
             if (repoResponse == null)
             {
-                return;
+                Logger.LogE($"Failed to parse repo: {repo.Name}");
+                continue;
             }
             
             repo.Name = repoResponse.full_name;
@@ -166,6 +171,13 @@ public static class UpdateManager
         }
     }
 
+    private enum ReleaseLookup
+    {
+        Found,
+        NotFound,
+        Failed
+    }
+
     public static async Task SearchForUpdates(Repo repo, Action<string> statusText, bool multiDownload = false)
     {
         Logger.LogI($"Checking for {repo.Name}");
@@ -175,70 +187,140 @@ public static class UpdateManager
             statusText.Invoke($"Checking for {repo.Name}");
         }
 
-        string responseUrl;
-        if (repo.TargetTag == "latest")
+        await UpdateTags(repo);
+
+        if (repo.TargetTag != "latest" && !repo.Tags.Contains(repo.TargetTag))
         {
-            responseUrl = repo.Url;
+            repo.TargetTag = "latest";
         }
-        else
+
+        (ReleaseLookup lookup, Response? response) = await GetRelease(repo, repo.TargetTag);
+        if (lookup == ReleaseLookup.Failed)
         {
-            responseUrl = $"https://api.github.com/repos/{repo.Name}/releases/tags/{repo.TargetTag}";
+            return;
         }
-        
-        HttpResponseMessage httpResponse = await Api.GetRequest(responseUrl, SecretsManager.LookupSecret("pat"));
+
+        if (response == null)
+        {
+            Logger.LogE($"No release available for {repo.Name} ({repo.TargetTag})");
+            repo.HasRelease = false;
+            repo.AssetNames.Clear();
+            repo.DownloadUrls = [];
+            repo.Tag = "";
+            repo.LatestChangelog = "";
+            repo.ReleaseDate = "";
+            return;
+        }
+
+        int oldIndex = repo.DownloadAssetIndex;
+        Assets[] assets = response.assets ?? [];
+        repo.AssetNames.Clear();
+        foreach (Assets asset in assets)
+        {
+            repo.AssetNames.Add(asset.name);
+        }
+
+        repo.DownloadUrls = assets.Select(asset => asset.url).ToList();
+        repo.LatestChangelog = response.body;
+        repo.Tag = response.tag_name;
+        repo.ReleaseDate = response.published_at;
+        repo.HasRelease = true;
+
+        repo.DownloadAssetIndex = Math.Clamp(oldIndex, 0, Math.Max(repo.AssetNames.Count - 1, 0));
+    }
+
+    private static async Task UpdateTags(Repo repo)
+    {
+        string tagsUrl = $"https://api.github.com/repos/{repo.Name}/tags?per_page=100";
+        using HttpResponseMessage? httpResponseTags = await Api.GetRequest(tagsUrl, SecretsManager.LookupSecret("pat"));
+        if (httpResponseTags is not { IsSuccessStatusCode: true })
+        {
+            Logger.LogE($"Failed to fetch tags of: {tagsUrl}");
+            Logger.LogE(httpResponseTags?.StatusCode.ToString() ?? "no response");
+            Logger.LogE(httpResponseTags?.ReasonPhrase ?? "no response");
+            return;
+        }
+
+        List<TagsResponse>? tagsResponse = JsonSerializer.Deserialize<List<TagsResponse>>(await httpResponseTags.Content.ReadAsStringAsync());
+        if (tagsResponse == null)
+        {
+            return;
+        }
+
+        List<string> tags = ["latest"];
+        tags.AddRange(tagsResponse.Select(tag => tag.name));
+        repo.Tags = tags;
+    }
+
+    private static async Task<(ReleaseLookup Lookup, Response? Response)> GetRelease(Repo repo, string targetTag)
+    {
+        if (targetTag != "latest")
+        {
+            return await GetReleaseByUrl($"https://api.github.com/repos/{repo.Name}/releases/tags/{targetTag}");
+        }
+
+        (ReleaseLookup lookup, Response? response) = await GetReleaseByUrl(repo.Url);
+        if (lookup == ReleaseLookup.Found)
+        {
+            return (lookup, response);
+        }
+        if (lookup == ReleaseLookup.Failed)
+        {
+            return (lookup, null);
+        }
+
+        List<Response>? releases = await GetReleaseList(repo);
+        if (releases == null)
+        {
+            return (ReleaseLookup.Failed, null);
+        }
+
+        Response? fallback = releases.FirstOrDefault(release => !release.draft && !release.prerelease)
+            ?? releases.FirstOrDefault(release => !release.draft);
+        return fallback == null
+            ? (ReleaseLookup.NotFound, null)
+            : (ReleaseLookup.Found, fallback);
+    }
+
+    private static async Task<(ReleaseLookup Lookup, Response? Response)> GetReleaseByUrl(string url)
+    {
+        using HttpResponseMessage? httpResponse = await Api.GetRequest(url, SecretsManager.LookupSecret("pat"));
+        if (httpResponse == null)
+        {
+            Logger.LogE($"No response for: {url}");
+            return (ReleaseLookup.Failed, null);
+        }
+
+        if (httpResponse.StatusCode == HttpStatusCode.NotFound)
+        {
+            return (ReleaseLookup.NotFound, null);
+        }
+
         if (!httpResponse.IsSuccessStatusCode)
         {
-            Console.WriteLine($"Failed to fetch release of: {responseUrl}");
-            Logger.LogE($"Failed to fetch release of: {responseUrl}");
+            Logger.LogE($"Failed to fetch release of: {url}");
             Logger.LogE(httpResponse.StatusCode.ToString());
-            Logger.LogE(httpResponse.ReasonPhrase);
-            return;
-        }
-        
-        Response response = JsonSerializer.Deserialize<Response>(await httpResponse.Content.ReadAsStringAsync());
-        if (response != null)
-        {
-            int oldIndex = repo.DownloadAssetIndex;
-            repo.AssetNames.Clear();
-            foreach (Assets asset in response.assets)
-            {
-                repo.AssetNames.Add(asset.name);
-            }
-            
-            repo.DownloadUrls = response.assets.ToList().Select(asset => asset.url).ToList();
-            repo.LatestChangelog = response.body;
-            repo.Tag = response.tag_name;
-            repo.ReleaseDate = response.published_at;
-
-            if (oldIndex >= 0 && oldIndex < repo.AssetNames.Count)
-            {
-                repo.DownloadAssetIndex = oldIndex;
-            }
+            Logger.LogE(httpResponse.ReasonPhrase ?? "");
+            return (ReleaseLookup.Failed, null);
         }
 
-        string tagsUrl = $"https://api.github.com/repos/{repo.Name}/tags";
-        HttpResponseMessage httpResponseTags = await Api.GetRequest(tagsUrl, SecretsManager.LookupSecret("pat"));
-        if (!httpResponseTags.IsSuccessStatusCode)
-        {
-            Console.WriteLine($"Failed to fetch tags of: {tagsUrl}");
-            Logger.LogE($"Failed to fetch tags of: {tagsUrl}");
-            Logger.LogE(httpResponseTags.StatusCode.ToString());
-            Logger.LogE(httpResponseTags.ReasonPhrase);
-            return;
-        }
-        
-        List<TagsResponse> tagsResponse = JsonSerializer.Deserialize<List<TagsResponse>>(await httpResponseTags.Content.ReadAsStringAsync());
-        if (tagsResponse != null)
-        {
-            List<string> tags = ["latest"];
-            tags.AddRange(tagsResponse.Select(tag => tag.name).ToList());
-            repo.Tags = tags;
+        return (ReleaseLookup.Found,
+            JsonSerializer.Deserialize<Response>(await httpResponse.Content.ReadAsStringAsync()));
+    }
 
-            if (repo.TargetTag != "latest" && !repo.Tags.Contains(repo.TargetTag))
-            {
-                repo.TargetTag = "latest";
-            }
+    private static async Task<List<Response>?> GetReleaseList(Repo repo)
+    {
+        string releasesUrl = $"https://api.github.com/repos/{repo.Name}/releases?per_page=100";
+        using HttpResponseMessage? httpResponse = await Api.GetRequest(releasesUrl, SecretsManager.LookupSecret("pat"));
+        if (httpResponse is not { IsSuccessStatusCode: true })
+        {
+            Logger.LogE($"Failed to fetch releases of: {releasesUrl}");
+            Logger.LogE(httpResponse?.StatusCode.ToString() ?? "no response");
+            Logger.LogE(httpResponse?.ReasonPhrase ?? "no response");
+            return null;
         }
+
+        return JsonSerializer.Deserialize<List<Response>>(await httpResponse.Content.ReadAsStringAsync());
     }
 
     public static async Task UpdateRepo(Repo repo, Action<string> statusText, Action<string> progressText, bool downloadAnyways = false)
@@ -400,8 +482,16 @@ public static class UpdateManager
             progressText.Invoke($"Downloaded: {p:0.00}%");
         });
         
-        string downloadAssetName = repo.AssetNames[repo.DownloadAssetIndex];
-        await Api.DownloadFileAsync(repo.DownloadUrls[repo.DownloadAssetIndex], Path.Join(FileManager.CachePath, downloadAssetName), SecretsManager.LookupSecret("pat"), progress);
+        string downloadAssetName = repo.SelectedAssetName;
+        string downloadAssetUrl = repo.SelectedAssetUrl;
+        if (downloadAssetName == "" || downloadAssetUrl == "")
+        {
+            Logger.LogE($"No asset selected to download for: {repo.Name}");
+            statusText.Invoke($"No asset to download for {repo.Name}");
+            return null;
+        }
+
+        await Api.DownloadFileAsync(downloadAssetUrl, Path.Join(FileManager.CachePath, downloadAssetName), SecretsManager.LookupSecret("pat"), progress);
 
         repo.CurrentInstallTag = repo.Tag;
         
@@ -416,7 +506,7 @@ public static class UpdateManager
 
     private static void CopyFile(Asset asset)
     {
-        string destName = asset.Repo.NewFileName == "" ? asset.Repo.AssetNames[asset.Repo.DownloadAssetIndex] : asset.Repo.NewFileName;
+        string destName = asset.Repo.NewFileName == "" ? asset.Repo.SelectedAssetName : asset.Repo.NewFileName;
         string destPath = Path.Join(asset.Repo.DownloadPath, destName);
         if (File.Exists(destPath))
         {

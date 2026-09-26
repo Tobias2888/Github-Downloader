@@ -52,12 +52,24 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
-            
+
+            Dispatcher.UIThread.UnhandledException += OnUIThreadUnhandledException;
+
             InitializeTrayIcon();
             Start();
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private static void OnUIThreadUnhandledException(object? sender, DispatcherUnhandledExceptionEventArgs e)
+    {
+        Logger.LogE($"Unhandled UI exception: {e.Exception}");
+        if (Application.Current is App app)
+        {
+            app.MainViewModel.SwitchPage(ViewNames.Home);
+        }
+        e.Handled = true;
     }
 
     private async Task Start()
