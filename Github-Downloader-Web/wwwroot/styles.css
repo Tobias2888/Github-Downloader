@@ -363,6 +363,20 @@ body {
     text-decoration: underline;
 }
 
+.repo-name .repo-name-link {
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: 600;
+    color: var(--text);
+    text-decoration: none;
+    word-break: break-word;
+}
+
+.repo-name .repo-name-link:hover {
+    color: var(--accent);
+    text-decoration: underline;
+}
+
 .mono {
     font-family: var(--mono);
     font-size: 12px;
@@ -502,39 +516,137 @@ body {
     color: var(--text-muted);
 }
 
-/* ---------- Progress ---------- */
+/* ---------- Activity panel / progress ---------- */
 
-.progress-container {
-    background: linear-gradient(135deg, var(--card-start), var(--card-end));
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 18px 20px;
-    margin-bottom: 20px;
+.activity {
+    position: fixed;
+    left: 24px;
+    bottom: 24px;
+    z-index: 150;
+    width: min(480px, calc(100vw - 32px));
+    background: var(--bg-alt);
+    border: 1px solid var(--border-strong);
+    border-radius: 14px;
     box-shadow: var(--shadow);
+    padding: 14px 16px;
+    display: none;
+    flex-direction: column;
+    gap: 10px;
 }
 
-.progress-header {
+.activity.visible {
     display: flex;
-    justify-content: space-between;
+    animation: activity-in 0.2s ease;
+}
+
+.activity-pill {
+    position: fixed;
+    left: 24px;
+    bottom: 24px;
+    z-index: 150;
+    display: flex;
     align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-radius: 999px;
+    border: 1px solid var(--border-strong);
+    background: var(--bg-alt);
+    color: var(--text);
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    font: inherit;
     font-size: 13px;
+    max-width: min(360px, calc(100vw - 32px));
+    animation: activity-in 0.2s ease;
+}
+
+.activity-pill:hover {
+    border-color: var(--accent);
+}
+
+.activity-pill[hidden] {
+    display: none;
+}
+
+.activity-pill-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@keyframes activity-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.activity-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.activity-title {
+    font-size: 14px;
     font-weight: 600;
-    margin-bottom: 10px;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-.progress-header span:last-child {
+.activity-count {
     font-family: var(--mono);
-    color: var(--accent);
+    font-size: 12px;
+    color: var(--text-soft);
+    flex-shrink: 0;
 }
 
-.progress-bar {
+.activity-percent {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+    flex-shrink: 0;
+    min-width: 34px;
+    text-align: right;
+}
+
+.activity-toggle,
+.activity-close {
+    appearance: none;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 17px;
+    line-height: 1;
+    padding: 3px 7px;
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+
+.activity-toggle:hover,
+.activity-close:hover {
+    background: var(--card-start);
+    color: var(--text);
+}
+
+.activity-status {
+    font-size: 12px;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.activity-progress {
     height: 8px;
     background: rgba(0, 0, 0, 0.3);
     border-radius: 999px;
     overflow: hidden;
 }
 
-.progress-fill {
+.activity-bar {
     height: 100%;
     width: 0;
     background: linear-gradient(90deg, var(--accent), #00d4d8);
@@ -542,9 +654,78 @@ body {
     transition: width 0.3s ease;
 }
 
-.progress-fill.indeterminate {
+.activity-bar.indeterminate {
     width: 30%;
     animation: indeterminate 1.2s infinite ease-in-out;
+}
+
+.activity.success .activity-bar {
+    background: var(--green);
+}
+
+.activity.error .activity-bar {
+    background: var(--red);
+}
+
+.activity-logs {
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.6;
+    max-height: 160px;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.28);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.activity.collapsed .activity-logs,
+.activity.collapsed .activity-progress {
+    display: none;
+}
+
+.activity-log {
+    display: flex;
+    gap: 8px;
+    color: var(--text-muted);
+}
+
+.activity-log .t {
+    color: var(--text-soft);
+    flex-shrink: 0;
+}
+
+.activity-log .m {
+    word-break: break-word;
+}
+
+.activity-log.detail {
+    color: var(--text-soft);
+}
+
+.activity-log.success {
+    color: var(--green);
+}
+
+.activity-log.error {
+    color: var(--red);
+}
+
+.spinner {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid var(--border-strong);
+    border-top-color: var(--accent);
+    animation: spin 0.8s linear infinite;
+    flex-shrink: 0;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
 }
 
 @keyframes indeterminate {
@@ -554,15 +735,6 @@ body {
     100% {
         transform: translateX(500%);
     }
-}
-
-.progress-details {
-    margin-top: 10px;
-    font-size: 12px;
-    color: var(--text-muted);
-    line-height: 1.6;
-    max-height: 120px;
-    overflow-y: auto;
 }
 
 /* ---------- Forms ---------- */

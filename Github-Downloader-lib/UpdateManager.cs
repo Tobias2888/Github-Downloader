@@ -18,10 +18,11 @@ public static class UpdateManager
 {
     public static ObservableCollection<Repo> Repos;
     public static Platform CurPlatform;
+    public static string? RootPassword;
 
     public static void WatchRepos()
     {
-        if (Repos == null) return;
+        if (Repos is null) return;
         
         Repos.CollectionChanged += Repos_CollectionChanged;
         foreach (var repo in Repos)
@@ -58,6 +59,7 @@ public static class UpdateManager
             nameof(Repo.DownloadAssetIndex), 
             nameof(Repo.ExcludedFromDownloadAll), 
             nameof(Repo.TargetTag), 
+            nameof(Repo.Tag), 
             nameof(Repo.DownloadPath),
             nameof(Repo.SaveFileAnyway),
             nameof(Repo.NewFileName),
@@ -222,9 +224,11 @@ public static class UpdateManager
 
         repo.DownloadUrls = assets.Select(asset => asset.url).ToList();
         repo.LatestChangelog = response.body;
-        repo.Tag = response.tag_name;
         repo.ReleaseDate = response.published_at;
         repo.HasRelease = true;
+        // Set Tag last: it is a persisted property, so its change triggers SaveRepos()
+        // and this writes the whole, fully-updated release state to disk.
+        repo.Tag = response.tag_name;
 
         repo.DownloadAssetIndex = Math.Clamp(oldIndex, 0, Math.Max(repo.AssetNames.Count - 1, 0));
     }
@@ -323,12 +327,12 @@ public static class UpdateManager
         return JsonSerializer.Deserialize<List<Response>>(await httpResponse.Content.ReadAsStringAsync());
     }
 
-    public static async Task UpdateRepo(Repo repo, Action<string> statusText, Action<string> progressText, bool downloadAnyways = false)
+    public static async Task<bool> UpdateRepo(Repo repo, Action<string> statusText, Action<string> progressText, bool downloadAnyways = false)
     {
-        await UpdateReposAsync([await DownloadAsset(repo, statusText, progressText, downloadAnyways)], statusText, progressText);
+        return await UpdateReposAsync([await DownloadAsset(repo, statusText, progressText, downloadAnyways)], statusText, progressText);
     }
 
-    public static async Task UpdateReposAsync(IEnumerable<Repo> repos, Action<string> statusText, Action<string> progressText, bool downloadAnyways = false)
+    public static async Task<bool> UpdateReposAsync(IEnumerable<Repo> repos, Action<string> statusText, Action<string> progressText, bool downloadAnyways = false)
     {
         statusText.Invoke("Downloading updates...");
         
@@ -344,10 +348,10 @@ public static class UpdateManager
             assets.Add(asset);
         }
 
-        await UpdateReposAsync(assets, statusText, progressText);
+        return await UpdateReposAsync(assets, statusText, progressText);
     }
 
-    private static async Task UpdateReposAsync(List<Asset?> assets, Action<string> statusText, Action<string> progressText)
+    private static async Task<bool> UpdateReposAsync(List<Asset?> assets, Action<string> statusText, Action<string> progressText)
     {
         Logger.LogI("Updating repos");
         
@@ -386,8 +390,9 @@ public static class UpdateManager
         statusText.Invoke("Installing Updates...");
         
         HandleAppImages(appImages);
-        await InstallDebsAsync(debs, progressText);
-        await InstallExeAsync(exes, progressText);
+        bool debsOk = await InstallDebsAsync(debs, progressText);
+        bool exesOk = await InstallExeAsync(exes, progressText);
+        return debsOk && exesOk;
     }
 
     private static void HandleAppImages(List<Asset> assets)
@@ -516,13 +521,13 @@ public static class UpdateManager
         File.Copy(Path.Join(asset.TempAssetPath), destPath);
     }
 
-    private static async Task InstallDebsAsync(List<string> debPaths, Action<string> progressText)
+    private static async Task<bool> InstallDebsAsync(List<string> debPaths, Action<string> progressText)
     {
-        Logger.LogI($"Installing debs: {debPaths}");
+        Logger.LogI($"Installing debs: {string.Join(", ", debPaths)}");
         
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         {
-            return;
+            return true;
         }
 
         string installCommand = "apt-get install -y --allow-downgrades --reinstall ";
@@ -538,20 +543,25 @@ public static class UpdateManager
 
         if (installCommand == "apt-get install -y --allow-downgrades --reinstall ")
         {
-            return;
+            return true;
         }
 
+        bool usePkexec = CurPlatform == Platform.Avalonia;
+        bool providePassword = !usePkexec && !string.IsNullOrEmpty(RootPassword);
+
         Logger.LogI($"Install command: {installCommand}");
-        Logger.LogI("Using " + (CurPlatform == Platform.Avalonia ? "pkexec" : "sudo") + " for root");
+        Logger.LogI("Using " + (usePkexec ? "pkexec" : "sudo") + " for root"
+            + (providePassword ? " (password supplied)" : ""));
         
         Process process = new()
         {
             StartInfo = new()
             {
-                FileName = "/usr/bin/" + (CurPlatform == Platform.Avalonia ? "pkexec" : "sudo"),
-                Arguments = installCommand,
+                FileName = "/usr/bin/" + (usePkexec ? "pkexec" : "sudo"),
+                Arguments = providePassword ? $"-S -p \"\" {installCommand}" : installCommand,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
+                RedirectStandardInput = providePassword,
                 UseShellExecute = false,
                 CreateNoWindow = true
             },
@@ -560,11 +570,25 @@ public static class UpdateManager
         
         process.OutputDataReceived += (_, args) =>
         {
+            if (args.Data is null) return;
             Logger.LogI(args.Data);
             progressText.Invoke(args.Data);
         };
 
+        process.ErrorDataReceived += (_, args) =>
+        {
+            if (args.Data is null) return;
+            Logger.LogE(args.Data);
+            progressText.Invoke(args.Data);
+        };
+
         process.Start();
+
+        if (providePassword)
+        {
+            await process.StandardInput.WriteLineAsync(RootPassword);
+            process.StandardInput.Close();
+        }
 
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
@@ -574,15 +598,19 @@ public static class UpdateManager
         if (process.ExitCode == 0)
         {
             Logger.LogI("Installation complete");
+            return true;
         }
-        else
-        {
-            Logger.LogE($"Installation failed with exit code {process.ExitCode}");
-        }
+
+        string hint = providePassword && process.ExitCode == 1
+            ? " (the supplied root password may be incorrect)"
+            : "";
+        Logger.LogE($"Installation failed with exit code {process.ExitCode}{hint}");
+        return false;
     }
 
-    private static async Task InstallExeAsync(List<string> exePaths, Action<string> progressText)
+    private static async Task<bool> InstallExeAsync(List<string> exePaths, Action<string> progressText)
     {
+        bool allOk = true;
         foreach (string exePath in exePaths)
         {
             Logger.LogI($"Installing exe: {exePath}");
@@ -607,7 +635,10 @@ public static class UpdateManager
             else
             {
                 Logger.LogE($"Installation failed with exit code {process.ExitCode}");
+                allOk = false;
             }
         }
+
+        return allOk;
     }
 }

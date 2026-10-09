@@ -14,7 +14,8 @@
             .replaceAll("'", '&#39;');
     }
 
-    async function apiRequest(path, { method = 'GET', body } = {}) {
+    async function apiRequest(path, { method, body } = {}) {
+        if (method === undefined) method = body !== undefined ? 'POST' : 'GET';
         const options = { method, headers: {} };
         if (body !== undefined) {
             options.headers['Content-Type'] = 'application/json';
@@ -26,6 +27,7 @@
             try {
                 const data = await res.json();
                 if (data && data.error) detail = data.error;
+                if (data && data.details) detail += `: ${data.details}`;
             } catch { /* ignore */ }
             throw new Error(detail);
         }
@@ -65,32 +67,221 @@
             .replace('/releases/latest', '');
     }
 
+    function selectedAssetName(source) {
+        const names = source?.assetNames || [];
+        if (names.length === 0) return '';
+        const index = Number.isInteger(source.downloadAssetIndex) ? source.downloadAssetIndex : 0;
+        return names[Math.min(Math.max(index, 0), names.length - 1)] || '';
+    }
+
     function linkifyChangelog(text, baseUrl) {
         const esc = escapeHtml(text || '(No changelog available)');
         return esc.replace(/#(\d+)/g, (match, num) =>
             `<a href="${escapeHtml(baseUrl)}/issues/${num}" target="_blank" rel="noopener">#${num}</a>`);
     }
 
-    async function withProgress(title, work) {
-        const container = $('progressContainer');
-        const fill = $('progressFill');
-        $('progressTitle').textContent = title;
-        $('progressPercent').textContent = '...';
-        fill.classList.add('indeterminate');
-        $('progressDetails').textContent = '';
-        container.style.display = 'block';
-        try {
-            return await work({
-                detail: (text) => { $('progressDetails').textContent = text; },
-                percent: (p) => {
-                    fill.classList.remove('indeterminate');
-                    fill.style.width = `${p}%`;
-                    $('progressPercent').textContent = `${p}%`;
-                },
+    /* ---------- Activity / progress ---------- */
+
+    const activity = {
+        panel: null, logs: null, bar: null, title: null, status: null,
+        count: null, percent: null, spinner: null, headerSpinner: null, pill: null, pillText: null,
+        pollTimer: null, runningCount: 0, ownsPolling: false,
+    };
+
+    function initActivity() {
+        activity.panel = $('activityPanel');
+        activity.logs = $('activityLogs');
+        activity.bar = $('activityBar');
+        activity.title = $('activityTitle');
+        activity.status = $('activityStatus');
+        activity.count = $('activityCount');
+        activity.percent = $('activityPercent');
+        activity.spinner = $('activitySpinner');
+        activity.headerSpinner = $('headerSpinner');
+        activity.pill = $('activityReopen');
+        activity.pillText = $('activityPillText');
+
+        $('activityClose').addEventListener('click', () => {
+            activity.panel.classList.remove('visible');
+            updateActivityPill();
+        });
+        $('activityToggle').addEventListener('click', () => {
+            activity.panel.classList.toggle('collapsed');
+        });
+        if (activity.pill) {
+            activity.pill.addEventListener('click', () => {
+                activity.panel.classList.remove('collapsed');
+                activity.panel.classList.add('visible');
+                updateActivityPill();
             });
-        } finally {
-            setTimeout(() => { container.style.display = 'none'; }, 1200);
         }
+    }
+
+    function updateActivityPill() {
+        if (!activity.pill) return;
+        const running = activity.runningCount > 0;
+        const visible = activity.panel.classList.contains('visible');
+        activity.pill.hidden = !(running && !visible);
+    }
+
+    function appendActivityLog(entry) {
+        const line = document.createElement('div');
+        line.className = `activity-log ${entry.level || 'info'}`;
+        const time = document.createElement('span');
+        time.className = 't';
+        time.textContent = new Date(entry.timestamp).toLocaleTimeString([], { hour12: false });
+        const message = document.createElement('span');
+        message.className = 'm';
+        message.textContent = entry.message;
+        line.append(time, message);
+        activity.logs.appendChild(line);
+    }
+
+    function renderActivityLogs(logs) {
+        const existing = activity.logs.childElementCount;
+        if (logs.length < existing) {
+            activity.logs.innerHTML = '';
+            logs.forEach(appendActivityLog);
+            return;
+        }
+        for (let i = existing; i < logs.length; i++) appendActivityLog(logs[i]);
+        if (logs.length > existing) activity.logs.scrollTop = activity.logs.scrollHeight;
+    }
+
+    function setActivityState(state) {
+        if (!state) return;
+        if (state.title) activity.title.textContent = state.title;
+        activity.status.textContent = state.status || '';
+        activity.count.textContent = state.totalItems > 0
+            ? `${state.completedItems} / ${state.totalItems}`
+            : '';
+
+        if (activity.percent) {
+            activity.percent.textContent = (!state.indeterminate && state.percent != null)
+                ? `${Math.round(state.percent)}%`
+                : '';
+        }
+
+        if (!state.indeterminate && state.percent != null) {
+            activity.bar.classList.remove('indeterminate');
+            activity.bar.style.width = `${Math.max(0, Math.min(100, state.percent))}%`;
+        } else {
+            activity.bar.classList.add('indeterminate');
+            activity.bar.style.width = '';
+        }
+
+        renderActivityLogs(state.logs || []);
+        activity.panel.classList.toggle('running', !!state.isRunning);
+        activity.spinner.hidden = !state.isRunning;
+
+        if (activity.pillText) {
+            activity.pillText.textContent = state.status || state.title || 'Working...';
+        }
+        updateActivityPill();
+    }
+
+    function startProgressPolling() {
+        stopProgressPolling();
+        activity.pollTimer = setInterval(async () => {
+            try {
+                const state = await apiRequest('updates/progress');
+                if (!state) return;
+
+                if (state.isRunning) {
+                    setActivityState(state);
+                    return;
+                }
+
+                // A restored operation (not driven by withProgress) has finished.
+                if (!activity.ownsPolling) {
+                    stopProgressPolling();
+                    setActivityState({ ...state, isRunning: false });
+                    finishActivity(state.success !== false);
+                    setActivityRunning(false);
+                }
+            } catch { /* ignore */ }
+        }, 400);
+    }
+
+    function finishActivity(success) {
+        activity.bar.classList.remove('indeterminate');
+        activity.bar.style.width = '100%';
+        activity.spinner.hidden = true;
+        activity.panel.classList.remove('running');
+        activity.panel.classList.add(success ? 'success' : 'error');
+    }
+
+    function stopProgressPolling() {
+        if (activity.pollTimer) {
+            clearInterval(activity.pollTimer);
+            activity.pollTimer = null;
+        }
+    }
+
+    function setActivityRunning(running) {
+        activity.runningCount = Math.max(0, activity.runningCount + (running ? 1 : -1));
+        const busy = activity.runningCount > 0;
+        if (activity.headerSpinner) activity.headerSpinner.hidden = !busy;
+        updateActivityPill();
+    }
+
+    async function withProgress(title, work) {
+        activity.panel.classList.remove('collapsed', 'success', 'error');
+        activity.panel.classList.add('visible', 'running');
+        activity.title.textContent = title;
+        activity.status.textContent = 'Starting...';
+        activity.count.textContent = '';
+        activity.logs.innerHTML = '';
+        activity.bar.classList.remove('indeterminate');
+        activity.bar.style.width = '0%';
+        activity.spinner.hidden = false;
+        activity.ownsPolling = true;
+        setActivityRunning(true);
+        startProgressPolling();
+
+        try {
+            const result = await work();
+            stopProgressPolling();
+
+            try {
+                const state = await apiRequest('updates/progress');
+                if (state) setActivityState({ ...state, isRunning: false });
+            } catch { /* ignore */ }
+
+            activity.bar.classList.remove('indeterminate');
+            activity.bar.style.width = '100%';
+            activity.spinner.hidden = true;
+            activity.panel.classList.remove('running');
+            activity.panel.classList.add('success');
+            return result;
+        } catch (err) {
+            stopProgressPolling();
+            activity.bar.classList.remove('indeterminate');
+            activity.bar.style.width = '100%';
+            activity.spinner.hidden = true;
+            activity.panel.classList.remove('running');
+            activity.panel.classList.add('error');
+            activity.status.textContent = err.message;
+            appendActivityLog({ timestamp: new Date().toISOString(), message: err.message, level: 'error' });
+            throw err;
+        } finally {
+            activity.ownsPolling = false;
+            setActivityRunning(false);
+        }
+    }
+
+    async function restoreActivityIfRunning() {
+        try {
+            const state = await apiRequest('updates/progress');
+            if (!state || !state.isRunning) return;
+
+            activity.panel.classList.remove('collapsed', 'success', 'error');
+            activity.panel.classList.add('visible', 'running');
+            activity.ownsPolling = false;
+            setActivityState(state);
+            setActivityRunning(true);
+            startProgressPolling();
+        } catch { /* ignore */ }
     }
 
     function setBusy(button, busy, busyText) {
@@ -110,6 +301,8 @@
     let repos = [];
     let updates = [];
     let currentRepo = null;
+    let rootStatus = { isLinux: false, isRoot: false, requiresPassword: false };
+    let passwordResolver = null;
 
     /* ---------- Tabs ---------- */
 
@@ -154,16 +347,13 @@
         for (const repo of repos) {
             const tr = document.createElement('tr');
 
-            const selectedAsset = repo.assetNames.length > 0
-                ? repo.assetNames[repo.downloadAssetIndex] || repo.assetNames[0]
-                : '';
+            const selectedAsset = selectedAssetName(repo);
             const isUpToDate = repo.isUpToDate;
 
             tr.innerHTML = `
                 <td>
                     <div class="repo-name">
-                        <strong>${escapeHtml(repo.name || repo.url)}</strong>
-                        <a href="${escapeHtml(repoGithubLink(repo))}" target="_blank" rel="noopener">${escapeHtml(repo.url)}</a>
+                        <a class="repo-name-link" href="${escapeHtml(repoGithubLink(repo))}" target="_blank" rel="noopener" title="${escapeHtml(repo.url)}">${escapeHtml(repo.name || repo.url)}</a>
                     </div>
                 </td>
                 <td><span class="tag tag-current">${escapeHtml(repo.currentInstallTag || '—')}</span></td>
@@ -187,7 +377,7 @@
                     <div class="row-actions">
                         <button class="btn-link" data-action="details" data-url="${escapeHtml(repo.url)}">Details</button>
                         <button class="btn-link" data-action="changelog" data-url="${escapeHtml(repo.url)}">Changelog</button>
-                        <button class="btn" data-action="download" data-url="${escapeHtml(repo.url)}">Download</button>
+                        <button class="btn" data-action="update" data-url="${escapeHtml(repo.url)}">Update</button>
                         <button class="btn-link danger" data-action="delete" data-url="${escapeHtml(repo.url)}">Delete</button>
                     </div>
                 </td>`;
@@ -241,6 +431,8 @@
         empty.style.display = 'none';
 
         for (const update of available) {
+            const repo = repos.find(r => r.url === update.repoUrl);
+            const selectedAsset = selectedAssetName(repo) || selectedAssetName(update);
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>
@@ -252,49 +444,82 @@
                 <td><span class="tag tag-current">${escapeHtml(update.currentTag || '—')}</span></td>
                 <td><span class="tag tag-update">${escapeHtml(update.latestTag || '—')}</span></td>
                 <td>
-                    <div class="asset-list">
-                        ${(update.assetNames || []).map(a => `<span class="asset-chip">${escapeHtml(a)}</span>`).join('') || '<span class="mono" style="color:var(--text-soft)">—</span>'}
-                    </div>
+                    ${selectedAsset
+                        ? `<span class="asset-chip selected" title="${escapeHtml(selectedAsset)}">${escapeHtml(selectedAsset)}</span>`
+                        : '<span class="mono" style="color:var(--text-soft)">—</span>'}
                 </td>
                 <td><button class="btn-link" data-action="changelog" data-url="${escapeHtml(update.repoUrl)}">View</button></td>
                 <td>
                     <div class="row-actions">
-                        <button class="btn" data-action="download" data-url="${escapeHtml(update.repoUrl)}">Download</button>
-                        <button class="btn btn-success" data-action="install" data-url="${escapeHtml(update.repoUrl)}">Install</button>
+                        <button class="btn btn-success" data-action="update" data-url="${escapeHtml(update.repoUrl)}">Update</button>
                     </div>
                 </td>`;
             tbody.appendChild(tr);
         }
     }
 
-    /* ---------- Download / Install ---------- */
+    /* ---------- Root password ---------- */
 
-    async function downloadRepos(urls) {
-        const result = await withProgress('Downloading updates', async () => {
-            const response = await apiRequest('updates/download', { body: { repoUrls: urls, downloadAnyways: false } });
-            return response;
+    function requestRootPassword() {
+        const input = $('rootPasswordInput');
+        const error = $('passwordError');
+        input.value = '';
+        error.style.display = 'none';
+        error.textContent = '';
+        $('modalOverlay').classList.add('visible');
+        $('passwordModal').classList.add('open');
+        input.focus();
+
+        return new Promise((resolve) => {
+            passwordResolver = resolve;
         });
-        createToast(result?.message || 'Download complete', 'success');
-        if (result?.downloadedAssets?.length) {
-            $('progressDetails').textContent = result.downloadedAssets
-                .map(a => `${a.repoName}: ${a.assetName} → ${a.localPath}`)
-                .join('\n');
-        }
-        await loadRepos();
-        await refreshHealth();
     }
 
-    async function installRepos(urls) {
-        const result = await withProgress('Installing updates', async () => {
-            const response = await apiRequest('updates/install', { body: { repoUrls: urls, downloadAnyways: false } });
+    function settlePassword(value) {
+        if (!passwordResolver) return;
+        const resolve = passwordResolver;
+        passwordResolver = null;
+        hideModal('passwordModal');
+        resolve(value);
+    }
+
+    async function getRootPasswordIfNeeded() {
+        try {
+            rootStatus = await apiRequest('updates/rootstatus');
+        } catch { /* keep last known status */ }
+
+        if (!rootStatus?.requiresPassword) return { needed: false, password: null };
+
+        const password = await requestRootPassword();
+        return { needed: true, password };
+    }
+
+    function submitPassword() {
+        const input = $('rootPasswordInput');
+        const value = input.value;
+        if (!value) {
+            const error = $('passwordError');
+            error.textContent = 'Please enter your password.';
+            error.style.display = 'block';
+            input.focus();
+            return;
+        }
+        settlePassword(value);
+    }
+
+    /* ---------- Update ---------- */
+
+    async function updateRepos(urls) {
+        const { needed, password } = await getRootPasswordIfNeeded();
+        if (needed && password === null) return;
+
+        const result = await withProgress('Updating repositories', async () => {
+            const response = await apiRequest('updates/install', { body: { repoUrls: urls, downloadAnyways: false, password } });
             return response;
         });
-        createToast(result?.message || 'Install complete', 'success');
-        if (result?.installedAssets?.length) {
-            $('progressDetails').textContent = result.installedAssets
-                .map(a => `${a.repoName}: ${a.assetName} → ${a.localPath}`)
-                .join('\n');
-        }
+        createToast(result?.message || 'Update complete', 'success');
+        (result?.installedAssets || []).forEach(a =>
+            appendActivityLog({ timestamp: new Date().toISOString(), message: `${a.repoName}: ${a.assetName} → ${a.localPath}`, level: 'success' }));
         await loadRepos();
         await refreshHealth();
     }
@@ -397,7 +622,7 @@
                     <input type="text" id="detailNewFileName" placeholder="new-filename.ext" value="${escapeHtml(repo.newFileName || '')}">
                 </div>
                 <label class="checkbox-label field-row" style="justify-content:space-between; margin-top:12px">
-                    <span>Exclude from Download All</span>
+                    <span>Exclude from Update All</span>
                     <span class="switch"><input type="checkbox" id="detailExcluded" ${repo.excludedFromDownloadAll ? 'checked' : ''}><span class="slider"></span></span>
                 </label>
             </div>`;
@@ -405,11 +630,8 @@
         showModal('repoDetailsModal');
     }
 
-    async function saveRepoDetails() {
-        if (!currentRepo) return;
-        const repo = currentRepo;
-
-        const body = {
+    function collectRepoDetailsBody() {
+        return {
             downloadPath: $('detailDownloadPath').value,
             targetTag: $('detailTargetTag').value,
             downloadAssetIndex: parseInt($('detailAssetIndex').value, 10) || 0,
@@ -417,19 +639,92 @@
             newFileName: $('detailNewFileName').value,
             excludedFromDownloadAll: $('detailExcluded').checked,
         };
+    }
+
+    async function saveRepoDetails() {
+        if (!currentRepo) return;
+        const repo = currentRepo;
+
+        const body = collectRepoDetailsBody();
 
         const btn = document.querySelector('#repoDetailsModal .modal-footer .btn-primary');
         setBusy(btn, true, 'Saving...');
         try {
             await apiRequest(`repositories/${encodeURIComponent(repo.url)}`, { method: 'PUT', body });
-            await withProgress('Updating repository details', async () => {
-                await apiRequest('updates/search', { body: { repoUrls: [repo.url] } });
+            const searchResult = await withProgress('Updating repository details', async () => {
+                return await apiRequest('updates/search', { body: { repoUrls: [repo.url] } });
             });
             createToast('Repository updated', 'success');
             hideModal('repoDetailsModal');
             await loadRepos();
+
+            const info = searchResult?.updates?.[0];
+            if (info) {
+                const index = updates.findIndex(u => u.repoUrl === repo.url);
+                if (index >= 0) updates[index] = info;
+                else updates.push(info);
+                renderUpdatesTable();
+            }
         } catch (err) {
             createToast(`Failed to update repository: ${err.message}`, 'error');
+        } finally {
+            setBusy(btn, false);
+        }
+    }
+
+    async function reinstallRepo() {
+        if (!currentRepo) return;
+        const repo = currentRepo;
+
+        const btn = $('reinstallRepo');
+        setBusy(btn, true, 'Reinstalling...');
+        try {
+            const { needed, password } = await getRootPasswordIfNeeded();
+            if (needed && password === null) return;
+
+            await apiRequest(`repositories/${encodeURIComponent(repo.url)}`, { method: 'PUT', body: collectRepoDetailsBody() });
+            const result = await withProgress('Reinstalling repository', async () => {
+                await apiRequest('updates/search', { body: { repoUrls: [repo.url] } });
+                return await apiRequest('updates/install', { body: { repoUrls: [repo.url], downloadAnyways: true, password } });
+            });
+            createToast(`Reinstalled ${repo.name || repo.url}`, 'success');
+            (result?.installedAssets || []).forEach(a =>
+                appendActivityLog({ timestamp: new Date().toISOString(), message: `${a.repoName}: ${a.assetName} → ${a.localPath}`, level: 'success' }));
+            hideModal('repoDetailsModal');
+            await loadRepos();
+            await refreshHealth();
+        } catch (err) {
+            createToast(`Failed to reinstall repository: ${err.message}`, 'error');
+        } finally {
+            setBusy(btn, false);
+        }
+    }
+
+    async function reinstallAllRepos() {
+        const urls = repos.map(r => r.url);
+        if (urls.length === 0) {
+            createToast('No repositories to reinstall', 'info');
+            return;
+        }
+        if (!confirmDialog(`Re-download and reinstall all ${urls.length} repositories?`)) return;
+
+        const btn = $('reinstallAllBtn');
+        setBusy(btn, true, 'Reinstalling...');
+        try {
+            const { needed, password } = await getRootPasswordIfNeeded();
+            if (needed && password === null) return;
+
+            const result = await withProgress('Reinstalling all repositories', async () => {
+                await apiRequest('updates/search', { body: { repoUrls: urls } });
+                return await apiRequest('updates/install', { body: { repoUrls: urls, downloadAnyways: true, password } });
+            });
+            createToast(result?.message || 'Reinstall complete', 'success');
+            (result?.installedAssets || []).forEach(a =>
+                appendActivityLog({ timestamp: new Date().toISOString(), message: `${a.repoName}: ${a.assetName} → ${a.localPath}`, level: 'success' }));
+            await loadRepos();
+            await refreshHealth();
+        } catch (err) {
+            createToast(`Failed to reinstall repositories: ${err.message}`, 'error');
         } finally {
             setBusy(btn, false);
         }
@@ -485,8 +780,6 @@
             const info = await apiRequest('settings/info');
             $('infoVersion').textContent = info.version;
             $('infoRepoCount').textContent = String(info.repoCount);
-            $('infoPlatform').textContent = info.platform;
-            $('infoDataDir').textContent = info.dataDirectory;
             $('appVersion').textContent = `v${info.version}`;
         } catch { /* keep defaults */ }
     }
@@ -577,16 +870,10 @@
                 openChangelog(url, changelog);
                 break;
             }
-            case 'download': {
+            case 'update': {
                 const repoEntry = repos.find(r => r.url === url);
-                createToast(`Downloading ${repoEntry?.name || url}...`, 'info');
-                downloadRepos([url]);
-                break;
-            }
-            case 'install': {
-                const repoEntry = repos.find(r => r.url === url);
-                createToast(`Installing ${repoEntry?.name || url}...`, 'info');
-                installRepos([url]);
+                createToast(`Updating ${repoEntry?.name || url}...`, 'info');
+                updateRepos([url]);
                 break;
             }
             case 'delete': {
@@ -645,29 +932,32 @@
         });
 
         $('checkAllUpdatesBtn').addEventListener('click', checkAllUpdates);
-        $('downloadAllBtn').addEventListener('click', () => {
+        $('updateAllBtn').addEventListener('click', () => {
             const urls = repos.map(r => r.url);
             if (urls.length === 0) {
-                createToast('No repositories to download', 'info');
+                createToast('No repositories to update', 'info');
                 return;
             }
-            downloadRepos(urls);
-        });
-        $('installAllBtn').addEventListener('click', () => {
-            const urls = repos.map(r => r.url);
-            if (urls.length === 0) {
-                createToast('No repositories to install', 'info');
-                return;
-            }
-            installRepos(urls);
+            updateRepos(urls);
         });
 
         $('closeRepoDetailsModal').addEventListener('click', () => hideModal('repoDetailsModal'));
         $('closeRepoDetails').addEventListener('click', () => hideModal('repoDetailsModal'));
         document.querySelector('#repoDetailsModal .modal-footer .btn-primary').addEventListener('click', saveRepoDetails);
+        $('reinstallRepo').addEventListener('click', reinstallRepo);
 
         $('closeChangelogModal').addEventListener('click', () => hideModal('changelogModal'));
         $('closeChangelog').addEventListener('click', () => hideModal('changelogModal'));
+
+        $('confirmPassword').addEventListener('click', submitPassword);
+        $('cancelPassword').addEventListener('click', () => settlePassword(null));
+        $('closePasswordModal').addEventListener('click', () => settlePassword(null));
+        $('rootPasswordInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                submitPassword();
+            }
+        });
 
         $('exportConfigBtn').addEventListener('click', exportConfig);
         $('importConfigBtn').addEventListener('click', importConfig);
@@ -678,15 +968,18 @@
             const input = $('patInput');
             input.type = input.type === 'password' ? 'text' : 'password';
         });
+        $('reinstallAllBtn').addEventListener('click', reinstallAllRepos);
         $('clearAllDataBtn').addEventListener('click', clearAllData);
 
         $('modalOverlay').addEventListener('click', () => {
+            if (passwordResolver) settlePassword(null);
             document.querySelectorAll('.modal').forEach(m => m.classList.remove('open'));
             $('modalOverlay').classList.remove('visible');
         });
 
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
+                if (passwordResolver) settlePassword(null);
                 document.querySelectorAll('.modal').forEach(m => m.classList.remove('open'));
                 $('modalOverlay').classList.remove('visible');
             }
@@ -698,7 +991,10 @@
     }
 
     async function init() {
+        initActivity();
         bindEvents();
+
+        await restoreActivityIfRunning();
 
         await refreshHealth();
         await loadSettingsInfo();
