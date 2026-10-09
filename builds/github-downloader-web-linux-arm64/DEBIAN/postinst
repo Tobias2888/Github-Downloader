@@ -1,8 +1,7 @@
 #!/bin/sh
 set -e
 if command -v systemctl >/dev/null 2>&1; then
-    systemctl daemon-reload
-    systemctl enable github-downloader-web.service
-    systemctl start github-downloader-web.service || true
+    systemctl daemon-reload || true
+    systemctl --global enable github-downloader-web.service || true
 fi
 exit 0

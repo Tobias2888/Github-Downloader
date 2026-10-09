@@ -1,7 +1,6 @@
 #!/bin/sh
 set -e
 if command -v systemctl >/dev/null 2>&1; then
-    systemctl stop github-downloader-web.service || true
-    systemctl disable github-downloader-web.service || true
+    systemctl --global disable github-downloader-web.service || true
 fi
 exit 0

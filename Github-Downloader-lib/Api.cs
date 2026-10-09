@@ -32,11 +32,12 @@ public static class Api
         {
             return await Client.SendAsync(request);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            Console.WriteLine($"Invalid url: {url}");
-            Logger.LogI("Invalid url");
-            return null;
+            Console.WriteLine($"Exception in GetRequest for {url}: {ex.Message}");
+            Console.WriteLine(ex.StackTrace);
+            Logger.LogI($"Invalid url or network error: {ex.Message}");
+            response = null!;
         }
     }
     

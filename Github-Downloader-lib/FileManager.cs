@@ -22,6 +22,10 @@ public static class FileManager
             FileHelper.Create(ReposConfigFilePath);
         }
 
+        Console.WriteLine($"[DEBUG] ReposConfigFilePath: {ReposConfigFilePath}");
+        Console.WriteLine($"[DEBUG] AppdataPath: {AppdataPath}");
+        Console.WriteLine($"[DEBUG] CachePath: {CachePath}");
+        
         string jsonString = JsonSerializer.Serialize(UpdateManager.Repos, new JsonSerializerOptions
         {
             WriteIndented = true
@@ -32,6 +36,10 @@ public static class FileManager
 
     public static async Task LoadRepos()
     {
+        Console.WriteLine($"[DEBUG-LOAD] AppdataPath: {AppdataPath}");
+        Console.WriteLine($"[DEBUG-LOAD] ReposConfigFilePath: {ReposConfigFilePath}");
+        Console.WriteLine($"[DEBUG-LOAD] CachePath: {CachePath}");
+        
         DirectoryHelper.CreateDir(AppdataPath);
         DirectoryHelper.CreateDir(CachePath);
         DirectoryHelper.CreateDir(AppImagesPath);
@@ -40,6 +48,7 @@ public static class FileManager
         
         if (File.Exists(ReposConfigFilePath))
         {
+            Console.WriteLine($"[DEBUG-LOAD] Reading from: {ReposConfigFilePath}");
             string jsonString = await File.ReadAllTextAsync(ReposConfigFilePath);
             UpdateManager.Repos = JsonSerializer.Deserialize<ObservableCollection<Repo>>(jsonString);
         }

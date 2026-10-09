@@ -60,6 +60,7 @@ public class GithubDownloaderService : IGithubDownloaderService
         
         await UpdateManager.SearchForUpdates(repo, _ => { });
         await UpdateManager.UpdateRepoDetails([repo]);
+        UpdateManager.Repos?.Add(repo);
         FileManager.SaveRepos();
         
         return MapToRepoResponse(repo);
@@ -74,6 +75,7 @@ public class GithubDownloaderService : IGithubDownloaderService
         
         await UpdateManager.SearchForUpdates(repo, _ => { });
         await UpdateManager.UpdateRepoDetails([repo]);
+        UpdateManager.Repos?.Add(repo);
         FileManager.SaveRepos();
         
         return MapToRepoResponse(repo);

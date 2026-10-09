@@ -106,7 +106,7 @@ public static class UpdateManager
             if (httpRepoResponse != null)
             {
                 Logger.LogE(httpRepoResponse.StatusCode.ToString());
-                Logger.LogE(httpRepoResponse.ReasonPhrase ?? "");
+                Logger.LogE(httpRepoResponse.ReasonPhrase);
             }
             return null;
         }
