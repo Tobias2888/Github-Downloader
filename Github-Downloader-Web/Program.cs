@@ -16,6 +16,7 @@ UpdateManager.CurPlatform = Platform.Terminal;
 Logger.LogDir = Path.Join(DirectoryHelper.GetAppDataDirPath(), "github-downloader", "logs");
 Logger.LogToTerminal = false;
 Logger.CreateFile();
+Logger.LogI("Mode: web");
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>

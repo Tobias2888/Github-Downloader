@@ -15,6 +15,7 @@ public static class Program
         Logger.LogDir = Path.Join(DirectoryHelper.GetAppDataDirPath(), "github-downloader", "logs");
         Logger.LogToTerminal = false;
         Logger.CreateFile();
+        Logger.LogI("Mode: cli");
         
         if (!SecretsManager.Initialized)
         {

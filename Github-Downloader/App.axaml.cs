@@ -86,6 +86,7 @@ public partial class App : Application
         Logger.LogToTerminal = true;
         //Logger.LogFirstChance = false;
         Logger.CreateFile();
+        Logger.LogI("Mode: avalonia-desktop-app");
         
         await FileManager.LoadRepos();
         UpdateIcon();
