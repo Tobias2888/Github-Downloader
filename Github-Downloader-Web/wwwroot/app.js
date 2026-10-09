@@ -121,15 +121,12 @@
     /* ---------- Status / Health ---------- */
 
     async function refreshHealth() {
-        const indicator = $('statusIndicator');
         const text = $('statusText');
         try {
             const health = await apiRequest('health');
-            indicator.className = 'status-indicator ok';
-            text.textContent = `Connected · ${health.repoCount} repos`;
+            text.textContent = `${health.repoCount} repos`;
             $('appVersion').textContent = `v${health.version}`;
         } catch {
-            indicator.className = 'status-indicator err';
             text.textContent = 'Offline';
         }
     }
