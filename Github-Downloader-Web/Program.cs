@@ -16,6 +16,7 @@ UpdateManager.CurPlatform = Platform.Terminal;
 Logger.LogDir = Path.Join(DirectoryHelper.GetAppDataDirPath(), "github-downloader", "logs");
 Logger.LogToTerminal = false;
 Logger.CreateFile();
+Logger.LogI("Mode: web");
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -41,6 +42,7 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 builder.Services.AddSingleton<IGithubDownloaderService, GithubDownloaderService>();
+builder.Services.AddSingleton<OperationTracker>();
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -74,7 +76,17 @@ app.UseHttpsRedirection();
 app.UseCors();
 app.UseAuthorization();
 app.UseDefaultFiles();
-app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        // Always revalidate static assets (app.js, styles.css, index.html) so the
+        // browser never serves a stale UI after an update. ETag/304 keeps it cheap.
+        ctx.Context.Response.Headers.CacheControl = "no-cache, no-store, must-revalidate";
+        ctx.Context.Response.Headers.Pragma = "no-cache";
+        ctx.Context.Response.Headers.Expires = "0";
+    }
+});
 app.MapControllers();
 app.MapHealthChecks("/health");
 

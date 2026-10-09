@@ -108,7 +108,14 @@ public record DownloadedAsset(
 
 public record InstallRequest(
     List<string> RepoUrls,
-    bool DownloadAnyways = false
+    bool DownloadAnyways = false,
+    string? Password = null
+);
+
+public record RootStatusResponse(
+    bool IsLinux,
+    bool IsRoot,
+    bool RequiresPassword
 );
 
 public record InstallResponse(
@@ -142,8 +149,6 @@ public record PatStatusResponse(
 
 public record SettingsInfoResponse(
     string Version,
-    string Platform,
-    string DataDirectory,
     int RepoCount
 );
 
@@ -155,4 +160,25 @@ public record ClearDataResponse(
 public record ErrorResponse(
     string Error,
     string? Details = null
+);
+
+public record OperationLogEntry(
+    DateTime Timestamp,
+    string Message,
+    string Level
+);
+
+public record OperationProgressResponse(
+    bool IsRunning,
+    string Title,
+    string Status,
+    double? Percent,
+    bool Indeterminate,
+    int CompletedItems,
+    int TotalItems,
+    DateTime? StartedAt,
+    DateTime? FinishedAt,
+    bool? Success,
+    string? Error,
+    List<OperationLogEntry> Logs
 );

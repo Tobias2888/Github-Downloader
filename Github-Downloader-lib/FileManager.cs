@@ -21,7 +21,7 @@ public static class FileManager
         {
             FileHelper.Create(ReposConfigFilePath);
         }
-
+        
         string jsonString = JsonSerializer.Serialize(UpdateManager.Repos, new JsonSerializerOptions
         {
             WriteIndented = true

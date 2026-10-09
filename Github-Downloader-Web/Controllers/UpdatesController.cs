@@ -10,12 +10,28 @@ namespace Github_Downloader_Web.Controllers;
 public class UpdatesController : ControllerBase
 {
     private readonly IGithubDownloaderService _service;
+    private readonly OperationTracker _tracker;
     private readonly ILogger<UpdatesController> _logger;
 
-    public UpdatesController(IGithubDownloaderService service, ILogger<UpdatesController> logger)
+    public UpdatesController(IGithubDownloaderService service, OperationTracker tracker, ILogger<UpdatesController> logger)
     {
         _service = service;
+        _tracker = tracker;
         _logger = logger;
+    }
+
+    [HttpGet("progress")]
+    [ProducesResponseType(typeof(OperationProgressResponse), StatusCodes.Status200OK)]
+    public ActionResult<OperationProgressResponse> GetProgress()
+    {
+        return Ok(_tracker.Snapshot());
+    }
+
+    [HttpGet("rootstatus")]
+    [ProducesResponseType(typeof(RootStatusResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<RootStatusResponse>> GetRootStatus()
+    {
+        return Ok(await _service.GetRootStatusAsync());
     }
 
     [HttpPost("search")]
@@ -59,7 +75,7 @@ public class UpdatesController : ControllerBase
     {
         try
         {
-            var result = await _service.InstallAssetsAsync(request.RepoUrls, request.DownloadAnyways);
+            var result = await _service.InstallAssetsAsync(request.RepoUrls, request.DownloadAnyways, password: request.Password);
             return Ok(result);
         }
         catch (Exception ex)

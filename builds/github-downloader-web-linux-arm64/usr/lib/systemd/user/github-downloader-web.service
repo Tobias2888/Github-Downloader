@@ -6,12 +6,10 @@ After=network.target
 Type=simple
 WorkingDirectory=/opt/Github-Downloader-Web
 Environment=ASPNETCORE_URLS=http://0.0.0.0:2008
-# Use the desktop user's session bus so libsecret/gnome-keyring (org.freedesktop.secrets) is reachable
-Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus
-Environment=XDG_RUNTIME_DIR=/run/user/1000
+Environment="DISPLAY=:0"
 ExecStart=/opt/Github-Downloader-Web/Github-Downloader-Web
 Restart=on-failure
 RestartSec=5
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target
