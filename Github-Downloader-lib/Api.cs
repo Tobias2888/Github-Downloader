@@ -37,7 +37,7 @@ public static class Api
             Console.WriteLine($"Exception in GetRequest for {url}: {ex.Message}");
             Console.WriteLine(ex.StackTrace);
             Logger.LogI($"Invalid url or network error: {ex.Message}");
-            response = null!;
+            return null;
         }
     }
     
