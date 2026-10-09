@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using Avalonia;
@@ -39,10 +40,12 @@ public partial class RepoDetailsView : UserControl
     {
         if (Design.IsDesignMode) return;
         
+        string selectedAssetExtension = Path.GetExtension(_repoDetailsViewModel.Repo.SelectedAssetName).ToLowerInvariant();
+        bool isLinuxPackage = selectedAssetExtension is ".deb" or ".appimage";
+
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && 
             !_repoDetailsViewModel.Repo.SaveFileAnyway &&
-            (_repoDetailsViewModel.Repo.AssetNames[_repoDetailsViewModel.Repo.DownloadAssetIndex].EndsWith(".deb") ||
-             _repoDetailsViewModel.Repo.AssetNames[_repoDetailsViewModel.Repo.DownloadAssetIndex].EndsWith(".AppImage")))
+            isLinuxPackage)
         {
             StpDownloadPath.IsVisible = false;
         }
@@ -59,10 +62,15 @@ public partial class RepoDetailsView : UserControl
         TbxDescription.Bind(TextBlock.TextProperty, new Binding(nameof(_repoDetailsViewModel.Repo.Description)));
 
         CobVersion.ItemsSource = _repoDetailsViewModel.Repo.Tags;
-        CobVersion.SelectedIndex = _repoDetailsViewModel.Repo.Tags.IndexOf(_repoDetailsViewModel.Repo.TargetTag);
+        int targetTagIndex = _repoDetailsViewModel.Repo.Tags.IndexOf(_repoDetailsViewModel.Repo.TargetTag);
+        CobVersion.SelectedIndex = targetTagIndex >= 0
+            ? targetTagIndex
+            : (_repoDetailsViewModel.Repo.Tags.Count > 0 ? 0 : -1);
         CobVersion.SelectionChanged += async (o, args) =>
         {
-            _repoDetailsViewModel.Repo.TargetTag = _repoDetailsViewModel.Repo.Tags[CobVersion.SelectedIndex];
+            int selectedIndex = CobVersion.SelectedIndex;
+            if (selectedIndex < 0 || selectedIndex >= _repoDetailsViewModel.Repo.Tags.Count) return;
+            _repoDetailsViewModel.Repo.TargetTag = _repoDetailsViewModel.Repo.Tags[selectedIndex];
             
             _downloadStatusViewModel.IsUpdating = true;
             await UpdateManager.SearchForUpdates(_repoDetailsViewModel.Repo, statusText =>
@@ -122,10 +130,7 @@ public partial class RepoDetailsView : UserControl
             });
 
         TglSaveFileAnyway.IsChecked = _repoDetailsViewModel.Repo.SaveFileAnyway;
-        if (!(_repoDetailsViewModel.Repo.AssetNames[_repoDetailsViewModel.Repo.DownloadAssetIndex].EndsWith(".deb") ||
-              _repoDetailsViewModel.Repo.AssetNames[_repoDetailsViewModel.Repo.DownloadAssetIndex].EndsWith(".AppImage") ||
-              _repoDetailsViewModel.Repo.AssetNames[_repoDetailsViewModel.Repo.DownloadAssetIndex].EndsWith(".exe") ||
-              _repoDetailsViewModel.Repo.AssetNames[_repoDetailsViewModel.Repo.DownloadAssetIndex].EndsWith(".msi")))
+        if (selectedAssetExtension is not (".deb" or ".appimage" or ".exe" or ".msi"))
         {
             StpSaveFileAnyway.IsVisible = false;
         }
@@ -143,7 +148,7 @@ public partial class RepoDetailsView : UserControl
         string baseUrl = _repoDetailsViewModel.Repo.GitHubLink;
         if (baseUrl.EndsWith("/")) baseUrl = baseUrl.Substring(0, baseUrl.Length - 1);
         
-        var regex = new Regex(@"#(\d+)");
+        Regex regex = new(@"#(\d+)");
         int lastIndex = 0;
 
         foreach (Match match in regex.Matches(text))
@@ -156,7 +161,7 @@ public partial class RepoDetailsView : UserControl
             string issueNumber = match.Groups[1].Value;
             string issueUrl = $"{baseUrl}/issues/{issueNumber}";
             
-            var link = new InlineUIContainer
+            InlineUIContainer link = new()
             {
                 Child = new TextBlock
                 {

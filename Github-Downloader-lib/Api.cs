@@ -1,8 +1,4 @@
-using System;
-using System.IO;
-using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Threading.Tasks;
 using FileLib;
 using LoggerLib;
 
@@ -10,25 +6,31 @@ namespace Github_Downloader_lib;
 
 public static class Api
 {
-    public static async Task<HttpResponseMessage> GetRequest(string url, string token = "")
+    private static readonly HttpClient Client = CreateClient();
+
+    private static HttpClient CreateClient()
     {
         HttpClient client = new()
         {
             Timeout = TimeSpan.FromSeconds(10),
         };
 
+        client.DefaultRequestHeaders.UserAgent.ParseAdd($"Github-Downloader/{AppInfo.Version}");
+        return client;
+    }
+
+    public static async Task<HttpResponseMessage?> GetRequest(string url, string token = "")
+    {
+        using HttpRequestMessage request = new(HttpMethod.Get, url);
         if (!string.IsNullOrEmpty(token))
         {
-            client.DefaultRequestHeaders.Authorization =
+            request.Headers.Authorization =
                 new AuthenticationHeaderValue("Bearer", token);
         }
-        
-        client.DefaultRequestHeaders.UserAgent.ParseAdd($"Github-Downloader/{AppInfo.Version}");
 
-        HttpResponseMessage response;
         try
         {
-            response = await client.GetAsync(url);
+            return await Client.SendAsync(request);
         }
         catch (Exception ex)
         {
@@ -37,8 +39,6 @@ public static class Api
             Logger.LogI($"Invalid url or network error: {ex.Message}");
             response = null!;
         }
-
-        return response;
     }
     
     public static async Task DownloadFileAsync(string url, string outputPath, string token = "", IProgress<double>? progress = null)
