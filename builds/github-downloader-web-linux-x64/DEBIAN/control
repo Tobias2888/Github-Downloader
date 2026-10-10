@@ -1,5 +1,5 @@
 Package: github-downloader-web
-Version: 2.8.0
+Version: 3.0.0
 Section: utils
 Architecture: amd64
 Maintainer: Tobias2888 <github.flashy834@passmail.net>
