@@ -35,10 +35,10 @@ public partial class RepoEntryControl : UserControl
         _downloadStatusViewModel.IsUpdating = true;
         await UpdateManager.UpdateRepo(repo, statusText =>
         {
-            _downloadStatusViewModel.StatusText = statusText;
+            _downloadStatusViewModel.LogStatus(statusText);
         }, progressText =>
         {
-            _downloadStatusViewModel.ProgressText = progressText;
+            _downloadStatusViewModel.LogProgress(progressText);
         });
         _downloadStatusViewModel.IsUpdating = false;
 

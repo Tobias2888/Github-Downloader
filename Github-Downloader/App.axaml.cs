@@ -103,7 +103,7 @@ public partial class App : Application
             DownloadStatusViewModel.IsUpdating = true;
             UpdateManager.SearchForUpdates(UpdateManager.Repos, statusText =>
             {
-                DownloadStatusViewModel.StatusText = statusText;
+                DownloadStatusViewModel.LogStatus(statusText);
             });
             DownloadStatusViewModel.IsUpdating = false;
             
@@ -173,10 +173,10 @@ public partial class App : Application
             DownloadStatusViewModel.IsUpdating = true;
             await UpdateManager.UpdateReposAsync(UpdateManager.Repos, statusText =>
             {
-                DownloadStatusViewModel.StatusText = statusText;
+                DownloadStatusViewModel.LogStatus(statusText);
             }, progressText =>
             {
-                DownloadStatusViewModel.ProgressText = progressText;
+                DownloadStatusViewModel.LogProgress(progressText);
             });
             DownloadStatusViewModel.IsUpdating = false;
             FileManager.SaveRepos();

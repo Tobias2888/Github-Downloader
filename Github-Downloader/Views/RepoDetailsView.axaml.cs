@@ -75,7 +75,7 @@ public partial class RepoDetailsView : UserControl
             _downloadStatusViewModel.IsUpdating = true;
             await UpdateManager.SearchForUpdates(_repoDetailsViewModel.Repo, statusText =>
             {
-                _downloadStatusViewModel.StatusText = statusText;
+                _downloadStatusViewModel.LogStatus(statusText);
             });
             _downloadStatusViewModel.IsUpdating = false;
             
@@ -238,14 +238,14 @@ public partial class RepoDetailsView : UserControl
         _downloadStatusViewModel.IsUpdating = true;
         await UpdateManager.SearchForUpdates(_repoDetailsViewModel.Repo, statusText =>
         {
-            _downloadStatusViewModel.StatusText = statusText;
+            _downloadStatusViewModel.LogStatus(statusText);
         });
         await UpdateManager.UpdateRepo(_repoDetailsViewModel.Repo, statusText =>
         {
-            _downloadStatusViewModel.StatusText = statusText;
+            _downloadStatusViewModel.LogStatus(statusText);
         }, progressText =>
         {
-            _downloadStatusViewModel.ProgressText = progressText;
+            _downloadStatusViewModel.LogProgress(progressText);
         });
         _downloadStatusViewModel.IsUpdating = false;
         FileManager.SaveRepos();
@@ -256,14 +256,14 @@ public partial class RepoDetailsView : UserControl
         _downloadStatusViewModel.IsUpdating = true;
         await UpdateManager.SearchForUpdates(_repoDetailsViewModel.Repo, statusText =>
         {
-            _downloadStatusViewModel.StatusText = statusText;
+            _downloadStatusViewModel.LogStatus(statusText);
         });
         await UpdateManager.UpdateRepo(_repoDetailsViewModel.Repo, statusText =>
         {
-            _downloadStatusViewModel.StatusText = statusText;
+            _downloadStatusViewModel.LogStatus(statusText);
         }, progressText =>
         {
-            _downloadStatusViewModel.ProgressText = progressText;
+            _downloadStatusViewModel.LogProgress(progressText);
         }, true);
         _downloadStatusViewModel.IsUpdating = false;
         FileManager.SaveRepos();

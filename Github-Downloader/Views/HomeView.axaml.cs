@@ -61,7 +61,7 @@ public partial class HomeView : UserControl
         _downloadStatusViewModel.IsUpdating = true;
         await UpdateManager.SearchForUpdates(repo, statusText =>
         {
-            _downloadStatusViewModel.StatusText = statusText;
+            _downloadStatusViewModel.LogStatus(statusText);
         });
         _downloadStatusViewModel.IsUpdating = false;
         
@@ -78,7 +78,7 @@ public partial class HomeView : UserControl
         _downloadStatusViewModel.IsUpdating = true;
         await UpdateManager.SearchForUpdates(UpdateManager.Repos, statusText =>
         {
-            _downloadStatusViewModel.StatusText = statusText;
+            _downloadStatusViewModel.LogStatus(statusText);
         });
         _downloadStatusViewModel.IsUpdating = false;
 
@@ -91,10 +91,10 @@ public partial class HomeView : UserControl
         _downloadStatusViewModel.IsUpdating = true;
         await UpdateManager.UpdateReposAsync(UpdateManager.Repos, statusText =>
         {
-            _downloadStatusViewModel.StatusText = statusText;
+            _downloadStatusViewModel.LogStatus(statusText);
         }, progressText =>
         {
-            _downloadStatusViewModel.ProgressText = progressText;
+            _downloadStatusViewModel.LogProgress(progressText);
         });
         _downloadStatusViewModel.IsUpdating = false;
         
@@ -128,7 +128,7 @@ public partial class HomeView : UserControl
 
     private void PgbDownloading_OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        _downloadStatusViewModel.ShowDialog();
+        _downloadStatusViewModel.Show();
     }
 
     private void BtnRemovePat_OnClick(object? sender, RoutedEventArgs e)
