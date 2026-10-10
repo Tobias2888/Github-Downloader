@@ -1,7 +1,10 @@
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.RegularExpressions;
 using Avalonia;
 using Avalonia.Controls;
@@ -26,6 +29,8 @@ public partial class RepoDetailsView : UserControl
     private readonly MainViewModel _mainViewModel;
     private readonly RepoDetailsViewModel _repoDetailsViewModel;
     private readonly DownloadStatusViewModel _downloadStatusViewModel;
+
+    private static readonly Regex GitHubIssueRegex = new(@"(?<![\w\[/:.#])#(\d+)(?![\w])");
     
     public RepoDetailsView()
     {
@@ -139,58 +144,62 @@ public partial class RepoDetailsView : UserControl
         TbxRenameFile.IsVisible = TglRenameFile.IsChecked == true;
         TbxRenameFile.Text = _repoDetailsViewModel.Repo.NewFileName;
     }
-
     private void PopulateChangelog(string? text)
     {
-        TbxChangelog.Inlines?.Clear();
-        if (string.IsNullOrEmpty(text)) return;
+        if (string.IsNullOrEmpty(text))
+        {
+            MarkdownChangelog.Markdown = null;
+            return;
+        }
 
         string baseUrl = _repoDetailsViewModel.Repo.GitHubLink;
         if (baseUrl.EndsWith("/")) baseUrl = baseUrl.Substring(0, baseUrl.Length - 1);
-        
-        Regex regex = new(@"#(\d+)");
-        int lastIndex = 0;
 
-        foreach (Match match in regex.Matches(text))
+        MarkdownChangelog.Markdown = PreprocessGitHubLinks(text, baseUrl);
+    }
+
+    private static string PreprocessGitHubLinks(string markdown, string baseUrl)
+    {
+        StringBuilder result = new();
+        bool insideFence = false;
+
+        foreach (string line in markdown.Split('\n'))
         {
-            if (match.Index > lastIndex)
+            string trimmed = line.TrimStart();
+            if (trimmed.StartsWith("```") || trimmed.StartsWith("~~~"))
             {
-                TbxChangelog.Inlines?.Add(new Run(text.Substring(lastIndex, match.Index - lastIndex)));
+                insideFence = !insideFence;
+                result.Append(line).Append('\n');
+                continue;
             }
 
-            string issueNumber = match.Groups[1].Value;
-            string issueUrl = $"{baseUrl}/issues/{issueNumber}";
-            
-            InlineUIContainer link = new()
+            string withLinks = line;
+            if (!insideFence)
             {
-                Child = new TextBlock
+                string[] parts = line.Split('`');
+                for (int i = 0; i < parts.Length; i += 2)
                 {
-                    Text = match.Value,
-                    Foreground = new SolidColorBrush(new Color(255, 0, 158, 164)),
-                    Cursor = new Cursor(StandardCursorType.Hand),
-                    TextDecorations = TextDecorations.Underline,
-                    FontSize = 14,
-                    VerticalAlignment = VerticalAlignment.Stretch,
-                    Margin =  new Thickness(0),
+                    parts[i] = GitHubIssueRegex.Replace(parts[i], match =>
+                        $"[#{match.Groups[1].Value}]({baseUrl}/issues/{match.Groups[1].Value})");
                 }
-            };
-            link.Child.PointerPressed += (s, e) =>
-            {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = issueUrl,
-                    UseShellExecute = true
-                });
-            };
-            
-            TbxChangelog.Inlines?.Add(link);
-            lastIndex = match.Index + match.Length;
+                withLinks = string.Join('`', parts);
+            }
+
+            result.Append(withLinks).Append('\n');
         }
 
-        if (lastIndex < text.Length)
+        return result.ToString().TrimEnd('\n');
+    }
+
+    private static void OpenUrl(string url)
+    {
+        if (string.IsNullOrEmpty(url)) return;
+
+        Process.Start(new ProcessStartInfo
         {
-            TbxChangelog.Inlines?.Add(new Run(text.Substring(lastIndex)));
-        }
+            FileName = url,
+            UseShellExecute = true
+        });
     }
 
     private void BtnBack_OnClick(object? sender, RoutedEventArgs e)
@@ -226,11 +235,7 @@ public partial class RepoDetailsView : UserControl
 
     private void TbxGithubLink_OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        Process.Start(new ProcessStartInfo
-        {
-            FileName = ((TextBlock)sender).Text,
-            UseShellExecute = true
-        });
+        OpenUrl(((TextBlock)sender).Text);
     }
 
     private async void BtnUpdate_OnClick(object? sender, RoutedEventArgs e)

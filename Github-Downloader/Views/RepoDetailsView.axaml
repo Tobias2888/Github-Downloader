@@ -3,6 +3,9 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:viewModels="clr-namespace:Github_Downloader.ViewModels"
+             xmlns:md="using:Markdown.Avalonia"
+             xmlns:mdc="using:Markdown.Avalonia.Controls"
+             xmlns:ctxt="using:ColorTextBlock.Avalonia"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
              x:Class="Github_Downloader.Views.RepoDetailsView"
              x:DataType="viewModels:RepoDetailsViewModel"
@@ -115,7 +118,79 @@
                         
                         <StackPanel Grid.Row="2" Spacing="10">
                             <TextBlock Text="Changelog" FontWeight="SemiBold"/>
-                            <TextBlock Name="TbxChangelog" TextWrapping="Wrap" Text="This is the changelog" Opacity="0.9"/>
+                            <md:MarkdownScrollViewer Name="MarkdownChangelog"
+                                                     MarkdownStyleName="Empty"
+                                                     SelectionEnabled="True"
+                                                     SaveScrollValueWhenContentUpdated="True">
+                                <md:MarkdownScrollViewer.Styles>
+                                    <Style Selector=".Markdown_Avalonia_MarkdownViewer ctxt|CTextBlock">
+                                        <Setter Property="FontSize" Value="11.5"/>
+                                        <Setter Property="Foreground" Value="#E6E6E6"/>
+                                        <Setter Property="Margin" Value="0,4,0,4"/>
+                                    </Style>
+                                    <Style Selector=".Markdown_Avalonia_MarkdownViewer TextBlock">
+                                        <Setter Property="FontSize" Value="11.5"/>
+                                    </Style>
+                                    <Style Selector=".Markdown_Avalonia_MarkdownViewer ctxt|CTextBlock.Heading1">
+                                        <Setter Property="FontSize" Value="22"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                        <Setter Property="Foreground" Value="#FFFFFF"/>
+                                        <Setter Property="Margin" Value="0,10,0,6"/>
+                                    </Style>
+                                    <Style Selector=".Markdown_Avalonia_MarkdownViewer ctxt|CTextBlock.Heading2">
+                                        <Setter Property="FontSize" Value="18"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                        <Setter Property="Foreground" Value="#F4F4F4"/>
+                                        <Setter Property="Margin" Value="0,10,0,6"/>
+                                    </Style>
+                                    <Style Selector=".Markdown_Avalonia_MarkdownViewer ctxt|CTextBlock.Heading3">
+                                        <Setter Property="FontSize" Value="16"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                        <Setter Property="Foreground" Value="#EFEFEF"/>
+                                        <Setter Property="Margin" Value="0,8,0,4"/>
+                                    </Style>
+                                    <Style Selector=".Markdown_Avalonia_MarkdownViewer ctxt|CTextBlock.Heading4">
+                                        <Setter Property="FontSize" Value="14"/>
+                                        <Setter Property="FontWeight" Value="DemiBold"/>
+                                        <Setter Property="Margin" Value="0,6,0,2"/>
+                                    </Style>
+                                    <Style Selector=".Markdown_Avalonia_MarkdownViewer ctxt|CTextBlock.Heading5">
+                                        <Setter Property="FontSize" Value="13"/>
+                                        <Setter Property="FontWeight" Value="DemiBold"/>
+                                    </Style>
+                                    <Style Selector=".Markdown_Avalonia_MarkdownViewer ctxt|CTextBlock.Heading6">
+                                        <Setter Property="FontSize" Value="13"/>
+                                        <Setter Property="FontWeight" Value="Normal"/>
+                                    </Style>
+                                    <Style Selector=".Markdown_Avalonia_MarkdownViewer ctxt|CHyperlink">
+                                        <Setter Property="IsUnderline" Value="True"/>
+                                        <Setter Property="Foreground" Value="#009EA4"/>
+                                    </Style>
+                                    <Style Selector=".Markdown_Avalonia_MarkdownViewer ctxt|CCode">
+                                        <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, Menlo, monospace"/>
+                                        <Setter Property="Foreground" Value="#E6C07B"/>
+                                        <Setter Property="Background" Value="#2E2E3A"/>
+                                    </Style>
+                                    <Style Selector=".Markdown_Avalonia_MarkdownViewer Border.CodeBlock">
+                                        <Setter Property="Background" Value="#26262E"/>
+                                        <Setter Property="Margin" Value="0,4,0,4"/>
+                                    </Style>
+                                    <Style Selector=".Markdown_Avalonia_MarkdownViewer TextBlock.CodeBlock">
+                                        <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, Menlo, monospace"/>
+                                        <Setter Property="Foreground" Value="#C8C8C8"/>
+                                    </Style>
+                                    <Style Selector=".Markdown_Avalonia_MarkdownViewer Grid.List">
+                                        <Setter Property="Margin" Value="22,0,0,0"/>
+                                    </Style>
+                                    <Style Selector=".Markdown_Avalonia_MarkdownViewer Border.Blockquote">
+                                        <Setter Property="BorderBrush" Value="#009EA4"/>
+                                        <Setter Property="BorderThickness" Value="4,0,0,0"/>
+                                    </Style>
+                                    <Style Selector=".Markdown_Avalonia_MarkdownViewer mdc|Rule">
+                                        <Setter Property="Margin" Value="0,4"/>
+                                    </Style>
+                                </md:MarkdownScrollViewer.Styles>
+                            </md:MarkdownScrollViewer>
                         </StackPanel>
                     </Grid>
                 </Border>
