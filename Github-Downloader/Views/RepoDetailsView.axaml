@@ -73,13 +73,21 @@
                             </LinearGradientBrush>
                         </Border.Background>
                         
-                        <StackPanel Name="StpSaveFileAnyway" Spacing="15">
+                        <StackPanel Spacing="15">
                             <TextBlock Text="Download Settings" Classes="SubTitle"/>
                             
-                            <Grid ColumnDefinitions="*, Auto">
+                            <Grid Name="StpSaveFileAnyway" ColumnDefinitions="*, Auto">
                                 <TextBlock Text="Save file anyway" VerticalAlignment="Center"/>
                                 <ToggleSwitch Name="TglSaveFileAnyway" Grid.Column="1" OnContent="" OffContent="" Click="TglSaveFileAnyway_OnClick"/>
                             </Grid>
+
+                            <Grid ColumnDefinitions="*, Auto">
+                                <TextBlock Text="Auto-extract" VerticalAlignment="Center"/>
+                                <ToggleSwitch Name="TglAutoExtract" Grid.Column="1" OnContent="" OffContent=""
+                                              IsChecked="{Binding Repo.AutoExtract, Mode=TwoWay}"/>
+                            </Grid>
+                            <TextBlock Text="Extracts archives into a repository folder inside Download Location. The archive file is not kept."
+                                       IsVisible="{Binding Repo.AutoExtract}" TextWrapping="Wrap" Opacity="0.7" FontSize="12"/>
                             
                             <StackPanel Name="StpDownloadPath" Spacing="10">
                                 <TextBlock Text="Download Location" FontWeight="SemiBold"/>

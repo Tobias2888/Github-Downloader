@@ -47,7 +47,7 @@ public class GithubDownloaderService : IGithubDownloaderService
 
     private (Action<string> Status, Action<string> Progress) CreateCallbacks()
     {
-        var status = new Action<string>(message =>
+        Action<string> status = new Action<string>(message =>
         {
             if (string.IsNullOrEmpty(message)) return;
 
@@ -63,7 +63,7 @@ public class GithubDownloaderService : IGithubDownloaderService
             _tracker.Log(message);
         });
 
-        var progress = new Action<string>(message =>
+        Action<string> progress = new Action<string>(message =>
         {
             if (string.IsNullOrEmpty(message)) return;
 
@@ -74,8 +74,8 @@ public class GithubDownloaderService : IGithubDownloaderService
                 // parse with the current culture first and fall back to invariant for "45.50".
                 // NumberStyles.Float is used deliberately: Any would treat the decimal comma as a
                 // group separator and parse "45,50" as 4550.
-                var number = message[prefix.Length..^1].Trim();
-                if (double.TryParse(number, NumberStyles.Float, CultureInfo.CurrentCulture, out var percent)
+                string number = message[prefix.Length..^1].Trim();
+                if (double.TryParse(number, NumberStyles.Float, CultureInfo.CurrentCulture, out double percent)
                     || double.TryParse(number, NumberStyles.Float, CultureInfo.InvariantCulture, out percent))
                 {
                     _tracker.SetItemPercent(percent);
@@ -110,7 +110,7 @@ public class GithubDownloaderService : IGithubDownloaderService
     public async Task<DTOs.RepoResponse> AddRepoAsync(string repoUrl)
     {
         await InitializeAsync();
-        var repo = await UpdateManager.AddRepo(repoUrl);
+        Repo? repo = await UpdateManager.AddRepo(repoUrl);
         if (repo == null)
             throw new InvalidOperationException($"Failed to add repository: {repoUrl}");
         
@@ -125,7 +125,7 @@ public class GithubDownloaderService : IGithubDownloaderService
     public async Task<DTOs.RepoResponse> AddRepoAsync(string publisherName, string repoName)
     {
         await InitializeAsync();
-        var repo = await UpdateManager.AddRepo(publisherName, repoName);
+        Repo? repo = await UpdateManager.AddRepo(publisherName, repoName);
         if (repo == null)
             throw new InvalidOperationException($"Failed to add repository: {publisherName}/{repoName}");
         
@@ -140,25 +140,26 @@ public class GithubDownloaderService : IGithubDownloaderService
     public async Task<DTOs.ReposListResponse> GetAllReposAsync()
     {
         await InitializeAsync();
-        var repos = UpdateManager.Repos?.Select(MapToRepoResponse).ToList() ?? [];
+        List<DTOs.RepoResponse> repos = UpdateManager.Repos?.Select(MapToRepoResponse).ToList() ?? [];
         return new DTOs.ReposListResponse(repos, repos.Count);
     }
 
     public async Task<DTOs.RepoResponse?> GetRepoAsync(string repoUrl)
     {
         await InitializeAsync();
-        var repo = UpdateManager.Repos?.FirstOrDefault(r => r.Url == repoUrl);
+        Repo? repo = UpdateManager.Repos?.FirstOrDefault(r => r.Url == repoUrl);
         return repo != null ? MapToRepoResponse(repo) : null;
     }
 
     public async Task<DTOs.RepoResponse?> UpdateRepoAsync(string repoUrl, DTOs.UpdateRepoRequest request)
     {
         await InitializeAsync();
-        var repo = UpdateManager.Repos?.FirstOrDefault(r => r.Url == repoUrl);
+        Repo? repo = UpdateManager.Repos?.FirstOrDefault(r => r.Url == repoUrl);
         if (repo == null) return null;
 
         if (request.DownloadPath != null) repo.DownloadPath = request.DownloadPath;
         if (request.SaveFileAnyway.HasValue) repo.SaveFileAnyway = request.SaveFileAnyway.Value;
+        if (request.AutoExtract.HasValue) repo.AutoExtract = request.AutoExtract.Value;
         if (request.NewFileName != null) repo.NewFileName = request.NewFileName;
         if (request.ExcludedFromDownloadAll.HasValue) repo.ExcludedFromDownloadAll = request.ExcludedFromDownloadAll.Value;
         if (request.TargetTag != null) repo.TargetTag = request.TargetTag;
@@ -171,7 +172,7 @@ public class GithubDownloaderService : IGithubDownloaderService
     public async Task<bool> DeleteRepoAsync(string repoUrl)
     {
         await InitializeAsync();
-        var repo = UpdateManager.Repos?.FirstOrDefault(r => r.Url == repoUrl);
+        Repo? repo = UpdateManager.Repos?.FirstOrDefault(r => r.Url == repoUrl);
         if (repo == null) return false;
 
         UpdateManager.Repos?.Remove(repo);
@@ -210,21 +211,21 @@ public class GithubDownloaderService : IGithubDownloaderService
     public async Task<DTOs.SearchUpdatesResponse> SearchUpdatesAsync(List<string>? repoUrls = null)
     {
         await InitializeAsync();
-        var reposToCheck = repoUrls != null && repoUrls.Count > 0
+        List<Repo> reposToCheck = repoUrls != null && repoUrls.Count > 0
             ? UpdateManager.Repos?.Where(r => repoUrls.Contains(r.Url)).ToList() ?? []
             : UpdateManager.Repos?.ToList() ?? [];
 
-        var updates = new List<DTOs.RepoUpdateInfo>();
+        List<DTOs.RepoUpdateInfo> updates = new();
 
         _tracker.Start($"Checking {reposToCheck.Count} repositories", reposToCheck.Count);
         try
         {
-            var (status, _) = CreateCallbacks();
-            foreach (var repo in reposToCheck)
+            (Action<string> status, Action<string> _) = CreateCallbacks();
+            foreach (Repo repo in reposToCheck)
             {
                 await UpdateManager.SearchForUpdates(repo, status);
 
-                var hasUpdate = repo.Tag != repo.CurrentInstallTag && repo.Tag != "";
+                bool hasUpdate = repo.Tag != repo.CurrentInstallTag && repo.Tag != "";
                 updates.Add(new DTOs.RepoUpdateInfo(
                     repo.Url,
                     repo.Name,
@@ -249,17 +250,17 @@ public class GithubDownloaderService : IGithubDownloaderService
     public async Task<DTOs.DownloadResponse> DownloadAssetsAsync(List<string> repoUrls, bool downloadAnyways = false, IProgress<DTOs.DownloadProgress>? progress = null)
     {
         await InitializeAsync();
-        var repos = UpdateManager.Repos?.Where(r => repoUrls.Contains(r.Url)).ToList() ?? [];
-        var downloadedAssets = new List<DTOs.DownloadedAsset>();
+        List<Repo> repos = UpdateManager.Repos?.Where(r => repoUrls.Contains(r.Url)).ToList() ?? [];
+        List<DTOs.DownloadedAsset> downloadedAssets = new();
 
         _tracker.Start($"Downloading {repos.Count} repositories", repos.Count);
         try
         {
-            var (statusAction, progressAction) = CreateCallbacks();
+            (Action<string> statusAction, Action<string> progressAction) = CreateCallbacks();
 
-            foreach (var repo in repos)
+            foreach (Repo repo in repos)
             {
-                var initialTag = repo.CurrentInstallTag;
+                string initialTag = repo.CurrentInstallTag;
                 await UpdateManager.UpdateRepo(repo, statusAction, progressAction, downloadAnyways);
 
                 if (repo.CurrentInstallTag != initialTag || downloadAnyways)
@@ -269,8 +270,10 @@ public class GithubDownloaderService : IGithubDownloaderService
                         repo.Name,
                         repo.AssetNames.Count > repo.DownloadAssetIndex ? repo.AssetNames[repo.DownloadAssetIndex] : "",
                         repo.Tag,
-                        Path.Join(FileManager.CachePath, repo.AssetNames.Count > repo.DownloadAssetIndex ? repo.AssetNames[repo.DownloadAssetIndex] : ""),
-                        false
+                        repo.AutoExtract && ArchiveExtractor.IsSupportedArchive(repo.SelectedAssetName)
+                            ? repo.ExtractionDirectory
+                            : Path.Join(FileManager.CachePath, repo.SelectedAssetName),
+                        repo.AutoExtract && ArchiveExtractor.IsSupportedArchive(repo.SelectedAssetName)
                     ));
 
                     progress?.Report(new DTOs.DownloadProgress(
@@ -304,28 +307,28 @@ public class GithubDownloaderService : IGithubDownloaderService
     public async Task<DTOs.InstallResponse> InstallAssetsAsync(List<string> repoUrls, bool downloadAnyways = false, IProgress<DTOs.DownloadProgress>? progress = null, string? password = null)
     {
         await InitializeAsync();
-        var repos = UpdateManager.Repos?.Where(r => repoUrls.Contains(r.Url)).ToList() ?? [];
-        var installedAssets = new List<DTOs.InstalledAsset>();
+        List<Repo> repos = UpdateManager.Repos?.Where(r => repoUrls.Contains(r.Url)).ToList() ?? [];
+        List<DTOs.InstalledAsset> installedAssets = new();
 
-        var repoList = repos.Where(r => !r.ExcludedFromDownloadAll).ToList();
+        List<Repo> repoList = repos.Where(r => !r.ExcludedFromDownloadAll).ToList();
         // Only repos with an actual update are processed (repos already at the target tag are
         // skipped by the update loop), so count those for an accurate tracker.
-        var operationItems = downloadAnyways
+        List<Repo> operationItems = downloadAnyways
             ? repos
             : repoList.Where(r => r.Tag != "" && r.Tag != r.CurrentInstallTag).ToList();
 
         _tracker.Start($"{(downloadAnyways ? "Reinstalling" : "Updating")} {operationItems.Count} repositories", operationItems.Count);
-        var previousPassword = UpdateManager.RootPassword;
+        string? previousPassword = UpdateManager.RootPassword;
         UpdateManager.RootPassword = string.IsNullOrEmpty(password) ? previousPassword : password;
         try
         {
-            var (statusAction, progressAction) = CreateCallbacks();
+            (Action<string> statusAction, Action<string> progressAction) = CreateCallbacks();
 
             bool installOk = true;
             List<Repo> changedRepos;
             if (downloadAnyways)
             {
-                foreach (var repo in repos)
+                foreach (Repo repo in repos)
                 {
                     installOk &= await UpdateManager.UpdateRepo(repo, statusAction, progressAction, true);
                 }
@@ -333,7 +336,7 @@ public class GithubDownloaderService : IGithubDownloaderService
             }
             else
             {
-                var tagsBefore = repoList.Select(r => (Repo: r, Tag: r.CurrentInstallTag)).ToList();
+                List<(Repo Repo, string Tag)> tagsBefore = repoList.Select(r => (Repo: r, Tag: r.CurrentInstallTag)).ToList();
                 if (repoList.Count > 0)
                 {
                     installOk &= await UpdateManager.UpdateReposAsync(repoList, statusAction, progressAction);
@@ -347,12 +350,12 @@ public class GithubDownloaderService : IGithubDownloaderService
             if (!installOk)
             {
                 throw new InvalidOperationException(
-                    "The package installation failed. Check the activity log for details; if an administrator password was requested, verify it is correct.");
+                    "The update failed. Check the activity log for extraction or installation errors; if an administrator password was requested, verify it is correct.");
             }
 
-            foreach (var repo in changedRepos)
+            foreach (Repo repo in changedRepos)
             {
-                var assetName = repo.NewFileName == "" ?
+                string assetName = repo.NewFileName == "" ?
                     (repo.AssetNames.Count > repo.DownloadAssetIndex ? repo.AssetNames[repo.DownloadAssetIndex] : "")
                     : repo.NewFileName;
 
@@ -361,12 +364,14 @@ public class GithubDownloaderService : IGithubDownloaderService
                     repo.Name,
                     assetName,
                     repo.Tag,
-                    Path.Join(repo.DownloadPath, assetName)
+                    repo.AutoExtract && ArchiveExtractor.IsSupportedArchive(repo.SelectedAssetName)
+                        ? repo.ExtractionDirectory
+                        : Path.Join(repo.DownloadPath, assetName)
                 ));
             }
 
             _tracker.Finish(true);
-            var message = installedAssets.Count > 0
+            string message = installedAssets.Count > 0
                 ? $"Updated {installedAssets.Count} assets"
                 : "Everything is up to date";
             return new DTOs.InstallResponse(true, message, installedAssets);
@@ -392,7 +397,7 @@ public class GithubDownloaderService : IGithubDownloaderService
         {
             try
             {
-                using var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                using System.Diagnostics.Process? process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
                 {
                     FileName = "/usr/bin/sudo",
                     Arguments = "-n true",
@@ -446,7 +451,7 @@ public class GithubDownloaderService : IGithubDownloaderService
         bool hasPat = false;
         try
         {
-            var pat = SecretsManager.LookupSecret("pat");
+            string? pat = SecretsManager.LookupSecret("pat");
             hasPat = !string.IsNullOrEmpty(pat);
         }
         catch
@@ -521,7 +526,9 @@ public class GithubDownloaderService : IGithubDownloaderService
             repo.SaveFileAnyway,
             repo.NewFileName,
             repo.ExcludedFromDownloadAll,
-            repo.IsSelected
+            repo.IsSelected,
+            repo.AutoExtract,
+            repo.ExtractionDirectory
         );
     }
 }

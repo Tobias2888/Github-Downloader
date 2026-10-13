@@ -9,6 +9,11 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <PackageReference Include="SharpCompress" Version="0.50.5" />
+      <InternalsVisibleTo Include="Github-Downloader.Tests" />
+    </ItemGroup>
+
+    <ItemGroup>
       <Reference Include="FileLib">
         <HintPath>..\libs\FileLib.dll</HintPath>
       </Reference>

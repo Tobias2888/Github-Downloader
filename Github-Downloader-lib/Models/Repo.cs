@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.IO;
 using System.Text.Json.Serialization;
 using FileLib;
 
@@ -39,6 +40,7 @@ public class Repo : INotifyPropertyChanged
             if (_name == value) return;
             _name = value;
             OnPropertyChanged(nameof(Name));
+            OnPropertyChanged(nameof(ExtractionDirectory));
         }
     }
 
@@ -226,8 +228,25 @@ public class Repo : INotifyPropertyChanged
             if (_downloadPath == value) return;
             _downloadPath = value;
             OnPropertyChanged(nameof(DownloadPath));
+            OnPropertyChanged(nameof(ExtractionDirectory));
         }
     }
+
+    private bool _autoExtract;
+    public bool AutoExtract
+    {
+        get => _autoExtract;
+        set
+        {
+            if (_autoExtract == value) return;
+            _autoExtract = value;
+            OnPropertyChanged(nameof(AutoExtract));
+        }
+    }
+
+    [JsonIgnore]
+    public string ExtractionDirectory =>
+        Path.Combine(DownloadPath, string.IsNullOrEmpty(Name) ? "extracted" : Name.Replace('/', '-'));
 
     private bool _saveFileAnyway;
     public bool SaveFileAnyway

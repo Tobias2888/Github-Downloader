@@ -32,15 +32,8 @@ public partial class RepoEntryControl : UserControl
     {
         if (DataContext is not Repo repo) return;
 
-        _downloadStatusViewModel.IsUpdating = true;
-        await UpdateManager.UpdateRepo(repo, statusText =>
-        {
-            _downloadStatusViewModel.LogStatus(statusText);
-        }, progressText =>
-        {
-            _downloadStatusViewModel.LogProgress(progressText);
-        });
-        _downloadStatusViewModel.IsUpdating = false;
+        await _downloadStatusViewModel.RunAsync(() => UpdateManager.UpdateRepo(repo,
+            _downloadStatusViewModel.LogStatus, _downloadStatusViewModel.LogProgress));
 
         CheckForGlobalUpdates();
         FileManager.SaveRepos();

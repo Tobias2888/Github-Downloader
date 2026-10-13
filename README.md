@@ -99,7 +99,9 @@ The desktop app runs in the system tray. Click its tray icon to show or hide the
 | `.exe` / `.msi` | Launched as an installer; installation may require user interaction |
 | Other files, such as `.zip` or `.tar.gz` | Copied to the configured download directory |
 
-For recognized installer assets, **Save file anyway** keeps an additional copy in your chosen download directory. It does not disable installation. Archives are saved as files rather than automatically extracted.
+For recognized installer assets, **Save file anyway** keeps an additional copy in your chosen download directory. It does not disable installation.
+
+Enable **Auto-extract** in repository details to extract archives instead of keeping the archive file. Supported formats include ZIP, TAR, TAR.GZ / TGZ, TAR.BZ2, TAR.XZ, 7z, and RAR. The extracted `owner-repository` folder is saved inside **Download Location**, with no separate extraction directory to configure. Matching files are overwritten on updates; unrelated files are preserved. Password-protected archives and archive links are not supported. Other assets keep their normal download or installation behavior.
 
 Choose an asset compatible with the machine running GitHub Downloader. Updating through the web interface downloads and installs on the **server**, not on the computer running your browser.
 
@@ -175,6 +177,12 @@ Use **Settings** in the desktop app or **Configuration** in the web UI to import
 Bug reports and feature requests are welcome in [Issues](https://github.com/Tobias2888/Github-Downloader/issues). For bugs, include your operating system and architecture, the GitHub Downloader version, the interface you used, the affected repository and asset, and relevant logs with credentials removed.
 
 For code changes, open a pull request explaining the behavior you changed and how you checked it. Build the affected projects before submitting; changes to the shared library can affect all three interfaces.
+
+Run the archive extraction and settings regression tests with:
+
+```bash
+dotnet test Github-Downloader.Tests/Github-Downloader.Tests.csproj
+```
 
 ## License
 

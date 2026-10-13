@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Converters;
@@ -75,12 +76,8 @@ public partial class RepoDetailsView : UserControl
             if (selectedIndex < 0 || selectedIndex >= _repoDetailsViewModel.Repo.Tags.Count) return;
             _repoDetailsViewModel.Repo.TargetTag = _repoDetailsViewModel.Repo.Tags[selectedIndex];
             
-            _downloadStatusViewModel.IsUpdating = true;
-            await UpdateManager.SearchForUpdates(_repoDetailsViewModel.Repo, statusText =>
-            {
-                _downloadStatusViewModel.LogStatus(statusText);
-            });
-            _downloadStatusViewModel.IsUpdating = false;
+            await _downloadStatusViewModel.RunAsync(() =>
+                UpdateManager.SearchForUpdates(_repoDetailsViewModel.Repo, _downloadStatusViewModel.LogStatus));
             
             bool hasUpdates = false;
             foreach (Repo repo in UpdateManager.Repos)
@@ -225,37 +222,24 @@ public partial class RepoDetailsView : UserControl
 
     private async void BtnUpdate_OnClick(object? sender, RoutedEventArgs e)
     {
-        _downloadStatusViewModel.IsUpdating = true;
-        await UpdateManager.SearchForUpdates(_repoDetailsViewModel.Repo, statusText =>
-        {
-            _downloadStatusViewModel.LogStatus(statusText);
-        });
-        await UpdateManager.UpdateRepo(_repoDetailsViewModel.Repo, statusText =>
-        {
-            _downloadStatusViewModel.LogStatus(statusText);
-        }, progressText =>
-        {
-            _downloadStatusViewModel.LogProgress(progressText);
-        });
-        _downloadStatusViewModel.IsUpdating = false;
-        FileManager.SaveRepos();
+        await UpdateRepoAsync(false);
     }
 
     private async void BtnReinstall_OnClick(object? sender, RoutedEventArgs e)
     {
-        _downloadStatusViewModel.IsUpdating = true;
-        await UpdateManager.SearchForUpdates(_repoDetailsViewModel.Repo, statusText =>
+        await UpdateRepoAsync(true);
+    }
+
+    private async Task UpdateRepoAsync(bool reinstall)
+    {
+        await _downloadStatusViewModel.RunAsync(async () =>
         {
-            _downloadStatusViewModel.LogStatus(statusText);
+            if (!await UpdateManager.SearchForUpdates(_repoDetailsViewModel.Repo, _downloadStatusViewModel.LogStatus))
+                return false;
+
+            return await UpdateManager.UpdateRepo(_repoDetailsViewModel.Repo,
+                _downloadStatusViewModel.LogStatus, _downloadStatusViewModel.LogProgress, reinstall);
         });
-        await UpdateManager.UpdateRepo(_repoDetailsViewModel.Repo, statusText =>
-        {
-            _downloadStatusViewModel.LogStatus(statusText);
-        }, progressText =>
-        {
-            _downloadStatusViewModel.LogProgress(progressText);
-        }, true);
-        _downloadStatusViewModel.IsUpdating = false;
         FileManager.SaveRepos();
     }
 

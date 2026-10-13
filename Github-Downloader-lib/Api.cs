@@ -60,6 +60,7 @@ public static class Api
             url,
             HttpCompletionOption.ResponseHeadersRead
         );
+        response.EnsureSuccessStatusCode();
         
         long? totalBytes = response.Content.Headers.ContentLength;
         

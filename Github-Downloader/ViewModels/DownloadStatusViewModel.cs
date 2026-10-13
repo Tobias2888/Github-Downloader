@@ -1,6 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
@@ -12,7 +13,6 @@ public class DownloadStatusViewModel : ViewModelBase
 {
     private const int MaxLogs = 1000;
 
-    //public Window? MainWindow { get; set; }
     private DownloadStatus? _downloadStatus;
 
     private string _statusText = "Checking for updates...";
@@ -62,7 +62,7 @@ public class DownloadStatusViewModel : ViewModelBase
     public bool IsUpdating
     {
         get => _isUpdating;
-        set
+        private set
         {
             if (_isUpdating == value) return;
             _isUpdating = value;
@@ -71,13 +71,40 @@ public class DownloadStatusViewModel : ViewModelBase
                 Reset();
                 Show();
             }
-            else
-            {
-                Log("Completed", "success");
-                Percent = 100;
-            }
             OnPropertyChanged();
         }
+    }
+
+    public async Task<bool> RunAsync(Func<Task<bool>> operation)
+    {
+        if (IsUpdating) return false;
+
+        IsUpdating = true;
+        bool succeeded = false;
+        try
+        {
+            succeeded = await operation();
+        }
+        catch (Exception exception)
+        {
+            Log(exception.Message, "error");
+        }
+        finally
+        {
+            IsUpdating = false;
+        }
+
+        if (succeeded)
+        {
+            Log("Completed", "success");
+            Percent = 100;
+            CloseDialog();
+        }
+        else
+        {
+            Log("Failed. Check the log for details.", "error");
+        }
+        return succeeded;
     }
 
     public void LogStatus(string message)

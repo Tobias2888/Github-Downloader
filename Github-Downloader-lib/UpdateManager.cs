@@ -25,7 +25,7 @@ public static class UpdateManager
         if (Repos is null) return;
         
         Repos.CollectionChanged += Repos_CollectionChanged;
-        foreach (var repo in Repos)
+        foreach (Repo repo in Repos)
         {
             repo.PropertyChanged += Repo_PropertyChanged;
         }
@@ -62,6 +62,7 @@ public static class UpdateManager
             nameof(Repo.Tag), 
             nameof(Repo.DownloadPath),
             nameof(Repo.SaveFileAnyway),
+            nameof(Repo.AutoExtract),
             nameof(Repo.NewFileName),
             nameof(Repo.CurrentInstallTag)
         };
@@ -72,7 +73,7 @@ public static class UpdateManager
         }
     }
     
-    private readonly record struct Asset(Repo Repo, string TempAssetPath);
+    internal readonly record struct Asset(Repo Repo, string TempAssetPath, string Tag, string? TemporaryDirectory = null);
 
     public static async Task<Repo?> AddRepo(string repoUrl)
     {
@@ -162,15 +163,17 @@ public static class UpdateManager
         }
     }
 
-    public static async Task SearchForUpdates(IEnumerable<Repo> repos, Action<string> statusText)
+    public static async Task<bool> SearchForUpdates(IEnumerable<Repo> repos, Action<string> statusText)
     {
         Logger.LogI("Searching for updates");
         
+        bool succeeded = true;
         foreach (Repo repo in repos)
         {
             statusText.Invoke($"Checking for {repo.Name}");
-            await SearchForUpdates(repo, statusText, true);
+            succeeded &= await SearchForUpdates(repo, statusText, true);
         }
+        return succeeded;
     }
 
     private enum ReleaseLookup
@@ -180,7 +183,7 @@ public static class UpdateManager
         Failed
     }
 
-    public static async Task SearchForUpdates(Repo repo, Action<string> statusText, bool multiDownload = false)
+    public static async Task<bool> SearchForUpdates(Repo repo, Action<string> statusText, bool multiDownload = false)
     {
         Logger.LogI($"Checking for {repo.Name}");
         
@@ -199,7 +202,8 @@ public static class UpdateManager
         (ReleaseLookup lookup, Response? response) = await GetRelease(repo, repo.TargetTag);
         if (lookup == ReleaseLookup.Failed)
         {
-            return;
+            statusText.Invoke($"Failed to check releases for {repo.Name}");
+            return false;
         }
 
         if (response == null)
@@ -211,7 +215,7 @@ public static class UpdateManager
             repo.Tag = "";
             repo.LatestChangelog = "";
             repo.ReleaseDate = "";
-            return;
+            return true;
         }
 
         int oldIndex = repo.DownloadAssetIndex;
@@ -231,6 +235,7 @@ public static class UpdateManager
         repo.Tag = response.tag_name;
 
         repo.DownloadAssetIndex = Math.Clamp(oldIndex, 0, Math.Max(repo.AssetNames.Count - 1, 0));
+        return true;
     }
 
     private static async Task UpdateTags(Repo repo)
@@ -329,7 +334,10 @@ public static class UpdateManager
 
     public static async Task<bool> UpdateRepo(Repo repo, Action<string> statusText, Action<string> progressText, bool downloadAnyways = false)
     {
-        return await UpdateReposAsync([await DownloadAsset(repo, statusText, progressText, downloadAnyways)], statusText, progressText);
+        if (!downloadAnyways && repo.Tag == repo.CurrentInstallTag) return true;
+        Asset? asset = await DownloadAsset(repo, statusText, progressText, downloadAnyways);
+        if (asset == null) return false;
+        return await UpdateReposAsync([asset], statusText, progressText);
     }
 
     public static async Task<bool> UpdateReposAsync(IEnumerable<Repo> repos, Action<string> statusText, Action<string> progressText, bool downloadAnyways = false)
@@ -337,27 +345,31 @@ public static class UpdateManager
         statusText.Invoke("Downloading updates...");
         
         List<Asset?> assets = [];
-        foreach (var repo in repos)
+        bool downloadsOk = true;
+        foreach (Repo repo in repos)
         {
-            if (repo.ExcludedFromDownloadAll)
+            if (repo.ExcludedFromDownloadAll || (!downloadAnyways && repo.Tag == repo.CurrentInstallTag))
             {
                 continue;
             }
             
             Asset? asset = await DownloadAsset(repo, statusText, progressText, downloadAnyways);
+            if (asset == null) downloadsOk = false;
             assets.Add(asset);
         }
 
-        return await UpdateReposAsync(assets, statusText, progressText);
+        bool installed = await UpdateReposAsync(assets, statusText, progressText);
+        return downloadsOk && installed;
     }
 
-    private static async Task<bool> UpdateReposAsync(List<Asset?> assets, Action<string> statusText, Action<string> progressText)
+    internal static async Task<bool> UpdateReposAsync(List<Asset?> assets, Action<string> statusText, Action<string> progressText)
     {
         Logger.LogI("Updating repos");
         
-        List<string> debs = [];
-        List<string> exes = [];
+        List<Asset> debs = [];
+        List<Asset> exes = [];
         List<Asset> appImages = [];
+        bool archivesOk = true;
         
         foreach (Asset? asset in assets)
         {
@@ -366,9 +378,32 @@ public static class UpdateManager
                 continue;
             }
             
+            if (asset.Value.Repo.AutoExtract && ArchiveExtractor.IsSupportedArchive(asset.Value.TempAssetPath))
+            {
+                statusText.Invoke($"Extracting {asset.Value.Repo.Name}");
+                try
+                {
+                    await ArchiveExtractor.ExtractDownloadAsync(asset.Value.Repo, asset.Value.TempAssetPath,
+                        asset.Value.Tag, progressText);
+                }
+                catch (Exception exception)
+                {
+                    archivesOk = false;
+                    string message = $"Extraction failed for {asset.Value.Repo.Name}: {exception.Message}";
+                    Logger.LogE(message);
+                    progressText.Invoke(message);
+                }
+                finally
+                {
+                    if (asset.Value.TemporaryDirectory is string directory && Directory.Exists(directory))
+                        Directory.Delete(directory, recursive: true);
+                }
+                continue;
+            }
+
             if (asset.Value.TempAssetPath.EndsWith(".deb"))
             {
-                debs.Add(asset.Value.TempAssetPath);
+                debs.Add(asset.Value);
                 if (!asset.Value.Repo.SaveFileAnyway) continue;
             }
             else if (asset.Value.TempAssetPath.EndsWith(".AppImage"))
@@ -379,20 +414,27 @@ public static class UpdateManager
             else if (asset.Value.TempAssetPath.EndsWith(".exe") ||
                      asset.Value.TempAssetPath.EndsWith(".msi"))
             {
-                exes.Add(asset.Value.TempAssetPath);
+                exes.Add(asset.Value);
                 if (!asset.Value.Repo.SaveFileAnyway) continue;
             }
 
             statusText.Invoke($"Move file {asset.Value.Repo.Name}");
             CopyFile(asset.Value);
+            if (!debs.Contains(asset.Value) && !exes.Contains(asset.Value) && !appImages.Contains(asset.Value))
+                asset.Value.Repo.CurrentInstallTag = asset.Value.Tag;
         }
         
         statusText.Invoke("Installing Updates...");
         
         HandleAppImages(appImages);
-        bool debsOk = await InstallDebsAsync(debs, progressText);
-        bool exesOk = await InstallExeAsync(exes, progressText);
-        return debsOk && exesOk;
+        foreach (Asset asset in appImages) asset.Repo.CurrentInstallTag = asset.Tag;
+        bool debsOk = await InstallDebsAsync(debs.Select(asset => asset.TempAssetPath).ToList(), progressText);
+        if (debsOk)
+            foreach (Asset asset in debs) asset.Repo.CurrentInstallTag = asset.Tag;
+        bool exesOk = await InstallExeAsync(exes.Select(asset => asset.TempAssetPath).ToList(), progressText);
+        if (exesOk)
+            foreach (Asset asset in exes) asset.Repo.CurrentInstallTag = asset.Tag;
+        return archivesOk && debsOk && exesOk;
     }
 
     private static void HandleAppImages(List<Asset> assets)
@@ -496,14 +538,28 @@ public static class UpdateManager
             return null;
         }
 
-        await Api.DownloadFileAsync(downloadAssetUrl, Path.Join(FileManager.CachePath, downloadAssetName), SecretsManager.LookupSecret("pat"), progress);
+        string downloadTag = repo.Tag;
+        string? temporaryDirectory = repo.AutoExtract && ArchiveExtractor.IsSupportedArchive(downloadAssetName)
+            ? Path.Combine(FileManager.CachePath, $"archive-{Guid.NewGuid():N}")
+            : null;
+        string temporaryPath = Path.Combine(temporaryDirectory ?? FileManager.CachePath, downloadAssetName);
+        if (temporaryDirectory != null) Directory.CreateDirectory(temporaryDirectory);
+        try
+        {
+            await Api.DownloadFileAsync(downloadAssetUrl, temporaryPath, SecretsManager.LookupSecret("pat"), progress);
+        }
+        catch
+        {
+            if (temporaryDirectory != null) Directory.Delete(temporaryDirectory, recursive: true);
+            throw;
+        }
 
-        repo.CurrentInstallTag = repo.Tag;
-        
         Asset asset = new()
         {
             Repo = repo,
-            TempAssetPath = Path.Join(FileManager.CachePath, downloadAssetName)
+            TempAssetPath = temporaryPath,
+            Tag = downloadTag,
+            TemporaryDirectory = temporaryDirectory
         };
         
         return asset;

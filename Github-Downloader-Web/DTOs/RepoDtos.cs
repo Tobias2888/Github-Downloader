@@ -30,7 +30,9 @@ public record RepoResponse(
     bool SaveFileAnyway,
     string NewFileName,
     bool ExcludedFromDownloadAll,
-    bool IsSelected
+    bool IsSelected,
+    bool AutoExtract,
+    string ExtractionDirectory
 );
 
 public record UpdateRepoRequest(
@@ -39,7 +41,8 @@ public record UpdateRepoRequest(
     string? NewFileName,
     bool? ExcludedFromDownloadAll,
     string? TargetTag,
-    int? DownloadAssetIndex
+    int? DownloadAssetIndex,
+    bool? AutoExtract = null
 );
 
 public record ReposListResponse(

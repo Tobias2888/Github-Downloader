@@ -607,6 +607,11 @@
                     <span>Save file anyway</span>
                     <span class="switch"><input type="checkbox" id="detailSaveAnyway" ${repo.saveFileAnyway ? 'checked' : ''}><span class="slider"></span></span>
                 </label>
+                <label class="checkbox-label field-row" style="justify-content:space-between; margin-top:12px">
+                    <span>Auto-extract</span>
+                    <span class="switch"><input type="checkbox" id="detailAutoExtract" ${repo.autoExtract ? 'checked' : ''}><span class="slider"></span></span>
+                </label>
+                <p class="hint">Auto-extract saves a repository folder inside Download Location. The archive file is not kept.</p>
                 <div class="form-group" style="margin-top:12px">
                     <label for="detailDownloadPath">Download location</label>
                     <input type="text" id="detailDownloadPath" value="${escapeHtml(repo.downloadPath || '')}">
@@ -630,6 +635,7 @@
             targetTag: $('detailTargetTag').value,
             downloadAssetIndex: parseInt($('detailAssetIndex').value, 10) || 0,
             saveFileAnyway: $('detailSaveAnyway').checked,
+            autoExtract: $('detailAutoExtract').checked,
             newFileName: $('detailNewFileName').value,
             excludedFromDownloadAll: $('detailExcluded').checked,
         };

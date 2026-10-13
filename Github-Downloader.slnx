@@ -3,4 +3,5 @@
   <Project Path="Github-Downloader-lib/Github-Downloader-lib.csproj" />
   <Project Path="Github-Downloader/Github-Downloader.csproj" />
   <Project Path="Github-Downloader-Web/Github-Downloader-Web.csproj" />
+  <Project Path="Github-Downloader.Tests/Github-Downloader.Tests.csproj" />
 </Solution>

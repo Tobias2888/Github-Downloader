@@ -92,7 +92,7 @@ public partial class App : Application
         UpdateIcon();
 
         MainViewModel.AutoCheckForUpdatesTimer.Interval = TimeSpan.FromMinutes(MainViewModel.AppSettings.CheckForUpdatesInterval);
-        MainViewModel.AutoCheckForUpdatesTimer.Tick += (_, _) =>
+        MainViewModel.AutoCheckForUpdatesTimer.Tick += async (_, _) =>
         {
             if (MainWindow?.IsVisible == true)
             {
@@ -100,12 +100,8 @@ public partial class App : Application
             }
 
             Logger.LogI("AutoCheckForUpdates");
-            DownloadStatusViewModel.IsUpdating = true;
-            UpdateManager.SearchForUpdates(UpdateManager.Repos, statusText =>
-            {
-                DownloadStatusViewModel.LogStatus(statusText);
-            });
-            DownloadStatusViewModel.IsUpdating = false;
+            await DownloadStatusViewModel.RunAsync(() =>
+                UpdateManager.SearchForUpdates(UpdateManager.Repos, DownloadStatusViewModel.LogStatus));
             
             UpdateIcon();
             FileManager.SaveRepos();
@@ -170,15 +166,8 @@ public partial class App : Application
         NativeMenuItem updateAllItem = new("Update All");
         updateAllItem.Click += async (_, _) =>
         {
-            DownloadStatusViewModel.IsUpdating = true;
-            await UpdateManager.UpdateReposAsync(UpdateManager.Repos, statusText =>
-            {
-                DownloadStatusViewModel.LogStatus(statusText);
-            }, progressText =>
-            {
-                DownloadStatusViewModel.LogProgress(progressText);
-            });
-            DownloadStatusViewModel.IsUpdating = false;
+            await DownloadStatusViewModel.RunAsync(() => UpdateManager.UpdateReposAsync(UpdateManager.Repos,
+                DownloadStatusViewModel.LogStatus, DownloadStatusViewModel.LogProgress));
             FileManager.SaveRepos();
         };
 

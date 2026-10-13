@@ -58,12 +58,8 @@ public partial class HomeView : UserControl
             return;
         }
         
-        _downloadStatusViewModel.IsUpdating = true;
-        await UpdateManager.SearchForUpdates(repo, statusText =>
-        {
-            _downloadStatusViewModel.LogStatus(statusText);
-        });
-        _downloadStatusViewModel.IsUpdating = false;
+        await _downloadStatusViewModel.RunAsync(() =>
+            UpdateManager.SearchForUpdates(repo, _downloadStatusViewModel.LogStatus));
         
         UpdateManager.Repos.Add(repo);
         FileManager.SaveRepos();
@@ -75,12 +71,8 @@ public partial class HomeView : UserControl
 
     private async void BtnSearchForUpdates_OnClick(object? sender, RoutedEventArgs e)
     {
-        _downloadStatusViewModel.IsUpdating = true;
-        await UpdateManager.SearchForUpdates(UpdateManager.Repos, statusText =>
-        {
-            _downloadStatusViewModel.LogStatus(statusText);
-        });
-        _downloadStatusViewModel.IsUpdating = false;
+        await _downloadStatusViewModel.RunAsync(() =>
+            UpdateManager.SearchForUpdates(UpdateManager.Repos, _downloadStatusViewModel.LogStatus));
 
         CheckForGlobalUpdates();
         FileManager.SaveRepos();
@@ -88,15 +80,8 @@ public partial class HomeView : UserControl
     
     public async void BtnUpdateAll_OnClick(object? sender, RoutedEventArgs e)
     {
-        _downloadStatusViewModel.IsUpdating = true;
-        await UpdateManager.UpdateReposAsync(UpdateManager.Repos, statusText =>
-        {
-            _downloadStatusViewModel.LogStatus(statusText);
-        }, progressText =>
-        {
-            _downloadStatusViewModel.LogProgress(progressText);
-        });
-        _downloadStatusViewModel.IsUpdating = false;
+        await _downloadStatusViewModel.RunAsync(() => UpdateManager.UpdateReposAsync(UpdateManager.Repos,
+            _downloadStatusViewModel.LogStatus, _downloadStatusViewModel.LogProgress));
         
         CheckForGlobalUpdates();
         FileManager.SaveRepos();
