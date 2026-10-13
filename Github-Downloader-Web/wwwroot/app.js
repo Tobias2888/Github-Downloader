@@ -63,8 +63,8 @@
 
     function repoBaseUrl(url) {
         return (url || '')
-            .replace('api.github.com', 'github.com')
-            .replace('/releases/latest', '');
+            .replace('api.github.com/repos/', 'github.com/')
+            .replace(/\/releases\/latest\/?$/, '');
     }
 
     function selectedAssetName(source) {
@@ -72,12 +72,6 @@
         if (names.length === 0) return '';
         const index = Number.isInteger(source.downloadAssetIndex) ? source.downloadAssetIndex : 0;
         return names[Math.min(Math.max(index, 0), names.length - 1)] || '';
-    }
-
-    function linkifyChangelog(text, baseUrl) {
-        const esc = escapeHtml(text || '(No changelog available)');
-        return esc.replace(/#(\d+)/g, (match, num) =>
-            `<a href="${escapeHtml(baseUrl)}/issues/${num}" target="_blank" rel="noopener">#${num}</a>`);
     }
 
     /* ---------- Activity / progress ---------- */
@@ -736,8 +730,9 @@
         const repo = repos.find(r => r.url === repoUrl);
         const baseUrl = repo ? repoGithubLink(repo) : repoBaseUrl(repoUrl);
         $('changelogTitle').textContent = `Changelog — ${repo?.name || repoUrl}`;
-        $('changelogContent').innerHTML = linkifyChangelog(changelog, baseUrl);
+        Changelog.render($('changelogContent'), changelog, baseUrl);
         showModal('changelogModal');
+        document.querySelector('#changelogModal .modal-body').scrollTo(0, 0);
     }
 
     /* ---------- Config tab ---------- */

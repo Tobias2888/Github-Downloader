@@ -4,8 +4,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Text.RegularExpressions;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Converters;
@@ -14,6 +12,7 @@ using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
+using Avalonia.LogicalTree;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Github_Downloader_lib;
@@ -21,6 +20,7 @@ using Github_Downloader_lib.Models;
 using Github_Downloader.Enums;
 using Github_Downloader.ViewModels;
 using LoggerLib;
+using ColorTextBlock.Avalonia;
 
 namespace Github_Downloader.Views;
 
@@ -30,8 +30,6 @@ public partial class RepoDetailsView : UserControl
     private readonly RepoDetailsViewModel _repoDetailsViewModel;
     private readonly DownloadStatusViewModel _downloadStatusViewModel;
 
-    private static readonly Regex GitHubIssueRegex = new(@"(?<![\w\[/:.#])#(\d+)(?![\w])");
-    
     public RepoDetailsView()
     {
         InitializeComponent();
@@ -146,49 +144,36 @@ public partial class RepoDetailsView : UserControl
     }
     private void PopulateChangelog(string? text)
     {
-        if (string.IsNullOrEmpty(text))
+        if (string.IsNullOrWhiteSpace(text))
         {
-            MarkdownChangelog.Markdown = null;
+            MarkdownChangelog.Markdown = "No changelog available for this release.";
             return;
         }
 
-        string baseUrl = _repoDetailsViewModel.Repo.GitHubLink;
-        if (baseUrl.EndsWith("/")) baseUrl = baseUrl.Substring(0, baseUrl.Length - 1);
-
-        MarkdownChangelog.Markdown = PreprocessGitHubLinks(text, baseUrl);
-    }
-
-    private static string PreprocessGitHubLinks(string markdown, string baseUrl)
-    {
-        StringBuilder result = new();
-        bool insideFence = false;
-
-        foreach (string line in markdown.Split('\n'))
+        MarkdownChangelog.Markdown = text;
+        string baseUrl = _repoDetailsViewModel.Repo.GitHubLink.TrimEnd('/');
+        foreach (CTextBlock block in MarkdownChangelog.GetLogicalDescendants().OfType<CTextBlock>().ToArray())
         {
-            string trimmed = line.TrimStart();
-            if (trimmed.StartsWith("```") || trimmed.StartsWith("~~~"))
+            if (block.Classes.Contains("ListMarker"))
             {
-                insideFence = !insideFence;
-                result.Append(line).Append('\n');
+                // Markdown.Avalonia chooses a shape from *, - or +. Use nesting like a browser does.
+                if (block.Text is "•" or "○" or "▪" or "❏")
+                {
+                    int depth = block.GetLogicalAncestors().OfType<Grid>()
+                        .Count(grid => grid.Classes.Contains("List"));
+                    block.Content = new()
+                    {
+                        new CRun { Text = depth switch { <= 1 => "•", 2 => "○", _ => "▪" } }
+                    };
+                }
                 continue;
             }
 
-            string withLinks = line;
-            if (!insideFence)
-            {
-                string[] parts = line.Split('`');
-                for (int i = 0; i < parts.Length; i += 2)
-                {
-                    parts[i] = GitHubIssueRegex.Replace(parts[i], match =>
-                        $"[#{match.Groups[1].Value}]({baseUrl}/issues/{match.Groups[1].Value})");
-                }
-                withLinks = string.Join('`', parts);
-            }
-
-            result.Append(withLinks).Append('\n');
+            // Add issue links after parsing, preserving Markdown links and code spans.
+            CInline[] content = GitHubIssueLinker.Linkify(block.Content, baseUrl, OpenUrl).ToArray();
+            block.Content.Clear();
+            block.Content.AddRange(content);
         }
-
-        return result.ToString().TrimEnd('\n');
     }
 
     private static void OpenUrl(string url)
