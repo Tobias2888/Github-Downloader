@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -14,6 +16,7 @@ using Github_Downloader_lib;
 using Github_Downloader_lib.Models;
 using Github_Downloader.Enums;
 using Github_Downloader.Models;
+using Github_Downloader.Services;
 using Github_Downloader.ViewModels;
 using LoggerLib;
 using SecretsLib;
@@ -29,6 +32,63 @@ public partial class App : Application
     
     public MainWindow? MainWindow;
     private TrayIcon _trayIcon;
+    private readonly DispatcherTimer _notificationTimer = new() { Interval = TimeSpan.FromMinutes(1) };
+    public NotificationService Notifications { get; }
+
+    public App()
+    {
+        Notifications = new(() => MainViewModel.AppSettings.Notifications,
+            message => DesktopNotificationSender.SendAsync(message, ShowMainWindow));
+    }
+
+    public void ShowMainWindow()
+    {
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Post(ShowMainWindow);
+            return;
+        }
+
+        if (MainWindow is null)
+        {
+            MainWindow = new();
+            if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+                desktop.MainWindow = MainWindow;
+        }
+        if (MainWindow.WindowState == WindowState.Minimized)
+            MainWindow.WindowState = WindowState.Normal;
+        MainWindow.Show();
+        MainWindow.Activate();
+    }
+
+    public async Task<bool> RunDownloadsAsync(Func<Task<bool>> operation, IEnumerable<Repo> repositories)
+    {
+        Repo[] downloads = repositories.ToArray();
+        bool succeeded = await DownloadStatusViewModel.RunAsync(operation);
+        if (succeeded)
+        {
+            await Notifications.NotifyDownloadsCompletedAsync(downloads.Length,
+                downloads.Length == 1 ? downloads[0].Name : null);
+        }
+        return succeeded;
+    }
+
+    public async Task<bool> UpdateRepoAsync(Repo repo, bool reinstall = false, bool checkForUpdates = false)
+    {
+        bool performedUpdate = false;
+        bool succeeded = await DownloadStatusViewModel.RunAsync(async () =>
+        {
+            if (checkForUpdates && !await UpdateManager.SearchForUpdates(repo, DownloadStatusViewModel.LogStatus))
+                return false;
+
+            performedUpdate = reinstall || !repo.IsUpToDate;
+            return await UpdateManager.UpdateRepo(repo, DownloadStatusViewModel.LogStatus,
+                DownloadStatusViewModel.LogProgress, reinstall);
+        });
+        if (succeeded && performedUpdate)
+            await Notifications.NotifyDownloadsCompletedAsync(1, repo.Name);
+        return succeeded;
+    }
     
     private const string ResPath = "avares://Github-Downloader/resources/";
     private string _appdataPath;
@@ -105,8 +165,14 @@ public partial class App : Application
             
             UpdateIcon();
             FileManager.SaveRepos();
+            await Notifications.NotifyUpdatesAvailableAsync(UpdateManager.Repos);
         };
-        MainViewModel.AutoCheckForUpdatesTimer.Start();
+        if (MainViewModel.AppSettings.AutoCheckForUpdates)
+            MainViewModel.AutoCheckForUpdatesTimer.Start();
+
+        _notificationTimer.Tick += async (_, _) =>
+            await Notifications.NotifyUpdatesAvailableAsync(UpdateManager.Repos);
+        _notificationTimer.Start();
     }
 
     private void UpdateIcon()
@@ -143,21 +209,13 @@ public partial class App : Application
 
         _trayIcon.Clicked += (_, _) =>
         {
-            if (MainWindow is null)
-            {
-                if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-                {
-                    MainWindow = new();
-                    desktop.MainWindow = MainWindow;
-                }
-            }
             switch (MainWindow?.IsVisible)
             {
                 case true: 
                     MainWindow.Hide(); 
                     MainViewModel.SwitchPage(ViewNames.Home);
                     break;
-                case false: MainWindow.Show(); break;
+                default: ShowMainWindow(); break;
             }
         };
 
@@ -166,8 +224,9 @@ public partial class App : Application
         NativeMenuItem updateAllItem = new("Update All");
         updateAllItem.Click += async (_, _) =>
         {
-            await DownloadStatusViewModel.RunAsync(() => UpdateManager.UpdateReposAsync(UpdateManager.Repos,
-                DownloadStatusViewModel.LogStatus, DownloadStatusViewModel.LogProgress));
+            await RunDownloadsAsync(() => UpdateManager.UpdateReposAsync(UpdateManager.Repos,
+                DownloadStatusViewModel.LogStatus, DownloadStatusViewModel.LogProgress),
+                UpdateManager.Repos.Where(repo => !repo.ExcludedFromDownloadAll && !repo.IsUpToDate));
             FileManager.SaveRepos();
         };
 

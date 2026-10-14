@@ -9,6 +9,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <InternalsVisibleTo Include="Github-Downloader.Tests" />
         <PackageReference Include="Avalonia" Version="11.2.1" />
         <PackageReference Include="Avalonia.Desktop" Version="11.2.1" />
         <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.1" />
@@ -20,6 +21,7 @@
         </PackageReference>
         <AvaloniaResource Include="resources/**" />
         <PackageReference Include="Markdown.Avalonia" Version="11.0.3" />
+        <PackageReference Include="Markdig" Version="1.2.0" />
     </ItemGroup>
 
     <ItemGroup>

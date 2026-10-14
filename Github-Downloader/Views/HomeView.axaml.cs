@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -63,6 +64,7 @@ public partial class HomeView : UserControl
         
         UpdateManager.Repos.Add(repo);
         FileManager.SaveRepos();
+        await ((App)Application.Current!).Notifications.NotifyUpdatesAvailableAsync(UpdateManager.Repos);
 
         TbxUrl.Text = "";
         TbxOwner.Text = "";
@@ -76,12 +78,14 @@ public partial class HomeView : UserControl
 
         CheckForGlobalUpdates();
         FileManager.SaveRepos();
+        await ((App)Application.Current!).Notifications.NotifyUpdatesAvailableAsync(UpdateManager.Repos);
     }
     
     public async void BtnUpdateAll_OnClick(object? sender, RoutedEventArgs e)
     {
-        await _downloadStatusViewModel.RunAsync(() => UpdateManager.UpdateReposAsync(UpdateManager.Repos,
-            _downloadStatusViewModel.LogStatus, _downloadStatusViewModel.LogProgress));
+        await ((App)Application.Current!).RunDownloadsAsync(() => UpdateManager.UpdateReposAsync(UpdateManager.Repos,
+            _downloadStatusViewModel.LogStatus, _downloadStatusViewModel.LogProgress),
+            UpdateManager.Repos.Where(repo => !repo.ExcludedFromDownloadAll && !repo.IsUpToDate));
         
         CheckForGlobalUpdates();
         FileManager.SaveRepos();

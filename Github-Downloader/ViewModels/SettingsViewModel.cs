@@ -34,6 +34,54 @@ public class SettingsViewModel : ViewModelBase
         }
     }
 
+    public bool NotificationsEnabled
+    {
+        get => _settings.Notifications.Enabled;
+        set { _settings.Notifications.Enabled = value; OnPropertyChanged(); _settings.Save(); }
+    }
+
+    public bool NotifyUpdatesAvailable
+    {
+        get => _settings.Notifications.UpdatesAvailable;
+        set { _settings.Notifications.UpdatesAvailable = value; OnPropertyChanged(); _settings.Save(); }
+    }
+
+    public bool NotifyDownloadsCompleted
+    {
+        get => _settings.Notifications.DownloadsCompleted;
+        set { _settings.Notifications.DownloadsCompleted = value; OnPropertyChanged(); _settings.Save(); }
+    }
+
+    public bool LimitNotificationTimes
+    {
+        get => _settings.Notifications.LimitToTimeWindow;
+        set { _settings.Notifications.LimitToTimeWindow = value; OnPropertyChanged(); _settings.Save(); }
+    }
+
+    public TimeSpan? NotificationStartTime
+    {
+        get => _settings.Notifications.StartTime;
+        set
+        {
+            if (!value.HasValue) return;
+            _settings.Notifications.StartTime = value.Value;
+            OnPropertyChanged();
+            _settings.Save();
+        }
+    }
+
+    public TimeSpan? NotificationEndTime
+    {
+        get => _settings.Notifications.EndTime;
+        set
+        {
+            if (!value.HasValue) return;
+            _settings.Notifications.EndTime = value.Value;
+            OnPropertyChanged();
+            _settings.Save();
+        }
+    }
+
     public bool AutoCheckForUpdates
     {
         get => _settings.AutoCheckForUpdates;

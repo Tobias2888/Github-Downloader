@@ -14,6 +14,7 @@ Track GitHub releases, download the assets you need, and keep your applications 
 - Install Debian packages, integrate AppImages into the Linux application menu, and launch Windows installers.
 - Use a GitHub personal access token for private repositories and authenticated API requests.
 - Import and export repository configuration from the desktop or web interface.
+- Configure desktop notifications for available updates and completed downloads, including allowed hours.
 
 GitHub Downloader works with files attached to **GitHub Releases**. A repository needs a release with downloadable assets; a source tag alone is not enough.
 
@@ -32,6 +33,8 @@ GitHub Downloader works with files attached to **GitHub Releases**. A repository
 Download the package for your operating system and CPU architecture from the [Releases page](https://github.com/Tobias2888/Github-Downloader/releases).
 
 Release builds are self-contained, so they do not require a separate .NET runtime installation. Native platform dependencies still apply. The Linux desktop and CLI Debian packages declare `libsecret-1-0` and `gnome-keyring` as dependencies.
+
+The Linux desktop also uses `notify-send` (`libnotify-bin` on Debian/Ubuntu) for system notifications. The desktop Debian packages install it automatically; AppImage users should install it through their package manager.
 
 ### Debian / Ubuntu
 
@@ -89,6 +92,12 @@ On macOS, extract the archive matching your architecture and launch the `Github-
 5. Use **Search for updates** to refresh release information. Background checks and their interval can be configured in **Settings**.
 
 The desktop app runs in the system tray. Click its tray icon to show or hide the window. Closing the window keeps the app running; use **Quit** in the tray menu to exit completely.
+
+In **Settings → Notifications**, enable or disable desktop notifications and choose whether to receive alerts for available updates, completed downloads, or both. Optionally limit alerts to a daily **From / Until** window in your computer's local time. Overnight windows work; equal times allow all day. Available-update alerts exclude repositories disabled for bulk updates and announce each release once per app session. Update All sends one completion alert after the whole operation succeeds; individual updates and reinstalls send their own. Empty batches and failed operations do not send completion alerts.
+
+Outside the allowed hours, completion alerts are skipped. Available updates are announced when the window opens if they are still pending. This requires the desktop app to remain running in the tray; the operating system's notification permissions and Do Not Disturb settings also apply.
+
+On Linux, use the notification's **Open** button to show the desktop window. Clicking a Windows notification also brings the window forward. Hidden or minimized windows are restored, and clicking again keeps the window open.
 
 ### Download and installation behavior
 

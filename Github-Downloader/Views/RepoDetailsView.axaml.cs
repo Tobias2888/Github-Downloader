@@ -89,6 +89,7 @@ public partial class RepoDetailsView : UserControl
             }
             _mainViewModel.HasUpdates = hasUpdates;
             FileManager.SaveRepos();
+            await ((App)Application.Current!).Notifications.NotifyUpdatesAvailableAsync(UpdateManager.Repos);
         };
         
         TbxVersion.DataContext = _repoDetailsViewModel.Repo;
@@ -147,7 +148,7 @@ public partial class RepoDetailsView : UserControl
             return;
         }
 
-        MarkdownChangelog.Markdown = text;
+        MarkdownChangelog.Markdown = ChangelogMarkdown.Prepare(text);
         string baseUrl = _repoDetailsViewModel.Repo.GitHubLink.TrimEnd('/');
         foreach (CTextBlock block in MarkdownChangelog.GetLogicalDescendants().OfType<CTextBlock>().ToArray())
         {
@@ -232,14 +233,7 @@ public partial class RepoDetailsView : UserControl
 
     private async Task UpdateRepoAsync(bool reinstall)
     {
-        await _downloadStatusViewModel.RunAsync(async () =>
-        {
-            if (!await UpdateManager.SearchForUpdates(_repoDetailsViewModel.Repo, _downloadStatusViewModel.LogStatus))
-                return false;
-
-            return await UpdateManager.UpdateRepo(_repoDetailsViewModel.Repo,
-                _downloadStatusViewModel.LogStatus, _downloadStatusViewModel.LogProgress, reinstall);
-        });
+        await ((App)Application.Current!).UpdateRepoAsync(_repoDetailsViewModel.Repo, reinstall, true);
         FileManager.SaveRepos();
     }
 

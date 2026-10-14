@@ -9,4 +9,5 @@ size = 116553604
 arch = x86_64
 license = MIT
 depend = glibc
+depend = libnotify
 

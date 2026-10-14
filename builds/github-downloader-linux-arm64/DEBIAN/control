@@ -4,4 +4,4 @@ Section: utils
 Architecture: arm64
 Maintainer: Tobias2888 <github.flashy834@passmail.net>
 Description: GitHub Downloader
-Depends: libsecret-1-0, gnome-keyring
+Depends: libsecret-1-0, gnome-keyring, libnotify-bin

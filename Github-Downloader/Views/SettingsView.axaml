@@ -5,6 +5,7 @@
              xmlns:viewModels="clr-namespace:Github_Downloader.ViewModels"
              xmlns:conv="clr-namespace:Github_Downloader.Converter"
              xmlns:ac="using:Avalonia.Controls"
+             xmlns:primitives="using:Avalonia.Controls.Primitives"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
              x:Class="Github_Downloader.Views.SettingsView"
              x:DataType="viewModels:SettingsViewModel"
@@ -15,6 +16,41 @@
     </UserControl.Resources>
 
     <UserControl.Styles>
+        <Style Selector="TimePicker">
+            <Setter Property="Background" Value="#222226"/>
+            <Setter Property="BorderBrush" Value="#44444E"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+
+        <Style Selector="TimePickerPresenter">
+            <Setter Property="Background" Value="#2B2B35"/>
+            <Setter Property="BorderBrush" Value="#44444E"/>
+            <Setter Property="CornerRadius" Value="8"/>
+        </Style>
+
+        <!-- Keep the window's TextBlock margins out of the fixed-height time picker rows. -->
+        <Style Selector="TimePickerPresenter /template/ primitives|DateTimePickerPanel TextBlock">
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <Style Selector="TimePickerPresenter /template/ primitives|DateTimePickerPanel ListBoxItem">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style Selector="TimePickerPresenter /template/ ScrollViewer">
+            <Setter Property="IsScrollChainingEnabled" Value="False"/>
+        </Style>
+
+        <Style Selector="TimePickerPresenter /template/ Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="0"/>
+        </Style>
+
         <Style Selector="RadioButton.StateButton">
             <Setter Property="Background" Value="#2B2B35"/>
             <Setter Property="BorderBrush" Value="#444"/>
@@ -241,6 +277,65 @@
 
             <StackPanel Grid.Column="2"
                         Spacing="20">
+
+                <Border CornerRadius="12"
+                        Padding="16">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="50%,100%"
+                                             EndPoint="50%,0%">
+                            <GradientStop Color="#2B2B35"
+                                          Offset="0"/>
+                            <GradientStop Color="#313131"
+                                          Offset="1"/>
+                        </LinearGradientBrush>
+                    </Border.Background>
+
+                    <StackPanel Spacing="15">
+                        <TextBlock Text="Notifications" Classes="SubTitle"/>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="Enable desktop notifications" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                            <ToggleSwitch Name="TglNotifications" Grid.Column="1"
+                                          IsChecked="{Binding NotificationsEnabled, Mode=TwoWay}" OnContent="" OffContent=""/>
+                        </Grid>
+                        <StackPanel Spacing="15" IsEnabled="{Binding NotificationsEnabled}">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="New updates available" VerticalAlignment="Center"/>
+                                <ToggleSwitch Grid.Column="1" IsChecked="{Binding NotifyUpdatesAvailable, Mode=TwoWay}"
+                                              OnContent="" OffContent=""/>
+                            </Grid>
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="Downloads completed" VerticalAlignment="Center"/>
+                                <ToggleSwitch Grid.Column="1" IsChecked="{Binding NotifyDownloadsCompleted, Mode=TwoWay}"
+                                              OnContent="" OffContent=""/>
+                            </Grid>
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="Only during these hours" VerticalAlignment="Center"/>
+                                <ToggleSwitch Name="TglNotificationTimes" Grid.Column="1"
+                                              IsChecked="{Binding LimitNotificationTimes, Mode=TwoWay}" OnContent="" OffContent=""/>
+                            </Grid>
+                            <ThemeVariantScope RequestedThemeVariant="Dark">
+                                <Grid ColumnDefinitions="*,16,*" IsEnabled="{Binding LimitNotificationTimes}">
+                                    <StackPanel Spacing="5">
+                                        <TextBlock Text="From"/>
+                                        <TimePicker Name="NotificationStartPicker" ClockIdentifier="24HourClock"
+                                                    TemplateApplied="NotificationTimePicker_OnTemplateApplied"
+                                                    SelectedTime="{Binding NotificationStartTime, Mode=TwoWay}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Spacing="5">
+                                        <TextBlock Text="Until"/>
+                                        <TimePicker Name="NotificationEndPicker" ClockIdentifier="24HourClock"
+                                                    TemplateApplied="NotificationTimePicker_OnTemplateApplied"
+                                                    SelectedTime="{Binding NotificationEndTime, Mode=TwoWay}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </ThemeVariantScope>
+                            <TextBlock Text="Uses your computer's local time. Overnight ranges are supported; matching times allow all day."
+                                       TextWrapping="Wrap" Opacity="0.7" FontSize="12"/>
+                            <TextBlock Text="Excluded repositories do not trigger update alerts. Update All sends one completion alert. Outside these hours, completion alerts are skipped; available updates can be announced when the window opens."
+                                       TextWrapping="Wrap" Opacity="0.7" FontSize="12"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
                 
                 <Border CornerRadius="12"
                         Padding="16">

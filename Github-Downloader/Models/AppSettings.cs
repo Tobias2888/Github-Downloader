@@ -15,13 +15,16 @@ public class AppSettings
     public bool AutoCheckForUpdates { get; set; } = true;
     public int CheckForUpdatesInterval { get; set; } = 5;
     public string GlobalDownloadPath { get; set; } = DirectoryHelper.GetUserDirPath();
+    public NotificationSettings Notifications { get; set; } = new();
     
     public static AppSettings Load()
     {
         if (File.Exists(_appSettingsFilePath))
         {
             string jsonString = File.ReadAllText(_appSettingsFilePath);
-            return JsonSerializer.Deserialize<AppSettings>(jsonString);
+            AppSettings settings = JsonSerializer.Deserialize<AppSettings>(jsonString) ?? new();
+            settings.Notifications ??= new();
+            return settings;
         }
 
         return new();
