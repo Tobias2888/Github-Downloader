@@ -2,6 +2,7 @@ using SharpCompress.Archives;
 using SharpCompress.Common;
 using SharpCompress.Readers;
 using Github_Downloader_lib.Models;
+using LoggerLib;
 
 namespace Github_Downloader_lib;
 
@@ -16,8 +17,20 @@ public static class ArchiveExtractor
     public static bool IsSupportedArchive(string fileName) =>
         Extensions.Any(extension => fileName.EndsWith(extension, StringComparison.OrdinalIgnoreCase));
 
-    public static Task ExtractAsync(string archivePath, string destination, Action<string>? progress = null) =>
-        Task.Run(() => Extract(archivePath, destination, progress));
+    public static async Task ExtractAsync(string archivePath, string destination, Action<string>? progress = null)
+    {
+        Logger.LogI("Archive extraction started");
+        try
+        {
+            await Task.Run(() => Extract(archivePath, destination, progress));
+            Logger.LogI("Archive extraction completed");
+        }
+        catch (Exception exception)
+        {
+            Logger.LogE($"Archive extraction failed ({exception.GetType().Name})");
+            throw;
+        }
+    }
 
     internal static async Task ExtractDownloadAsync(Repo repo, string archivePath, string tag, Action<string> progress)
     {
@@ -74,7 +87,7 @@ public static class ArchiveExtractor
                 }
 
                 Directory.CreateDirectory(Path.GetDirectoryName(output)!);
-                progress?.Invoke($"Extracting {key}");
+                progress?.Invoke("Extracting archive entry");
                 reader.WriteEntryToFile(output, options);
                 if (!OperatingSystem.IsWindows() && entry is SharpCompress.Common.Tar.TarEntry tarEntry)
                     File.SetUnixFileMode(output, (UnixFileMode)(tarEntry.Mode & 0x1FF));

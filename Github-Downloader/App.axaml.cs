@@ -57,6 +57,7 @@ public partial class App : Application
         }
         if (MainWindow.WindowState == WindowState.Minimized)
             MainWindow.WindowState = WindowState.Normal;
+        Logger.LogI("Showing main window");
         MainWindow.Show();
         MainWindow.Activate();
     }
@@ -75,6 +76,7 @@ public partial class App : Application
 
     public async Task<bool> UpdateRepoAsync(Repo repo, bool reinstall = false, bool checkForUpdates = false)
     {
+        Logger.LogI(reinstall ? "Repository reinstall requested" : "Repository update requested");
         bool performedUpdate = false;
         bool succeeded = await DownloadStatusViewModel.RunAsync(async () =>
         {
@@ -92,10 +94,20 @@ public partial class App : Application
 
     public async Task UninstallRepoAsync(Repo repo)
     {
-        if (DownloadStatusViewModel.IsUpdating || !repo.CanUninstall || MainWindow is null) return;
+        Logger.LogI("Repository uninstall requested");
+        if (DownloadStatusViewModel.IsUpdating || !repo.CanUninstall || MainWindow is null)
+        {
+            Logger.LogW("Repository uninstall unavailable");
+            return;
+        }
         Views.UninstallRepoDialog dialog = new(repo);
         string? package = await dialog.ShowDialog<string?>(MainWindow);
-        if (package is null) return;
+        if (package is null)
+        {
+            Logger.LogI("Repository uninstall cancelled");
+            return;
+        }
+        Logger.LogI("Repository uninstall confirmed");
 
         InstallationManager installations = new();
         await DownloadStatusViewModel.RunAsync(() => installations.UninstallAsync(repo,
@@ -110,14 +122,6 @@ public partial class App : Application
     
     public override void Initialize()
     {
-        if (Process.GetProcessesByName(Process.GetCurrentProcess().ProcessName).Length > 1)
-        {
-            #if !DEBUG
-                Console.WriteLine("Service already running");
-                Environment.Exit(0);
-            #endif
-        }
-        
         AvaloniaXamlLoader.Load(this);
     }
 
@@ -138,7 +142,7 @@ public partial class App : Application
 
     private static void OnUIThreadUnhandledException(object? sender, DispatcherUnhandledExceptionEventArgs e)
     {
-        Logger.LogE($"Unhandled UI exception: {e.Exception}");
+        Logger.LogE($"Unhandled UI exception: {e.Exception.GetType().Name}");
         if (Application.Current is App app)
         {
             app.MainViewModel.SwitchPage(ViewNames.Home);
@@ -152,16 +156,25 @@ public partial class App : Application
         {
             SecretsManager.Initialize("hofinga.gh-downloader.secret");
         }
-        MainViewModel.AppSettings = AppSettings.Load();
         
         _appdataPath = Path.Join(DirectoryHelper.GetAppDataDirPath(), "github-downloader");
         _reposConfigFilePath = Path.Join(_appdataPath, "repos.json");
         Logger.LogDir = Path.Join(_appdataPath, "logs");
         Logger.LogToTerminal = true;
-        //Logger.LogFirstChance = false;
-        Logger.CreateFile();
+        Logger.LogFirstChance = false;
+        Logger.LogDebug = false;
+        Logger.LogLevel = LogLevel.Info;
+        await Logger.CreateFile();
         Logger.LogI("Mode: avalonia-desktop-app");
+        #if !DEBUG
+        if (Process.GetProcessesByName(Process.GetCurrentProcess().ProcessName).Length > 1)
+        {
+            await Logger.LogW("Service already running");
+            Environment.Exit(0);
+        }
+        #endif
         
+        MainViewModel.AppSettings = AppSettings.Load();
         await FileManager.LoadRepos();
         UpdateIcon();
 
@@ -226,6 +239,7 @@ public partial class App : Application
             switch (MainWindow?.IsVisible)
             {
                 case true: 
+                    Logger.LogI("Hiding main window");
                     MainWindow.Hide(); 
                     MainViewModel.SwitchPage(ViewNames.Home);
                     break;
@@ -247,8 +261,9 @@ public partial class App : Application
         NativeMenuItem separatorItem = new NativeMenuItemSeparator();
         
         NativeMenuItem quitItem = new ("Quit");
-        quitItem.Click += (_, _) =>
+        quitItem.Click += async (_, _) =>
         {
+            await Logger.LogI("Application quit requested");
             Environment.Exit(0);
         };
         

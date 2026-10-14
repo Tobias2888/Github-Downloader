@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 using FileLib;
+using LoggerLib;
 using Github_Downloader.Enums;
 using Github_Downloader_lib.Models;
 
@@ -43,70 +44,96 @@ public sealed class InstallationManager
 
     public async Task<string> ReadDebianPackageNameAsync(string debPath)
     {
-        ProcessStartInfo start = CreateStartInfo("/usr/bin/dpkg-deb");
-        start.ArgumentList.Add("--field");
-        start.ArgumentList.Add(Path.GetFullPath(debPath));
-        start.ArgumentList.Add("Package");
-        start.ArgumentList.Add("Architecture");
-        CommandResult result = await _run(start, _ => { });
-        if (result.ExitCode != 0) throw new InvalidOperationException("Could not read the Debian package metadata.");
-
-        string package = string.Empty;
-        string architecture = string.Empty;
-        foreach (string line in result.Output.Split('\n', StringSplitOptions.TrimEntries))
+        Logger.LogI("Debian package metadata read started");
+        try
         {
-            if (line.StartsWith("Package: ", StringComparison.Ordinal)) package = line[9..].Trim();
-            if (line.StartsWith("Architecture: ", StringComparison.Ordinal)) architecture = line[14..].Trim();
+            ProcessStartInfo start = CreateStartInfo("/usr/bin/dpkg-deb");
+            start.ArgumentList.Add("--field");
+            start.ArgumentList.Add(Path.GetFullPath(debPath));
+            start.ArgumentList.Add("Package");
+            start.ArgumentList.Add("Architecture");
+            CommandResult result = await _run(start, _ => { });
+            if (result.ExitCode != 0) throw new InvalidOperationException("Could not read the Debian package metadata.");
+
+            string package = string.Empty;
+            string architecture = string.Empty;
+            foreach (string line in result.Output.Split('\n', StringSplitOptions.TrimEntries))
+            {
+                if (line.StartsWith("Package: ", StringComparison.Ordinal)) package = line[9..].Trim();
+                if (line.StartsWith("Architecture: ", StringComparison.Ordinal)) architecture = line[14..].Trim();
+            }
+            if (!Regex.IsMatch(architecture, @"\A[a-z0-9][a-z0-9-]*\z"))
+                throw new InvalidOperationException("The Debian package architecture is invalid.");
+            string name = architecture == "all" ? package : $"{package}:{architecture}";
+            if (!IsValidDebianPackageName(name)) throw new InvalidOperationException("The Debian package name is invalid.");
+            Logger.LogI("Debian package metadata read completed");
+            return name;
         }
-        if (!Regex.IsMatch(architecture, @"\A[a-z0-9][a-z0-9-]*\z"))
-            throw new InvalidOperationException("The Debian package architecture is invalid.");
-        string name = architecture == "all" ? package : $"{package}:{architecture}";
-        if (!IsValidDebianPackageName(name)) throw new InvalidOperationException("The Debian package name is invalid.");
-        return name;
+        catch (Exception exception)
+        {
+            Logger.LogE($"Debian package metadata read failed ({exception.GetType().Name})");
+            throw;
+        }
     }
 
     public async Task<bool> UninstallAsync(Repo repo, Action<string> status, Action<string> progress,
         string? legacyDebianPackage = null)
     {
-        if (!OperatingSystem.IsLinux()) throw new PlatformNotSupportedException("Uninstall is supported on Linux.");
-        if (!repo.CanUninstall) throw new InvalidOperationException("This repository has no supported installation to uninstall.");
-
-        string package = repo.InstalledDebianPackage;
-        if (repo.NeedsDebianPackageName) package = legacyDebianPackage?.Trim() ?? string.Empty;
-        if ((repo.NeedsDebianPackageName || package.Length > 0) && !IsValidDebianPackageName(package))
-            throw new InvalidOperationException("Enter the installed Debian package name.");
-
-        string appImageId = repo.InstalledAppImageId;
-        if (appImageId.Length == 0 && repo.InstalledDebianPackage.Length == 0
-            && Path.GetExtension(repo.SelectedAssetName).Equals(".appimage", StringComparison.OrdinalIgnoreCase))
-            appImageId = GetAppImageId(repo);
-        if (appImageId.Length > 0) ValidateAppImageInstallation(appImageId);
-
-        status($"Uninstalling {repo.Name}...");
-        if (package.Length > 0)
+        Logger.LogI("Repository uninstall started");
+        try
         {
-            progress($"Removing Debian package {package}");
-            ProcessStartInfo start = CreateDebianRemovalStartInfo(package);
-            CommandResult result = await _run(start, progress);
-            if (result.ExitCode != 0)
+            if (!OperatingSystem.IsLinux()) throw new PlatformNotSupportedException("Uninstall is supported on Linux.");
+            if (!repo.CanUninstall) throw new InvalidOperationException("This repository has no supported installation to uninstall.");
+
+            string package = repo.InstalledDebianPackage;
+            if (repo.NeedsDebianPackageName) package = legacyDebianPackage?.Trim() ?? string.Empty;
+            if ((repo.NeedsDebianPackageName || package.Length > 0) && !IsValidDebianPackageName(package))
+                throw new InvalidOperationException("Enter the installed Debian package name.");
+
+            string appImageId = repo.InstalledAppImageId;
+            if (appImageId.Length == 0 && repo.InstalledDebianPackage.Length == 0
+                && Path.GetExtension(repo.SelectedAssetName).Equals(".appimage", StringComparison.OrdinalIgnoreCase))
+                appImageId = GetAppImageId(repo);
+            if (appImageId.Length > 0) ValidateAppImageInstallation(appImageId);
+
+            status($"Uninstalling {repo.Name}...");
+            if (package.Length > 0)
             {
-                progress($"Uninstall failed (exit code {result.ExitCode}). Check the package manager output above.");
-                return false;
+                Logger.LogI("Removing Debian package");
+                progress("Removing Debian package");
+                ProcessStartInfo start = CreateDebianRemovalStartInfo(package);
+                // Command output can contain user paths; do not put it in activity logs.
+                CommandResult result = await _run(start, _ => { });
+                if (result.ExitCode != 0)
+                {
+                    Logger.LogE($"Debian package removal failed (exit code {result.ExitCode})");
+                    progress($"Uninstall failed (exit code {result.ExitCode}). Check authorization and package dependencies.");
+                    return false;
+                }
+                Logger.LogI("Debian package removed");
+                repo.InstalledDebianPackage = string.Empty;
             }
-            repo.InstalledDebianPackage = string.Empty;
-        }
 
-        if (appImageId.Length > 0)
+            if (appImageId.Length > 0)
+            {
+                Logger.LogI("Removing AppImage installation");
+                progress("Removing the AppImage and its application-menu entry");
+                RemoveAppImage(appImageId);
+                Logger.LogI("AppImage installation removed");
+                repo.InstalledAppImageId = string.Empty;
+            }
+
+            repo.CurrentInstallTag = string.Empty;
+            repo.ExcludedFromDownloadAll = true;
+            status($"Uninstalled {repo.Name}");
+            Logger.LogI("Repository uninstall completed");
+            return true;
+        }
+        catch (Exception exception)
         {
-            progress("Removing the AppImage and its application-menu entry");
-            RemoveAppImage(appImageId);
-            repo.InstalledAppImageId = string.Empty;
+            Logger.LogE($"Repository uninstall failed ({exception.GetType().Name})");
+            throw;
         }
-
-        repo.CurrentInstallTag = string.Empty;
-        repo.ExcludedFromDownloadAll = true;
-        status($"Uninstalled {repo.Name}");
-        return true;
     }
 
     internal static ProcessStartInfo CreateDebianRemovalStartInfo(string package)

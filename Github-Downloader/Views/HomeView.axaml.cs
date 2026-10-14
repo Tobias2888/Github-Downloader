@@ -12,6 +12,7 @@ using Github_Downloader_lib.Models;
 using Github_Downloader.Enums;
 using Github_Downloader.ViewModels;
 using SecretsLib;
+using LoggerLib;
 
 namespace Github_Downloader.Views;
 
@@ -20,6 +21,7 @@ public partial class HomeView : UserControl
     private readonly MainViewModel _mainViewModel;
     private readonly HomeViewModel _homeViewModel;
     private readonly DownloadStatusViewModel _downloadStatusViewModel;
+    private readonly RepositoryReorderController _repoReordering;
     
     public HomeView()
     {
@@ -28,7 +30,10 @@ public partial class HomeView : UserControl
         _homeViewModel = ((App)Application.Current!).HomeViewModel;
         _downloadStatusViewModel = ((App)Application.Current!).DownloadStatusViewModel;
         DataContext = _homeViewModel;
+        _repoReordering = new(this, RepoList, RepoScroll, RepoDragOverlay);
     }
+
+    internal void BeginRepoDrag(RepoEntryControl row, PointerPressedEventArgs e) => _repoReordering.Begin(row, e);
 
     private void Control_OnLoaded(object? sender, RoutedEventArgs e)
     {
@@ -107,7 +112,9 @@ public partial class HomeView : UserControl
 
     private async void BtnSetPat_OnClick(object? sender, RoutedEventArgs e)
     {
+        Logger.LogI("Saving personal access token");
         SecretsManager.StoreSecret("pat", TbxPat.Text);
+        Logger.LogI("Personal access token saved");
         TbxPat.Text = "";
         ToastText.Text = "Personal access token saved successfully!";
         ToastPopup.IsOpen = true;
@@ -117,12 +124,15 @@ public partial class HomeView : UserControl
 
     private void PgbDownloading_OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
+        Logger.LogD("Opening operation status");
         _downloadStatusViewModel.Show();
     }
 
     private void BtnRemovePat_OnClick(object? sender, RoutedEventArgs e)
     {
+        Logger.LogI("Removing personal access token");
         SecretsManager.ClearSecret("pat");
+        Logger.LogI("Personal access token removed");
     }
 
     private void InputElement_OnPointerPressed(object? sender, PointerPressedEventArgs e)

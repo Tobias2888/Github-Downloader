@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using Github_Downloader_lib;
 using Github_Downloader_lib.Models;
 using SecretsLib;
+using LoggerLib;
 using DTOs = Github_Downloader_Web.DTOs;
 
 namespace Github_Downloader_Web.Services;
@@ -157,6 +158,7 @@ public class GithubDownloaderService : IGithubDownloaderService
         Repo? repo = UpdateManager.Repos?.FirstOrDefault(r => r.Url == repoUrl);
         if (repo == null) return null;
 
+        Logger.LogI("Repository settings update requested");
         if (request.DownloadPath != null) repo.DownloadPath = request.DownloadPath;
         if (request.SaveFileAnyway.HasValue) repo.SaveFileAnyway = request.SaveFileAnyway.Value;
         if (request.AutoExtract.HasValue) repo.AutoExtract = request.AutoExtract.Value;
@@ -175,6 +177,7 @@ public class GithubDownloaderService : IGithubDownloaderService
         Repo? repo = UpdateManager.Repos?.FirstOrDefault(r => r.Url == repoUrl);
         if (repo == null) return false;
 
+        Logger.LogI("Removing repository from tracking");
         UpdateManager.Repos?.Remove(repo);
         FileManager.SaveRepos();
         return true;
@@ -190,7 +193,7 @@ public class GithubDownloaderService : IGithubDownloaderService
         }
         catch (Exception ex)
         {
-            return new DTOs.ConfigOperationResponse(false, $"Export failed: {ex.Message}");
+            return new DTOs.ConfigOperationResponse(false, $"Export failed ({ex.GetType().Name})");
         }
     }
 
@@ -199,12 +202,12 @@ public class GithubDownloaderService : IGithubDownloaderService
         await InitializeAsync();
         try
         {
-            FileManager.ImportRepoConfig(sourcePath);
+            await FileManager.ImportRepoConfig(sourcePath);
             return new DTOs.ConfigOperationResponse(true, "Configuration imported successfully");
         }
         catch (Exception ex)
         {
-            return new DTOs.ConfigOperationResponse(false, $"Import failed: {ex.Message}");
+            return new DTOs.ConfigOperationResponse(false, $"Import failed ({ex.GetType().Name})");
         }
     }
 
@@ -242,7 +245,8 @@ public class GithubDownloaderService : IGithubDownloaderService
         }
         catch (Exception ex)
         {
-            _tracker.Finish(false, ex.Message);
+            Logger.LogE($"Web operation failed ({ex.GetType().Name})");
+            _tracker.Finish(false, $"Operation failed ({ex.GetType().Name})");
             throw;
         }
     }
@@ -299,7 +303,8 @@ public class GithubDownloaderService : IGithubDownloaderService
         }
         catch (Exception ex)
         {
-            _tracker.Finish(false, ex.Message);
+            Logger.LogE($"Web operation failed ({ex.GetType().Name})");
+            _tracker.Finish(false, $"Operation failed ({ex.GetType().Name})");
             throw;
         }
     }
@@ -378,7 +383,8 @@ public class GithubDownloaderService : IGithubDownloaderService
         }
         catch (Exception ex)
         {
-            _tracker.Finish(false, ex.Message);
+            Logger.LogE($"Web operation failed ({ex.GetType().Name})");
+            _tracker.Finish(false, $"Operation failed ({ex.GetType().Name})");
             throw;
         }
         finally
@@ -463,19 +469,24 @@ public class GithubDownloaderService : IGithubDownloaderService
 
     public Task StorePatAsync(string pat)
     {
+        Logger.LogI("Saving personal access token");
         SecretsManager.StoreSecret("pat", pat);
+        Logger.LogI("Personal access token saved");
         return Task.CompletedTask;
     }
 
     public Task ClearPatAsync()
     {
+        Logger.LogI("Removing personal access token");
         SecretsManager.ClearSecret("pat");
+        Logger.LogI("Personal access token removed");
         return Task.CompletedTask;
     }
 
     public async Task<DTOs.ClearDataResponse> ClearAllDataAsync()
     {
         await InitializeAsync();
+        Logger.LogI("Clearing application data");
         try
         {
             if (UpdateManager.Repos != null)
@@ -497,11 +508,13 @@ public class GithubDownloaderService : IGithubDownloaderService
                 }
             }
 
+            Logger.LogI("Application data cleared");
             return new DTOs.ClearDataResponse(true, "All data cleared successfully");
         }
         catch (Exception ex)
         {
-            return new DTOs.ClearDataResponse(false, $"Failed to clear data: {ex.Message}");
+            Logger.LogE($"Application data clear failed ({ex.GetType().Name})");
+            return new DTOs.ClearDataResponse(false, $"Failed to clear data ({ex.GetType().Name})");
         }
     }
 

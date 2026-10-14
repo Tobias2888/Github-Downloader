@@ -13,53 +13,73 @@ public static class FileManager
     public static readonly string ReposConfigFilePath = Path.Join(AppdataPath, "repos.json");
     public static readonly string CachePath = Path.Join(DirectoryHelper.GetCacheDirPath(), "github-downloader");
     public static readonly string AppImagesPath = Path.Join(DirectoryHelper.GetAppDataDirPath(), "github-downloader", "app-images");
-    
+
     public static void SaveRepos()
     {
-        Logger.LogI("Saving repos");
-        if (!File.Exists(ReposConfigFilePath))
+        Logger.LogD("Repository configuration save started");
+        try
         {
-            FileHelper.Create(ReposConfigFilePath);
+            if (!File.Exists(ReposConfigFilePath))
+            {
+                FileHelper.Create(ReposConfigFilePath);
+            }
+
+            string jsonString = JsonSerializer.Serialize(UpdateManager.Repos, new JsonSerializerOptions
+            {
+                WriteIndented = true
+            });
+
+            File.WriteAllText(ReposConfigFilePath, jsonString);
+            Logger.LogD("Repository configuration save completed");
         }
-        
-        string jsonString = JsonSerializer.Serialize(UpdateManager.Repos, new JsonSerializerOptions
+        catch (Exception exception)
         {
-            WriteIndented = true
-        });
-        
-        File.WriteAllText(ReposConfigFilePath, jsonString);
+            Logger.LogE($"Repository configuration save failed ({exception.GetType().Name})");
+            throw;
+        }
     }
 
     public static async Task LoadRepos()
     {
-        DirectoryHelper.CreateDir(AppdataPath);
-        DirectoryHelper.CreateDir(CachePath);
-        DirectoryHelper.CreateDir(AppImagesPath);
-        
-        ClearCache();
-        
-        if (File.Exists(ReposConfigFilePath))
+        Logger.LogI("Repository configuration load started");
+        try
         {
-            string jsonString = await File.ReadAllTextAsync(ReposConfigFilePath);
-            UpdateManager.Repos = JsonSerializer.Deserialize<ObservableCollection<Repo>>(jsonString);
+            DirectoryHelper.CreateDir(AppdataPath);
+            DirectoryHelper.CreateDir(CachePath);
+            DirectoryHelper.CreateDir(AppImagesPath);
+
+            ClearCache();
+
+            if (File.Exists(ReposConfigFilePath))
+            {
+                string jsonString = await File.ReadAllTextAsync(ReposConfigFilePath);
+                UpdateManager.Repos = JsonSerializer.Deserialize<ObservableCollection<Repo>>(jsonString);
+            }
+
+            UpdateManager.Repos ??= [];
+            UpdateManager.WatchRepos();
+
+            if (UpdateManager.CurPlatform != Platform.Avalonia)
+            {
+                Logger.LogI("Repository configuration loaded");
+                return;
+            }
+
+            await UpdateManager.UpdateRepoDetails(UpdateManager.Repos);
+            SaveRepos();
+            Logger.LogI("Repository configuration loaded");
         }
-
-        UpdateManager.Repos ??= [];
-        UpdateManager.WatchRepos();
-
-        if (UpdateManager.CurPlatform != Platform.Avalonia)
+        catch (Exception exception)
         {
-            return;
+            Logger.LogE($"Repository configuration load failed ({exception.GetType().Name})");
+            throw;
         }
-        
-        await UpdateManager.UpdateRepoDetails(UpdateManager.Repos);
-        SaveRepos();
     }
 
     private static void ClearCache()
     {
-        Logger.LogI("Clearing cache");
-        
+        Logger.LogD("Clearing cache");
+
         foreach (string file in Directory.GetFiles(CachePath))
         {
             File.Delete(file);
@@ -69,35 +89,56 @@ public static class FileManager
         {
             Directory.Delete(dir, true);
         }
+        Logger.LogD("Cache cleared");
     }
 
     public static void ExportRepoConfig(string destFile)
     {
-        if (!File.Exists(ReposConfigFilePath))
+        Logger.LogI("Configuration export started");
+        try
         {
-            Logger.LogI($"Source file {ReposConfigFilePath} not found");
-            return;
+            if (!File.Exists(ReposConfigFilePath))
+            {
+                Logger.LogW("Configuration export skipped: configuration does not exist");
+                return;
+            }
+
+            File.Copy(ReposConfigFilePath, destFile, true);
+            Logger.LogI("Configuration export completed");
         }
-        
-        File.Copy(ReposConfigFilePath, destFile, true);
+        catch (Exception exception)
+        {
+            Logger.LogE($"Configuration export failed ({exception.GetType().Name})");
+            throw;
+        }
     }
 
-    public static void ImportRepoConfig(string sourceFile)
+    public static async Task ImportRepoConfig(string sourceFile)
     {
-        if (!File.Exists(sourceFile))
+        Logger.LogI("Configuration import started");
+        try
         {
-            Logger.LogI($"File {sourceFile} not found");
-            return;
-        }
-        
-        File.Copy(sourceFile, Path.Join(AppdataPath, "repos.json"), true);
-        LoadRepos();
+            if (!File.Exists(sourceFile))
+            {
+                Logger.LogW("Configuration import skipped: source does not exist");
+                return;
+            }
 
-        foreach (Repo repo in UpdateManager.Repos)
+            File.Copy(sourceFile, Path.Join(AppdataPath, "repos.json"), true);
+            await LoadRepos();
+
+            foreach (Repo repo in UpdateManager.Repos)
+            {
+                repo.CurrentInstallTag = "";
+                repo.InstalledDebianPackage = "";
+                repo.InstalledAppImageId = "";
+            }
+            Logger.LogI("Configuration import completed");
+        }
+        catch (Exception exception)
         {
-            repo.CurrentInstallTag = "";
-            repo.InstalledDebianPackage = "";
-            repo.InstalledAppImageId = "";
+            Logger.LogE($"Configuration import failed ({exception.GetType().Name})");
+            throw;
         }
     }
 }

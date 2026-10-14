@@ -4,6 +4,7 @@ using Avalonia.Interactivity;
 using Github_Downloader_lib;
 using Github_Downloader.Enums;
 using Github_Downloader.ViewModels;
+using LoggerLib;
 
 namespace Github_Downloader;
 
@@ -28,6 +29,7 @@ public partial class MainWindow : Window
     {
         if (e.CloseReason == WindowCloseReason.WindowClosing)
         {
+            Logger.LogI("Main window closed to tray");
             Hide();
             _mainViewModel.SwitchPage(ViewNames.Home);
             e.Cancel = true;

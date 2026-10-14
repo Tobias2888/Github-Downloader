@@ -89,8 +89,8 @@
             </Grid>
             <Separator Grid.Row="1" Margin="0, 5, 0, 25"></Separator>
 
-            <ScrollViewer Grid.Row="2">
-                <ItemsControl ItemsSource="{Binding Repos}" ClipToBounds="True" Padding="0 4 0 0">
+            <ScrollViewer Name="RepoScroll" Grid.Row="2" HorizontalScrollBarVisibility="Disabled">
+                <ItemsControl Name="RepoList" ItemsSource="{Binding Repos}" ClipToBounds="True" Padding="0 4 0 0">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <views:RepoEntryControl/>
@@ -122,5 +122,6 @@
                 TextWrapping="Wrap"/>
         </Border>
     </Popup>
+    <Canvas Name="RepoDragOverlay" Grid.RowSpan="2" ZIndex="1000" IsHitTestVisible="False"/>
   </Grid>
 </UserControl>

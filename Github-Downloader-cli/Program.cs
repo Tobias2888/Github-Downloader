@@ -1,4 +1,4 @@
-﻿using FileLib;
+using FileLib;
 using Github_Downloader_cli.Args;
 using Github_Downloader_lib;
 using Github_Downloader_lib.Models;
@@ -14,7 +14,10 @@ public static class Program
     {
         Logger.LogDir = Path.Join(DirectoryHelper.GetAppDataDirPath(), "github-downloader", "logs");
         Logger.LogToTerminal = false;
-        Logger.CreateFile();
+        Logger.LogFirstChance = false;
+        Logger.LogDebug = false;
+        Logger.LogLevel = LogLevel.Info;
+        await Logger.CreateFile();
         Logger.LogI("Mode: cli");
         
         if (!SecretsManager.Initialized)
@@ -46,12 +49,14 @@ public static class Program
 
             case "list":
             {
+                Logger.LogI("CLI action: list");
                 ArgList.Execute(args);
                 break;
             }
 
             case "add":
             {
+                Logger.LogI("CLI action: add");
                 Repo? repo;
                 switch (args.Length)
                 {
@@ -88,6 +93,7 @@ public static class Program
 
             case "check":
             {
+                Logger.LogI("CLI action: check");
                 int repoId = -1;
                 if (args.Length > 1)
                 {
@@ -124,6 +130,7 @@ public static class Program
 
             case "update":
             {
+                Logger.LogI("CLI action: update");
                 if (args.Length <= 1)
                 {
                     return;
@@ -152,6 +159,7 @@ public static class Program
             
             case "reinstall":
             {
+                Logger.LogI("CLI action: reinstall");
                 if (args.Length <= 1)
                 {
                     return;
@@ -182,12 +190,14 @@ public static class Program
                 
             case "repo":
             {
+                Logger.LogI("CLI action: repo");
                 ArgRepo.Execute(args);
                 break;
             }
 
             case "remove":
             {
+                Logger.LogI("CLI action: remove");
                 if (args.Length <= 1)
                 {
                     return;
@@ -221,10 +231,12 @@ public static class Program
                             return;
                         }
                         
+                        Logger.LogI("Saving personal access token");
                         SecretsManager.StoreSecret("pat", args[2]);
                         break;
                     
                     case "remove":
+                        Logger.LogI("Removing personal access token");
                         SecretsManager.ClearSecret("pat");
                         break;
                 }

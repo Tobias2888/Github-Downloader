@@ -1,11 +1,13 @@
 using System;
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
 using Github_Downloader.Models;
+using LoggerLib;
 
 namespace Github_Downloader.ViewModels;
 
@@ -78,7 +80,13 @@ public class DownloadStatusViewModel : ViewModelBase
 
     public async Task<bool> RunAsync(Func<Task<bool>> operation, string title = "Download Status")
     {
-        if (IsUpdating) return false;
+        if (IsUpdating)
+        {
+            Logger.LogW("Operation skipped because another operation is running");
+            return false;
+        }
+
+        Logger.LogD("Operation started");
 
         _operationTitle = title;
         IsUpdating = true;
@@ -89,7 +97,8 @@ public class DownloadStatusViewModel : ViewModelBase
         }
         catch (Exception exception)
         {
-            Log(exception.Message, "error");
+            Logger.LogE($"Operation failed ({exception.GetType().Name})");
+            Log($"Operation failed ({exception.GetType().Name}). Check permissions, connectivity and installation requirements.", "error");
         }
         finally
         {
@@ -98,20 +107,28 @@ public class DownloadStatusViewModel : ViewModelBase
 
         if (succeeded)
         {
+            Logger.LogD("Operation completed");
             Log("Completed", "success");
             Percent = 100;
             CloseDialog();
         }
         else
         {
-            Log("Failed. Check the log for details.", "error");
+            void ReportFailure()
+            {
+                if (Logs.Any(entry => entry.Level == "error")) return;
+                Logger.LogE("Operation did not complete");
+                Log("The operation could not complete. Check connectivity and installation requirements.", "error");
+            }
+            if (Dispatcher.UIThread.CheckAccess()) ReportFailure();
+            else Dispatcher.UIThread.Post(ReportFailure);
         }
         return succeeded;
     }
 
     public void LogStatus(string message)
     {
-        Log(message);
+        Log(message, message.StartsWith("Failed to ", StringComparison.Ordinal) ? "error" : "info");
     }
 
     public void LogProgress(string message)
@@ -186,8 +203,13 @@ public class DownloadStatusViewModel : ViewModelBase
             DataContext = this,
             Title = _operationTitle
         };
-        _downloadStatus.Closed += (_, _) => _downloadStatus = null;
+        _downloadStatus.Closed += (_, _) =>
+        {
+            Logger.LogD("Operation status window closed");
+            _downloadStatus = null;
+        };
         _downloadStatus.Show(mainWindow);
+        Logger.LogD("Operation status window opened");
         return true;
     }
 

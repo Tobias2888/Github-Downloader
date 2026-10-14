@@ -5,7 +5,7 @@ using LoggerLib;
 using SecretsLib;
 using FileLib;
 
-var builder = WebApplication.CreateBuilder(args);
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 if (!SecretsManager.Initialized)
 {
@@ -15,7 +15,10 @@ if (!SecretsManager.Initialized)
 UpdateManager.CurPlatform = Platform.Terminal;
 Logger.LogDir = Path.Join(DirectoryHelper.GetAppDataDirPath(), "github-downloader", "logs");
 Logger.LogToTerminal = false;
-Logger.CreateFile();
+Logger.LogFirstChance = false;
+Logger.LogDebug = false;
+Logger.LogLevel = LoggerLib.LogLevel.Info;
+await Logger.CreateFile();
 Logger.LogI("Mode: web");
 
 builder.Services.AddEndpointsApiExplorer();
@@ -33,8 +36,8 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
     
-    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
-    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    string xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    string xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
     if (File.Exists(xmlPath))
     {
         c.IncludeXmlComments(xmlPath);
@@ -63,7 +66,7 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddHealthChecks();
 
-var app = builder.Build();
+WebApplication app = builder.Build();
 
 app.UseSwagger();
 app.UseSwaggerUI(c =>
@@ -90,9 +93,9 @@ app.UseStaticFiles(new StaticFileOptions
 app.MapControllers();
 app.MapHealthChecks("/health");
 
-using (var scope = app.Services.CreateScope())
+using (IServiceScope scope = app.Services.CreateScope())
 {
-    var service = scope.ServiceProvider.GetRequiredService<IGithubDownloaderService>();
+    IGithubDownloaderService service = scope.ServiceProvider.GetRequiredService<IGithubDownloaderService>();
     await service.InitializeAsync();
 }
 

@@ -1,3 +1,4 @@
+using LoggerLib;
 using Microsoft.AspNetCore.Mvc;
 using Github_Downloader_Web.DTOs;
 using Github_Downloader_Web.Services;
@@ -10,19 +11,17 @@ namespace Github_Downloader_Web.Controllers;
 public class SettingsController : ControllerBase
 {
     private readonly IGithubDownloaderService _service;
-    private readonly ILogger<SettingsController> _logger;
 
-    public SettingsController(IGithubDownloaderService service, ILogger<SettingsController> logger)
+    public SettingsController(IGithubDownloaderService service)
     {
         _service = service;
-        _logger = logger;
     }
 
     [HttpGet("info")]
     [ProducesResponseType(typeof(SettingsInfoResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<SettingsInfoResponse>> GetInfo()
     {
-        var info = await _service.GetSettingsInfoAsync();
+        SettingsInfoResponse info = await _service.GetSettingsInfoAsync();
         return Ok(info);
     }
 
@@ -30,7 +29,7 @@ public class SettingsController : ControllerBase
     [ProducesResponseType(typeof(PatStatusResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<PatStatusResponse>> GetPatStatus()
     {
-        var status = await _service.GetPatStatusAsync();
+        PatStatusResponse status = await _service.GetPatStatusAsync();
         return Ok(status);
     }
 
@@ -49,7 +48,7 @@ public class SettingsController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to store personal access token");
+            Logger.LogE($"Failed to store personal access token ({ex.GetType().Name})");
             return BadRequest(new ErrorResponse("Failed to store personal access token", ex.Message));
         }
     }
@@ -66,7 +65,7 @@ public class SettingsController : ControllerBase
     [ProducesResponseType(typeof(ClearDataResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<ClearDataResponse>> ClearData()
     {
-        var result = await _service.ClearAllDataAsync();
+        ClearDataResponse result = await _service.ClearAllDataAsync();
         return Ok(result);
     }
 }

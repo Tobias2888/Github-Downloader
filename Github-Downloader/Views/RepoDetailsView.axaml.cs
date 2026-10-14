@@ -178,6 +178,7 @@ public partial class RepoDetailsView : UserControl
     {
         if (string.IsNullOrEmpty(url)) return;
 
+        Logger.LogI("Opening repository link in browser");
         Process.Start(new ProcessStartInfo
         {
             FileName = url,
@@ -192,6 +193,7 @@ public partial class RepoDetailsView : UserControl
     
     private async void BtnFilePicker_OnClick(object? sender, RoutedEventArgs e)
     {
+        Logger.LogI("Repository download folder selection requested");
         TopLevel? topLevel = TopLevel.GetTopLevel(this);
         if (topLevel is null)
         {
@@ -205,7 +207,11 @@ public partial class RepoDetailsView : UserControl
                 AllowMultiple = false
             });
 
-        if (folders.Count <= 0) return;
+        if (folders.Count <= 0)
+        {
+            Logger.LogI("Repository download folder selection cancelled");
+            return;
+        }
         
         if (_repoDetailsViewModel.Repo == null)
         {
@@ -251,6 +257,7 @@ public partial class RepoDetailsView : UserControl
 
     private void TglRenameFile_OnClick(object? sender, RoutedEventArgs e)
     {
+        Logger.LogI("Repository file-renaming option changed");
         bool rename = TglRenameFile.IsChecked == true;
         TbxRenameFile.IsVisible = rename;
         if (!rename)
@@ -262,8 +269,6 @@ public partial class RepoDetailsView : UserControl
 
     private void TbxRenameFile_OnTextChanged(object? sender, TextChangedEventArgs e)
     {
-        Logger.LogI("Changed 'new file name'");
-
         _repoDetailsViewModel.Repo.NewFileName = TbxRenameFile.Text;
         FileManager.SaveRepos();
     }

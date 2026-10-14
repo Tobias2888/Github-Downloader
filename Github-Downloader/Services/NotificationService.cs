@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Github_Downloader.Models;
 using Github_Downloader_lib.Models;
+using LoggerLib;
 
 namespace Github_Downloader.Services;
 
@@ -39,7 +40,13 @@ public class NotificationService
                 || !available.Except(_announced).Any()) return;
 
             string message = available.Count == 1 ? "1 update is available" : $"{available.Count} updates are available";
-            if (await _send(message)) _announced.UnionWith(available);
+            Logger.LogD($"Requesting update-available notification (count {available.Count})");
+            if (await _send(message))
+            {
+                _announced.UnionWith(available);
+                Logger.LogI("Update-available notification accepted by sender");
+            }
+            else Logger.LogW("Update-available notification was not delivered");
         }
         finally
         {
@@ -55,6 +62,8 @@ public class NotificationService
         string message = count == 1
             ? $"Update completed for {repositoryName ?? "1 repository"}"
             : $"Updates completed for {count} repositories";
-        await _send(message);
+        Logger.LogD($"Requesting update-completed notification (count {count})");
+        if (await _send(message)) Logger.LogI("Update-completed notification accepted by sender");
+        else Logger.LogW("Update-completed notification was not delivered");
     }
 }

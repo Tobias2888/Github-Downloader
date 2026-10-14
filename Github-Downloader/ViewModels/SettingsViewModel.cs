@@ -28,6 +28,8 @@ public class SettingsViewModel : ViewModelBase
         get => _settings.WindowState;
         set
         {
+            if (_settings.WindowState == value) return;
+            Logger.LogI("Setting changed: WindowState");
             _settings.WindowState = value;
             OnPropertyChanged();
             _settings.Save();
@@ -37,25 +39,53 @@ public class SettingsViewModel : ViewModelBase
     public bool NotificationsEnabled
     {
         get => _settings.Notifications.Enabled;
-        set { _settings.Notifications.Enabled = value; OnPropertyChanged(); _settings.Save(); }
+        set
+        {
+            if (_settings.Notifications.Enabled == value) return;
+            Logger.LogI("Setting changed: NotificationsEnabled");
+            _settings.Notifications.Enabled = value;
+            OnPropertyChanged();
+            _settings.Save();
+        }
     }
 
     public bool NotifyUpdatesAvailable
     {
         get => _settings.Notifications.UpdatesAvailable;
-        set { _settings.Notifications.UpdatesAvailable = value; OnPropertyChanged(); _settings.Save(); }
+        set
+        {
+            if (_settings.Notifications.UpdatesAvailable == value) return;
+            Logger.LogI("Setting changed: NotifyUpdatesAvailable");
+            _settings.Notifications.UpdatesAvailable = value;
+            OnPropertyChanged();
+            _settings.Save();
+        }
     }
 
     public bool NotifyDownloadsCompleted
     {
         get => _settings.Notifications.DownloadsCompleted;
-        set { _settings.Notifications.DownloadsCompleted = value; OnPropertyChanged(); _settings.Save(); }
+        set
+        {
+            if (_settings.Notifications.DownloadsCompleted == value) return;
+            Logger.LogI("Setting changed: NotifyDownloadsCompleted");
+            _settings.Notifications.DownloadsCompleted = value;
+            OnPropertyChanged();
+            _settings.Save();
+        }
     }
 
     public bool LimitNotificationTimes
     {
         get => _settings.Notifications.LimitToTimeWindow;
-        set { _settings.Notifications.LimitToTimeWindow = value; OnPropertyChanged(); _settings.Save(); }
+        set
+        {
+            if (_settings.Notifications.LimitToTimeWindow == value) return;
+            Logger.LogI("Setting changed: LimitNotificationTimes");
+            _settings.Notifications.LimitToTimeWindow = value;
+            OnPropertyChanged();
+            _settings.Save();
+        }
     }
 
     public TimeSpan? NotificationStartTime
@@ -64,6 +94,8 @@ public class SettingsViewModel : ViewModelBase
         set
         {
             if (!value.HasValue) return;
+            if (_settings.Notifications.StartTime == value.Value) return;
+            Logger.LogI("Setting changed: NotificationStartTime");
             _settings.Notifications.StartTime = value.Value;
             OnPropertyChanged();
             _settings.Save();
@@ -76,6 +108,8 @@ public class SettingsViewModel : ViewModelBase
         set
         {
             if (!value.HasValue) return;
+            if (_settings.Notifications.EndTime == value.Value) return;
+            Logger.LogI("Setting changed: NotificationEndTime");
             _settings.Notifications.EndTime = value.Value;
             OnPropertyChanged();
             _settings.Save();
@@ -87,6 +121,8 @@ public class SettingsViewModel : ViewModelBase
         get => _settings.AutoCheckForUpdates;
         set
         {
+            if (_settings.AutoCheckForUpdates == value) return;
+            Logger.LogI("Setting changed: AutoCheckForUpdates");
             _settings.AutoCheckForUpdates = value;
             OnPropertyChanged();
             _settings.Save();
@@ -103,6 +139,8 @@ public class SettingsViewModel : ViewModelBase
         get => _settings.CheckForUpdatesInterval;
         set
         {
+            if (_settings.CheckForUpdatesInterval == value) return;
+            Logger.LogI("Setting changed: CheckForUpdatesInterval");
             _settings.CheckForUpdatesInterval = value;
             OnPropertyChanged();
             _settings.Save();
@@ -115,6 +153,8 @@ public class SettingsViewModel : ViewModelBase
         get => _settings.GlobalDownloadPath;
         set
         {
+            if (_settings.GlobalDownloadPath == value) return;
+            Logger.LogI("Setting changed: GlobalDownloadPath");
             _settings.GlobalDownloadPath = value;
             OnPropertyChanged();
             _settings.Save();
@@ -128,6 +168,7 @@ public class SettingsViewModel : ViewModelBase
 
     public async Task BrowseDownloadPath(Visual visual)
     {
+        Logger.LogI("Download folder selection requested");
         TopLevel? topLevel = TopLevel.GetTopLevel(visual);
         if (topLevel is null) return;
 
@@ -138,6 +179,7 @@ public class SettingsViewModel : ViewModelBase
                 AllowMultiple = false
             });
 
+        if (folders.Count == 0) Logger.LogI("Download folder selection cancelled");
         if (folders.Count > 0)
         {
             GlobalDownloadPath = folders[0].Path.LocalPath;
@@ -146,7 +188,7 @@ public class SettingsViewModel : ViewModelBase
 
     public async Task ExportConfig(Visual visual)
     {
-        Logger.LogI("Exporting repo.json");
+        Logger.LogI("Configuration export requested");
         
         TopLevel? topLevel = TopLevel.GetTopLevel(visual);
         if (topLevel is null) return;
@@ -165,6 +207,7 @@ public class SettingsViewModel : ViewModelBase
                 }
             });
 
+        if (file is null) Logger.LogI("Configuration export cancelled");
         if (file is not null)
         {
             FileManager.ExportRepoConfig(file.Path.LocalPath);
@@ -173,7 +216,7 @@ public class SettingsViewModel : ViewModelBase
 
     public async Task ImportConfig(Visual visual)
     {
-        Logger.LogI("Importing repo.json");
+        Logger.LogI("Configuration import requested");
 
         TopLevel? topLevel = TopLevel.GetTopLevel(visual);
         if (topLevel is null) return;
@@ -185,9 +228,10 @@ public class SettingsViewModel : ViewModelBase
                 AllowMultiple = false,
             });
 
+        if (files.Count == 0) Logger.LogI("Configuration import cancelled");
         if (files.Count > 0)
         {
-            FileManager.ImportRepoConfig(files[0].Path.LocalPath);
+            await FileManager.ImportRepoConfig(files[0].Path.LocalPath);
         }
     }
 }

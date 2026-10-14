@@ -93,6 +93,8 @@ On macOS, extract the archive matching your architecture and launch the `Github-
 
 The desktop app runs in the system tray. Click its tray icon to show or hide the window. Closing the window keeps the app running; use **Quit** in the tray menu to exit completely.
 
+Drag the grip on the left of a repository row to change its position. The row follows your cursor while neighboring rows slide into place. Hold near the top or bottom of the list to scroll; press **Escape** to cancel. Releasing the handle saves the new order for the next session.
+
 In **Settings → Notifications**, enable or disable desktop notifications and choose whether to receive alerts for available updates, completed downloads, or both. Optionally limit alerts to a daily **From / Until** window in your computer's local time. Overnight windows work; equal times allow all day. Available-update alerts exclude repositories disabled for bulk updates and announce each release once per app session. Update All sends one completion alert after the whole operation succeeds; individual updates and reinstalls send their own. Empty batches and failed operations do not send completion alerts.
 
 Outside the allowed hours, completion alerts are skipped. Available updates are announced when the window opens if they are still pending. This requires the desktop app to remain running in the tray; the operating system's notification permissions and Do Not Disturb settings also apply.
@@ -120,7 +122,7 @@ Choose an asset compatible with the machine running GitHub Downloader. Updating 
 
 ## Command-line usage
 
-The CLI executable is named `ghd`. Repository IDs and asset IDs are **zero-based list positions**. Run `list repos` or `list assets` to find them; repository IDs can change after removing a repository.
+The CLI executable is named `ghd`. Repository IDs and asset IDs are **zero-based list positions**. Run `list repos` or `list assets` to find them; repository IDs can change after removing or reordering repositories.
 
 ```bash
 # Add a repository by URL, or by owner and name
@@ -184,6 +186,8 @@ Use **Settings** in the desktop app or **Configuration** in the web UI to import
 - **GitHub requests fail:** check connectivity, the repository URL, token access, and the application logs. A token can help with unauthenticated rate limits.
 - **Debian installation fails:** confirm that the host has `apt-get` and working administrator authorization. The desktop app uses `pkexec`; the CLI and web service use `sudo`.
 - **The web service fails to start:** inspect `systemctl --user status github-downloader-web.service` and `journalctl --user -u github-downloader-web.service`, including keyring/session errors.
+
+Application action logs use LoggerLib for operation starts, outcomes, cancellations and failures. They omit local paths, repository identifiers, credentials, notification contents and raw installer output. Handled failures record exception types or HTTP/process exit codes, and debug and first-chance exception logging are disabled by default. Routine saves and property refreshes use debug level, while normal logs summarize each action. LoggerLib retains its own file header and crash handling.
 
 ## Contributing
 

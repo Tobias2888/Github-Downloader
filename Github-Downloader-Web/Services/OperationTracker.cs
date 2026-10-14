@@ -1,4 +1,5 @@
 using Github_Downloader_Web.DTOs;
+using LoggerLib;
 
 namespace Github_Downloader_Web.Services;
 
@@ -24,6 +25,7 @@ public sealed class OperationTracker
 
     public void Start(string title, int totalItems)
     {
+        Logger.LogI($"Web operation started (items {totalItems})");
         lock (_lock)
         {
             _logs.Clear();
@@ -72,6 +74,8 @@ public sealed class OperationTracker
 
     public void Finish(bool success, string? error = null)
     {
+        if (success) Logger.LogI("Web operation completed");
+        else Logger.LogE("Web operation failed");
         lock (_lock)
         {
             _isRunning = false;
@@ -124,7 +128,7 @@ public sealed class OperationTracker
 
             if (percent.HasValue) percent = Math.Clamp(percent.Value, 0, 100);
 
-            var indeterminate = _isRunning && _itemPercent == null && _completedItems == 0 && !_installing;
+            bool indeterminate = _isRunning && _itemPercent == null && _completedItems == 0 && !_installing;
 
             return new OperationProgressResponse(
                 _isRunning,

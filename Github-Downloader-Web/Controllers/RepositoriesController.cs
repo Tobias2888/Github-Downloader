@@ -1,3 +1,4 @@
+using LoggerLib;
 using Microsoft.AspNetCore.Mvc;
 using Github_Downloader_Web.DTOs;
 using Github_Downloader_Web.Services;
@@ -10,19 +11,17 @@ namespace Github_Downloader_Web.Controllers;
 public class RepositoriesController : ControllerBase
 {
     private readonly IGithubDownloaderService _service;
-    private readonly ILogger<RepositoriesController> _logger;
 
-    public RepositoriesController(IGithubDownloaderService service, ILogger<RepositoriesController> logger)
+    public RepositoriesController(IGithubDownloaderService service)
     {
         _service = service;
-        _logger = logger;
     }
 
     [HttpGet]
     [ProducesResponseType(typeof(ReposListResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<ReposListResponse>> GetAll()
     {
-        var result = await _service.GetAllReposAsync();
+        ReposListResponse result = await _service.GetAllReposAsync();
         return Ok(result);
     }
 
@@ -31,8 +30,8 @@ public class RepositoriesController : ControllerBase
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<RepoResponse>> Get(string repoUrl)
     {
-        var decodedUrl = Uri.UnescapeDataString(repoUrl);
-        var repo = await _service.GetRepoAsync(decodedUrl);
+        string decodedUrl = Uri.UnescapeDataString(repoUrl);
+        RepoResponse? repo = await _service.GetRepoAsync(decodedUrl);
         if (repo == null)
             return NotFound(new ErrorResponse("Repository not found", $"No repository found with URL: {decodedUrl}"));
         
@@ -46,12 +45,12 @@ public class RepositoriesController : ControllerBase
     {
         try
         {
-            var repo = await _service.AddRepoAsync(request.RepoUrl);
+            RepoResponse repo = await _service.AddRepoAsync(request.RepoUrl);
             return CreatedAtAction(nameof(Get), new { repoUrl = Uri.EscapeDataString(repo.Url) }, repo);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to add repository");
+            Logger.LogE($"Failed to add repository ({ex.GetType().Name})");
             return BadRequest(new ErrorResponse("Failed to add repository", ex.Message));
         }
     }
@@ -63,12 +62,12 @@ public class RepositoriesController : ControllerBase
     {
         try
         {
-            var repo = await _service.AddRepoAsync(request.PublisherName, request.RepoName);
+            RepoResponse repo = await _service.AddRepoAsync(request.PublisherName, request.RepoName);
             return CreatedAtAction(nameof(Get), new { repoUrl = Uri.EscapeDataString(repo.Url) }, repo);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to add repository by name");
+            Logger.LogE($"Failed to add repository by name ({ex.GetType().Name})");
             return BadRequest(new ErrorResponse("Failed to add repository", ex.Message));
         }
     }
@@ -79,10 +78,10 @@ public class RepositoriesController : ControllerBase
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<RepoResponse>> Update(string repoUrl, [FromBody] UpdateRepoRequest request)
     {
-        var decodedUrl = Uri.UnescapeDataString(repoUrl);
+        string decodedUrl = Uri.UnescapeDataString(repoUrl);
         try
         {
-            var repo = await _service.UpdateRepoAsync(decodedUrl, request);
+            RepoResponse? repo = await _service.UpdateRepoAsync(decodedUrl, request);
             if (repo == null)
                 return NotFound(new ErrorResponse("Repository not found", $"No repository found with URL: {decodedUrl}"));
             
@@ -90,7 +89,7 @@ public class RepositoriesController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to update repository");
+            Logger.LogE($"Failed to update repository ({ex.GetType().Name})");
             return BadRequest(new ErrorResponse("Failed to update repository", ex.Message));
         }
     }
@@ -100,8 +99,8 @@ public class RepositoriesController : ControllerBase
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(string repoUrl)
     {
-        var decodedUrl = Uri.UnescapeDataString(repoUrl);
-        var deleted = await _service.DeleteRepoAsync(decodedUrl);
+        string decodedUrl = Uri.UnescapeDataString(repoUrl);
+        bool deleted = await _service.DeleteRepoAsync(decodedUrl);
         if (!deleted)
             return NotFound(new ErrorResponse("Repository not found", $"No repository found with URL: {decodedUrl}"));
         

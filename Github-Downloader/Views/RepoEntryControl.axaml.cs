@@ -1,11 +1,14 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Input;
 using Avalonia.Markup.Xaml;
+using Avalonia.VisualTree;
 using Github_Downloader.Enums;
 using Github_Downloader.ViewModels;
 using Github_Downloader_lib;
 using Github_Downloader_lib.Models;
+using LoggerLib;
 
 namespace Github_Downloader.Views;
 
@@ -26,6 +29,12 @@ public partial class RepoEntryControl : UserControl
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);
+    }
+
+    private void DragHandle_OnPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+            this.FindAncestorOfType<HomeView>()?.BeginRepoDrag(this, e);
     }
 
     private async void BtnUpdate_OnClick(object? sender, RoutedEventArgs e)
@@ -50,7 +59,9 @@ public partial class RepoEntryControl : UserControl
     {
         if (DataContext is not Repo repo) return;
         
+        Logger.LogI("Removing repository from tracking");
         UpdateManager.Repos.Remove(repo);
+        Logger.LogI("Repository removed from tracking");
         FileManager.SaveRepos();
     }
 

@@ -1,3 +1,4 @@
+using LoggerLib;
 using Microsoft.AspNetCore.Mvc;
 using Github_Downloader_Web.DTOs;
 using Github_Downloader_Web.Services;
@@ -10,12 +11,10 @@ namespace Github_Downloader_Web.Controllers;
 public class ConfigController : ControllerBase
 {
     private readonly IGithubDownloaderService _service;
-    private readonly ILogger<ConfigController> _logger;
 
-    public ConfigController(IGithubDownloaderService service, ILogger<ConfigController> logger)
+    public ConfigController(IGithubDownloaderService service)
     {
         _service = service;
-        _logger = logger;
     }
 
     [HttpPost("export")]
@@ -25,12 +24,12 @@ public class ConfigController : ControllerBase
     {
         try
         {
-            var result = await _service.ExportConfigAsync(request.DestinationPath);
+            ConfigOperationResponse result = await _service.ExportConfigAsync(request.DestinationPath);
             return Ok(result);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to export configuration");
+            Logger.LogE($"Failed to export configuration ({ex.GetType().Name})");
             return BadRequest(new ErrorResponse("Failed to export configuration", ex.Message));
         }
     }
@@ -42,12 +41,12 @@ public class ConfigController : ControllerBase
     {
         try
         {
-            var result = await _service.ImportConfigAsync(request.SourcePath);
+            ConfigOperationResponse result = await _service.ImportConfigAsync(request.SourcePath);
             return Ok(result);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to import configuration");
+            Logger.LogE($"Failed to import configuration ({ex.GetType().Name})");
             return BadRequest(new ErrorResponse("Failed to import configuration", ex.Message));
         }
     }
