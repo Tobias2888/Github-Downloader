@@ -110,6 +110,10 @@ On Linux, use the notification's **Open** button to show the desktop window. Cli
 
 For recognized installer assets, **Save file anyway** keeps an additional copy in your chosen download directory. It does not disable installation.
 
+On Linux, use **Uninstall** in repository details to remove an installed `.deb` or AppImage. Confirm the action; Debian removal requests administrator authorization and preserves package configuration. AppImage removal deletes its managed executable, icon, and application-menu entry. Saved download copies and application settings are kept. The repository remains tracked and is excluded from **Update All** until you select it again. Use **Update** or **Reinstall** to install it again.
+
+New Debian installations record the package name automatically. For older installations, enter the installed package name shown by your package manager when prompted. Changing the selected release asset does not change the recorded uninstall target. The trash button only removes a repository from the list; it keeps its installed application.
+
 Enable **Auto-extract** in repository details to extract archives instead of keeping the archive file. Supported formats include ZIP, TAR, TAR.GZ / TGZ, TAR.BZ2, TAR.XZ, 7z, and RAR. The extracted `owner-repository` folder is saved inside **Download Location**, with no separate extraction directory to configure. Matching files are overwritten on updates; unrelated files are preserved. Password-protected archives and archive links are not supported. Other assets keep their normal download or installation behavior.
 
 Choose an asset compatible with the machine running GitHub Downloader. Updating through the web interface downloads and installs on the **server**, not on the computer running your browser.

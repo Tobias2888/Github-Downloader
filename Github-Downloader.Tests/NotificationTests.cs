@@ -194,8 +194,8 @@ public class NotificationTests
         Assert.True(start.RedirectStandardOutput);
         if (OperatingSystem.IsLinux())
         {
-            Assert.Contains("--action=open=Open", start.ArgumentList);
-            Assert.Contains("--action=default=Open", start.ArgumentList);
+            Assert.Equal("--action=open=Open",
+                Assert.Single(start.ArgumentList, argument => argument.StartsWith("--action=")));
         }
         if (OperatingSystem.IsWindows()) Assert.Equal(message, start.Environment["GHD_NOTIFICATION_BODY"]);
         else Assert.Equal(message, start.ArgumentList.Last());

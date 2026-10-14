@@ -44,6 +44,7 @@
             
             <Button Grid.Column="4" 
                     Name="BtnRemove"
+                    ToolTip.Tip="Stop tracking this repository (keeps the installed application)"
                     Background="Transparent" 
                     BorderThickness="0" 
                     Padding="8"

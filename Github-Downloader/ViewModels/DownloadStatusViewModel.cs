@@ -14,6 +14,7 @@ public class DownloadStatusViewModel : ViewModelBase
     private const int MaxLogs = 1000;
 
     private DownloadStatus? _downloadStatus;
+    private string _operationTitle = "Download Status";
 
     private string _statusText = "Checking for updates...";
     public string StatusText
@@ -75,10 +76,11 @@ public class DownloadStatusViewModel : ViewModelBase
         }
     }
 
-    public async Task<bool> RunAsync(Func<Task<bool>> operation)
+    public async Task<bool> RunAsync(Func<Task<bool>> operation, string title = "Download Status")
     {
         if (IsUpdating) return false;
 
+        _operationTitle = title;
         IsUpdating = true;
         bool succeeded = false;
         try
@@ -181,7 +183,8 @@ public class DownloadStatusViewModel : ViewModelBase
 
         _downloadStatus = new()
         {
-            DataContext = this
+            DataContext = this,
+            Title = _operationTitle
         };
         _downloadStatus.Closed += (_, _) => _downloadStatus = null;
         _downloadStatus.Show(mainWindow);

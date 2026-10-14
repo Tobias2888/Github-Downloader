@@ -89,6 +89,20 @@ public partial class App : Application
             await Notifications.NotifyDownloadsCompletedAsync(1, repo.Name);
         return succeeded;
     }
+
+    public async Task UninstallRepoAsync(Repo repo)
+    {
+        if (DownloadStatusViewModel.IsUpdating || !repo.CanUninstall || MainWindow is null) return;
+        Views.UninstallRepoDialog dialog = new(repo);
+        string? package = await dialog.ShowDialog<string?>(MainWindow);
+        if (package is null) return;
+
+        InstallationManager installations = new();
+        await DownloadStatusViewModel.RunAsync(() => installations.UninstallAsync(repo,
+            DownloadStatusViewModel.LogStatus, DownloadStatusViewModel.LogProgress, package), "Uninstall Status");
+        FileManager.SaveRepos();
+        UpdateIcon();
+    }
     
     private const string ResPath = "avares://Github-Downloader/resources/";
     private string _appdataPath;

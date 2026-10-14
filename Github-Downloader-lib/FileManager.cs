@@ -96,6 +96,8 @@ public static class FileManager
         foreach (Repo repo in UpdateManager.Repos)
         {
             repo.CurrentInstallTag = "";
+            repo.InstalledDebianPackage = "";
+            repo.InstalledAppImageId = "";
         }
     }
 }

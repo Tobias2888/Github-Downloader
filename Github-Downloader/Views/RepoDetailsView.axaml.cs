@@ -237,6 +237,12 @@ public partial class RepoDetailsView : UserControl
         FileManager.SaveRepos();
     }
 
+    private async void BtnUninstall_OnClick(object? sender, RoutedEventArgs e)
+    {
+        if (_repoDetailsViewModel.Repo is Repo repo)
+            await ((App)Application.Current!).UninstallRepoAsync(repo);
+    }
+
     private void TglSaveFileAnyway_OnClick(object? sender, RoutedEventArgs e)
     {
         _repoDetailsViewModel.Repo.SaveFileAnyway = TglSaveFileAnyway.IsChecked == true;

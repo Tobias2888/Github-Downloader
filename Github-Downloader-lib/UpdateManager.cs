@@ -64,6 +64,8 @@ public static class UpdateManager
             nameof(Repo.SaveFileAnyway),
             nameof(Repo.AutoExtract),
             nameof(Repo.NewFileName),
+            nameof(Repo.InstalledDebianPackage),
+            nameof(Repo.InstalledAppImageId),
             nameof(Repo.CurrentInstallTag)
         };
 
@@ -401,12 +403,12 @@ public static class UpdateManager
                 continue;
             }
 
-            if (asset.Value.TempAssetPath.EndsWith(".deb"))
+            if (OperatingSystem.IsLinux() && asset.Value.TempAssetPath.EndsWith(".deb", StringComparison.OrdinalIgnoreCase))
             {
                 debs.Add(asset.Value);
                 if (!asset.Value.Repo.SaveFileAnyway) continue;
             }
-            else if (asset.Value.TempAssetPath.EndsWith(".AppImage"))
+            else if (OperatingSystem.IsLinux() && asset.Value.TempAssetPath.EndsWith(".appimage", StringComparison.OrdinalIgnoreCase))
             {
                 appImages.Add(asset.Value);
                 if (!asset.Value.Repo.SaveFileAnyway) continue;
@@ -427,10 +429,33 @@ public static class UpdateManager
         statusText.Invoke("Installing Updates...");
         
         HandleAppImages(appImages);
-        foreach (Asset asset in appImages) asset.Repo.CurrentInstallTag = asset.Tag;
-        bool debsOk = await InstallDebsAsync(debs.Select(asset => asset.TempAssetPath).ToList(), progressText);
+        foreach (Asset asset in appImages)
+        {
+            asset.Repo.InstalledAppImageId = InstallationManager.GetAppImageId(asset.Repo);
+            asset.Repo.CurrentInstallTag = asset.Tag;
+        }
+        bool debsOk = true;
+        Dictionary<Repo, string> debianPackages = new();
+        InstallationManager installations = new();
+        try
+        {
+            foreach (Asset asset in debs)
+                debianPackages[asset.Repo] = await installations.ReadDebianPackageNameAsync(asset.TempAssetPath);
+        }
+        catch (Exception exception)
+        {
+            debsOk = false;
+            progressText($"Could not read the Debian package metadata: {exception.Message}");
+        }
+        if (debsOk) debsOk = await InstallDebsAsync(debs.Select(asset => asset.TempAssetPath).ToList(), progressText);
         if (debsOk)
-            foreach (Asset asset in debs) asset.Repo.CurrentInstallTag = asset.Tag;
+        {
+            foreach (Asset asset in debs)
+            {
+                asset.Repo.InstalledDebianPackage = debianPackages[asset.Repo];
+                asset.Repo.CurrentInstallTag = asset.Tag;
+            }
+        }
         bool exesOk = await InstallExeAsync(exes.Select(asset => asset.TempAssetPath).ToList(), progressText);
         if (exesOk)
             foreach (Asset asset in exes) asset.Repo.CurrentInstallTag = asset.Tag;
@@ -443,9 +468,10 @@ public static class UpdateManager
         {
             Logger.LogI($"Installing AppImage: {asset.Repo.Name}");
             
-            string assetPath = Path.Join(FileManager.AppImagesPath, asset.Repo.Name.Replace('/', '-'));
+            string appImageId = InstallationManager.GetAppImageId(asset.Repo);
+            string assetPath = Path.Join(FileManager.AppImagesPath, appImageId);
             DirectoryHelper.CreateDir(assetPath);
-            string destPath = Path.Join(assetPath, asset.Repo.Name.Replace('/', '-') + ".AppImage");
+            string destPath = Path.Join(assetPath, appImageId + ".AppImage");
             string iconPath = Path.Join(assetPath, "icon.png");
             File.Move(asset.TempAssetPath, destPath, overwrite: true);
 
@@ -507,7 +533,7 @@ public static class UpdateManager
                              """;
 
         string desktopDirectoryPath = Path.Join(DirectoryHelper.GetUserDirPath(), ".local", "share", "applications");
-        string desktopFilePath = Path.Join(desktopDirectoryPath, asset.Repo.Name.Replace('/', '-') + ".desktop");
+        string desktopFilePath = Path.Join(desktopDirectoryPath, InstallationManager.GetAppImageId(asset.Repo) + ".desktop");
         DirectoryHelper.CreateDir(desktopDirectoryPath);
         FileHelper.Create(desktopFilePath);
         File.WriteAllText(desktopFilePath, desktopFile);

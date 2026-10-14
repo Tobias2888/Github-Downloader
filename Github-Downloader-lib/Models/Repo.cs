@@ -15,7 +15,7 @@ public class Repo : INotifyPropertyChanged
         AssetNames.CollectionChanged += (_, _) =>
         {
             OnPropertyChanged(nameof(HasAssets));
-            OnPropertyChanged(nameof(SelectedAssetName));
+            OnSelectedAssetChanged();
         };
     }
 
@@ -65,7 +65,7 @@ public class Repo : INotifyPropertyChanged
             if (_downloadAssetIndex == value) return;
             _downloadAssetIndex = value;
             OnPropertyChanged(nameof(DownloadAssetIndex));
-            OnPropertyChanged(nameof(SelectedAssetName));
+            OnSelectedAssetChanged();
         }
     }
 
@@ -81,14 +81,14 @@ public class Repo : INotifyPropertyChanged
             _assetNames.CollectionChanged += AssetNamesOnCollectionChanged;
             OnPropertyChanged(nameof(AssetNames));
             OnPropertyChanged(nameof(HasAssets));
-            OnPropertyChanged(nameof(SelectedAssetName));
+            OnSelectedAssetChanged();
         }
     }
 
     private void AssetNamesOnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         OnPropertyChanged(nameof(HasAssets));
-        OnPropertyChanged(nameof(SelectedAssetName));
+        OnSelectedAssetChanged();
     }
     
     private List<string> _downloadUrls = [];
@@ -126,6 +126,8 @@ public class Repo : INotifyPropertyChanged
             _currentInstallTag = value;
             OnPropertyChanged(nameof(CurrentInstallTag));
             OnPropertyChanged(nameof(IsUpToDate));
+            OnPropertyChanged(nameof(CanUninstall));
+            OnPropertyChanged(nameof(NeedsDebianPackageName));
         }
     }
     
@@ -191,6 +193,52 @@ public class Repo : INotifyPropertyChanged
 
     [JsonIgnore]
     public bool IsUpToDate => Tag == CurrentInstallTag;
+
+    private string _installedDebianPackage = string.Empty;
+    public string InstalledDebianPackage
+    {
+        get => _installedDebianPackage;
+        set
+        {
+            value ??= string.Empty;
+            if (_installedDebianPackage == value) return;
+            _installedDebianPackage = value;
+            OnPropertyChanged(nameof(InstalledDebianPackage));
+            OnPropertyChanged(nameof(CanUninstall));
+            OnPropertyChanged(nameof(NeedsDebianPackageName));
+        }
+    }
+
+    private string _installedAppImageId = string.Empty;
+    public string InstalledAppImageId
+    {
+        get => _installedAppImageId;
+        set
+        {
+            value ??= string.Empty;
+            if (_installedAppImageId == value) return;
+            _installedAppImageId = value;
+            OnPropertyChanged(nameof(InstalledAppImageId));
+            OnPropertyChanged(nameof(CanUninstall));
+            OnPropertyChanged(nameof(NeedsDebianPackageName));
+        }
+    }
+
+    [JsonIgnore]
+    public bool CanUninstall => System.OperatingSystem.IsLinux()
+        && (InstalledDebianPackage.Length > 0 || InstalledAppImageId.Length > 0
+            || CurrentInstallTag.Length > 0 && Path.GetExtension(SelectedAssetName).ToLowerInvariant() is ".deb" or ".appimage");
+
+    [JsonIgnore]
+    public bool NeedsDebianPackageName => InstalledDebianPackage.Length == 0 && InstalledAppImageId.Length == 0
+        && CurrentInstallTag.Length > 0 && Path.GetExtension(SelectedAssetName).Equals(".deb", System.StringComparison.OrdinalIgnoreCase);
+
+    private void OnSelectedAssetChanged()
+    {
+        OnPropertyChanged(nameof(SelectedAssetName));
+        OnPropertyChanged(nameof(CanUninstall));
+        OnPropertyChanged(nameof(NeedsDebianPackageName));
+    }
 
     private bool _hasRelease = true;
     public bool HasRelease

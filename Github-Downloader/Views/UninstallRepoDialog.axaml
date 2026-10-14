@@ -1,0 +1,33 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:models="clr-namespace:Github_Downloader_lib.Models;assembly=Github-Downloader-lib"
+        xmlns:converters="using:Avalonia.Data.Converters"
+        x:Class="Github_Downloader.Views.UninstallRepoDialog"
+        x:DataType="models:Repo"
+        Title="Uninstall application"
+        Width="440" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        RequestedThemeVariant="Dark" Background="#222226">
+    <StackPanel Margin="24" Spacing="16">
+        <TextBlock Text="Uninstall application?" FontSize="20" FontWeight="SemiBold" Foreground="White"/>
+        <TextBlock Text="{Binding Name}" TextWrapping="Wrap" Foreground="#A5DEE0" FontSize="16"/>
+        <TextBlock Text="Removes the installed Debian package or AppImage and its application-menu entry. Your application settings and saved downloads are kept."
+                   TextWrapping="Wrap" Foreground="#DDD"/>
+        <TextBlock Text="The repository stays tracked and is excluded from Update All. You can install it again with Update or Reinstall."
+                   TextWrapping="Wrap" Foreground="#AAA"/>
+        <StackPanel Spacing="8" IsVisible="{Binding NeedsDebianPackageName}">
+            <TextBlock Text="Installed Debian package name" Foreground="White"/>
+            <TextBlock Text="This older installation has no recorded package name. Enter its name from your package manager."
+                       TextWrapping="Wrap" FontSize="12" Foreground="#AAA"/>
+            <TextBox Name="PackageName" Watermark="e.g. code or code:amd64" TextChanged="PackageName_OnTextChanged"/>
+        </StackPanel>
+        <TextBlock Text="{Binding InstalledDebianPackage}"
+                   IsVisible="{Binding InstalledDebianPackage, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}"
+                   TextWrapping="Wrap" Foreground="#A5DEE0"/>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+            <Button Content="Cancel" Click="Cancel_OnClick" Padding="16,8"/>
+            <Button Name="ConfirmUninstall" Content="Uninstall" Click="Uninstall_OnClick"
+                    Background="#963B3B" Foreground="White" Padding="16,8"/>
+        </StackPanel>
+    </StackPanel>
+</Window>

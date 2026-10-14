@@ -88,7 +88,6 @@ public static class DesktopNotificationSender
             start.ArgumentList.Add("--app-name=GitHub Downloader");
             start.ArgumentList.Add("--icon=software-update-available");
             start.ArgumentList.Add("--expire-time=8000");
-            start.ArgumentList.Add("--action=default=Open");
             start.ArgumentList.Add("--action=open=Open");
             start.ArgumentList.Add("--");
             start.ArgumentList.Add("GitHub Downloader");
