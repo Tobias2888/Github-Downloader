@@ -1,7 +1,7 @@
 !define APPNAME "Github-Downloader"
 !define COMPANY "tobias2888"
 !define EXE "Github-Downloader.exe"
-!define VERSION "3.0.0"
+!define VERSION "3.1.0"
 
 Name "${APPNAME}"
 OutFile "release-assets/${APPNAME}-Setup-arm64-${VERSION}.exe"
@@ -34,7 +34,7 @@ Section "Install"
   CreateShortcut "$DESKTOP\${APPNAME}.lnk" "$INSTDIR\${EXE}"
 
   ; autostart for current user
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${APPNAME}" '"$INSTDIR\${EXE}"'
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${APPNAME}" '"$INSTDIR\${EXE}" --hidden'
 
   ; write uninstaller
   WriteUninstaller "$INSTDIR\Uninstall.exe"

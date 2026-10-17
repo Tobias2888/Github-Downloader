@@ -12,6 +12,20 @@ public static class Program
 {
     private static async Task Main(string[] args)
     {
+        // Hand off before loading CLI state, which also clears the shared download cache.
+        if (args.Length > 0 && args[0] == "--gui")
+        {
+            if (args.Length != 1)
+            {
+                Console.Error.WriteLine("Usage: ghd --gui");
+                Environment.ExitCode = 1;
+                return;
+            }
+
+            Environment.ExitCode = DesktopLauncher.Launch();
+            return;
+        }
+
         Logger.LogDir = Path.Join(DirectoryHelper.GetAppDataDirPath(), "github-downloader", "logs");
         Logger.LogToTerminal = false;
         Logger.LogFirstChance = false;
@@ -258,6 +272,7 @@ public static class Program
                            Arguments:
                             -h / --help - Show this menu
                             -v / --version - Show installed version
+                            --gui - Open the desktop application
                             
                             list repos - List all tracked repositories
                             list assets (repo id) - List all available assets of a specific repo

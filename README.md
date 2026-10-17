@@ -51,7 +51,7 @@ sudo apt install ./github-downloader-cli_*.deb
 sudo apt install ./github-downloader-web_*.deb
 ```
 
-Launch the desktop app from your application menu, or run `ghd --help` to use the CLI.
+Launch the desktop app from your application menu, or run `ghd --gui` with both the CLI and desktop packages installed. Run `ghd --help` to use the CLI.
 
 The web package includes a **systemd user service**. Start it in your user session:
 
@@ -79,7 +79,7 @@ chmod +x Github_Downloader-x86_64.AppImage
 
 ### Windows and macOS
 
-On Windows, run the installer matching your architecture. It creates application shortcuts and registers the desktop app to start at sign-in.
+On Windows, run the installer matching your architecture. It creates application shortcuts and registers the desktop app to start hidden in the tray at sign-in.
 
 On macOS, extract the archive matching your architecture and launch the `Github-Downloader` executable inside it.
 
@@ -91,7 +91,9 @@ On macOS, extract the archive matching your architecture and launch the `Github-
 4. Click **Update** for one repository, or select repositories and click **Update Selected**.
 5. Use **Search for updates** to refresh release information. Background checks and their interval can be configured in **Settings**.
 
-The desktop app runs in the system tray. Click its tray icon to show or hide the window. Closing the window keeps the app running; use **Quit** in the tray menu to exit completely.
+The desktop app opens its window by default using saved repository data while GitHub details refresh in the background. Launching it again brings the running instance's window forward. Add `--hidden` to start only in the system tray, for example `Github-Downloader --hidden` (or `Github-Downloader.exe --hidden` on Windows). Packaged Linux and Windows autostart entries include `--hidden`, so signing in does not open a window. AppImages also accept `--hidden`.
+
+Click the tray icon to show or hide the window. Closing the window keeps the app running; use **Quit** in the tray menu to exit completely. Launching with `--hidden` when the app is already running leaves its current window visibility unchanged.
 
 Drag the grip on the left of a repository row to change its position. The row follows your cursor while neighboring rows slide into place. Hold near the top or bottom of the list to scroll; press **Escape** to cancel. Releasing the handle saves the new order for the next session.
 
@@ -131,6 +133,9 @@ Choose an asset compatible with the machine running GitHub Downloader. Updating 
 The CLI executable is named `ghd`. Repository IDs and asset IDs are **zero-based list positions**. Run `list repos` or `list assets` to find them; repository IDs can change after removing or reordering repositories.
 
 ```bash
+# Open the desktop window (or bring the running tray app forward)
+ghd --gui
+
 # Add a repository by URL, or by owner and name
 ghd add https://github.com/owner/repository
 ghd add owner repository
@@ -167,7 +172,7 @@ ghd reinstall --all
 ghd remove 0
 ```
 
-Replace the example repository, paths, IDs, and tag with your own values. `set-downloadpath` requires a directory that already exists. Use `ghd --help` for the command reference or `ghd --version` for the installed version.
+Replace the example repository, paths, IDs, and tag with your own values. `set-downloadpath` requires a directory that already exists. Use `ghd --help` for the command reference or `ghd --version` for the installed version. `ghd --gui` requires the desktop application to be installed; it checks beside `ghd`, the platform's installation directory, and directories on `PATH`.
 
 ## Web interface and API
 
@@ -193,7 +198,7 @@ Use **Settings** in the desktop app or **Configuration** in the web UI to import
 
 ## Troubleshooting
 
-- **The desktop app is running but no window is visible:** open it from the tray icon. Closing the window hides it rather than quitting.
+- **The desktop app is running but no window is visible:** launch it again without `--hidden` or open it from the tray icon. Autostart uses `--hidden`, and closing the window hides it rather than quitting.
 - **A repository has no downloadable assets:** check that it publishes GitHub Releases with attached files, and select a release that contains an asset for your platform.
 - **GitHub requests fail:** check connectivity, the repository URL, token access, and the application logs. A token can help with unauthenticated rate limits.
 - **Debian installation fails:** confirm that the host has `apt-get` and working administrator authorization. The desktop app uses `pkexec`; the CLI and web service use `sudo`.

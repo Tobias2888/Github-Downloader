@@ -11,6 +11,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <InternalsVisibleTo Include="Github-Downloader.Tests" />
       <ProjectReference Include="..\Github-Downloader-lib\Github-Downloader-lib.csproj" />
     </ItemGroup>
 

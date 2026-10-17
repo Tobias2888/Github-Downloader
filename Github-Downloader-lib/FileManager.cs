@@ -39,7 +39,7 @@ public static class FileManager
         }
     }
 
-    public static async Task LoadRepos()
+    public static async Task LoadRepos(bool refreshDetails = true)
     {
         Logger.LogI("Repository configuration load started");
         try
@@ -59,7 +59,7 @@ public static class FileManager
             UpdateManager.Repos ??= [];
             UpdateManager.WatchRepos();
 
-            if (UpdateManager.CurPlatform != Platform.Avalonia)
+            if (!refreshDetails || UpdateManager.CurPlatform != Platform.Avalonia)
             {
                 Logger.LogI("Repository configuration loaded");
                 return;

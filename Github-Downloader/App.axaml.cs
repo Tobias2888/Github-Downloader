@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -166,17 +165,14 @@ public partial class App : Application
         Logger.LogLevel = LogLevel.Info;
         await Logger.CreateFile();
         Logger.LogI("Mode: avalonia-desktop-app");
-        #if !DEBUG
-        if (Process.GetProcessesByName(Process.GetCurrentProcess().ProcessName).Length > 1)
-        {
-            await Logger.LogW("Service already running");
-            Environment.Exit(0);
-        }
-        #endif
-        
         MainViewModel.AppSettings = AppSettings.Load();
-        await FileManager.LoadRepos();
-        UpdateIcon();
+        await InitializeRepositoriesAsync(Program.DesktopActivation,
+            () => FileManager.LoadRepos(refreshDetails: false),
+            async () =>
+            {
+                await UpdateManager.UpdateRepoDetails(UpdateManager.Repos);
+                FileManager.SaveRepos();
+            });
 
         MainViewModel.AutoCheckForUpdatesTimer.Interval = TimeSpan.FromMinutes(MainViewModel.AppSettings.CheckForUpdatesInterval);
         MainViewModel.AutoCheckForUpdatesTimer.Tick += async (_, _) =>
@@ -200,6 +196,26 @@ public partial class App : Application
         _notificationTimer.Tick += async (_, _) =>
             await Notifications.NotifyUpdatesAvailableAsync(UpdateManager.Repos);
         _notificationTimer.Start();
+    }
+
+    internal async Task InitializeRepositoriesAsync(DesktopActivationService? activation,
+        Func<Task> loadRepositories, Func<Task> refreshRepositories)
+    {
+        await loadRepositories();
+        UpdateIcon();
+
+        // The cached repository list is ready for binding; network requests must not delay the window.
+        activation?.SetShowWindowHandler(ShowMainWindow);
+
+        try
+        {
+            await refreshRepositories();
+            UpdateIcon();
+        }
+        catch (Exception exception)
+        {
+            Logger.LogE($"Startup repository refresh failed ({exception.GetType().Name})");
+        }
     }
 
     private void UpdateIcon()

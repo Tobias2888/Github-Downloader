@@ -12,6 +12,7 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" PrivateAssets="all" />
     <PackageReference Include="Avalonia.Headless" Version="11.2.1" />
     <ProjectReference Include="../Github-Downloader-lib/Github-Downloader-lib.csproj" />
+    <ProjectReference Include="../Github-Downloader-cli/Github-Downloader-cli.csproj" />
     <ProjectReference Include="../Github-Downloader/Github-Downloader.csproj" />
   </ItemGroup>
   <ItemGroup>
