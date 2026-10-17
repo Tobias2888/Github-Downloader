@@ -57,7 +57,8 @@ public static class UpdateManager
     {
         string[] persistedProperties = 
         { 
-            nameof(Repo.DownloadAssetIndex), 
+            nameof(Repo.AssetName),
+            nameof(Repo.AssetRule),
             nameof(Repo.ExcludedFromDownloadAll), 
             nameof(Repo.TargetTag), 
             nameof(Repo.Tag), 
@@ -124,7 +125,8 @@ public static class UpdateManager
         {
             Url = url,
             Name = repoResponse.full_name,
-            Description = repoResponse.description
+            Description = repoResponse.description,
+            AssetRule = AssetSelection.GetDefaultRule()
         };
 
         Logger.LogI("Repository added");
@@ -235,23 +237,15 @@ public static class UpdateManager
         {
             Logger.LogD("Repository has no available release");
             repo.HasRelease = false;
-            repo.AssetNames.Clear();
-            repo.DownloadUrls = [];
+            repo.ReplaceAssets([], []);
             repo.Tag = "";
             repo.LatestChangelog = "";
             repo.ReleaseDate = "";
             return true;
         }
 
-        int oldIndex = repo.DownloadAssetIndex;
         Assets[] assets = response.assets ?? [];
-        repo.AssetNames.Clear();
-        foreach (Assets asset in assets)
-        {
-            repo.AssetNames.Add(asset.name);
-        }
-
-        repo.DownloadUrls = assets.Select(asset => asset.url).ToList();
+        repo.ReplaceAssets(assets.Select(asset => asset.name), assets.Select(asset => asset.url));
         repo.LatestChangelog = response.body;
         repo.ReleaseDate = response.published_at;
         repo.HasRelease = true;
@@ -259,7 +253,6 @@ public static class UpdateManager
         // and this writes the whole, fully-updated release state to disk.
         repo.Tag = response.tag_name;
 
-        repo.DownloadAssetIndex = Math.Clamp(oldIndex, 0, Math.Max(repo.AssetNames.Count - 1, 0));
         Logger.LogD("Repository release information refreshed");
         return true;
     }
@@ -590,7 +583,9 @@ public static class UpdateManager
         if (downloadAssetName == "" || downloadAssetUrl == "")
         {
             Logger.LogW("No release asset selected for download");
-            statusText.Invoke($"No asset to download for {repo.Name}");
+            string message = $"Skipped {repo.Name}: {repo.AssetSelectionStatus}";
+            statusText.Invoke(message);
+            progressText.Invoke(message);
             return null;
         }
 

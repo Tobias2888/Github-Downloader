@@ -3,20 +3,17 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.IO;
+using System.Linq;
 using System.Text.Json.Serialization;
 using FileLib;
 
 namespace Github_Downloader_lib.Models;
 
-public class Repo : INotifyPropertyChanged
+public class Repo : INotifyPropertyChanged, IJsonOnDeserializing, IJsonOnDeserialized, IJsonOnSerializing
 {
     public Repo()
     {
-        AssetNames.CollectionChanged += (_, _) =>
-        {
-            OnPropertyChanged(nameof(HasAssets));
-            OnSelectedAssetChanged();
-        };
+        AssetNames.CollectionChanged += AssetNamesOnCollectionChanged;
     }
 
     private string _url = string.Empty;
@@ -57,17 +54,127 @@ public class Repo : INotifyPropertyChanged
     }
 
     private int _downloadAssetIndex;
-    public int DownloadAssetIndex 
-    { 
-        get => _downloadAssetIndex;
+    private bool _selectionInitialized;
+    private bool _deserializing;
+    private bool _updatingAssets;
+    // Null means an old configuration has no saved filename yet; empty means deliberately unselected.
+    private string? _assetName;
+    private string _assetRule = string.Empty;
+
+    // Saved separately from the index so releases may safely reorder their assets.
+    public string AssetName
+    {
+        get => _assetName ?? string.Empty;
         set
         {
-            if (_downloadAssetIndex == value) return;
-            _downloadAssetIndex = value;
-            OnPropertyChanged(nameof(DownloadAssetIndex));
+            _assetName = value ?? string.Empty;
+            if (_deserializing) return;
+            _selectionInitialized = true;
             OnSelectedAssetChanged();
+            OnPropertyChanged(nameof(AssetName));
         }
     }
+
+    public string AssetRule
+    {
+        get => _assetRule;
+        set
+        {
+            value ??= string.Empty;
+            if (_assetRule == value) return;
+            if (!_deserializing) InitializeAssetSelection();
+            _assetRule = value;
+            if (_deserializing) return;
+            OnSelectedAssetChanged();
+            OnPropertyChanged(nameof(AssetRule));
+        }
+    }
+
+    public int DownloadAssetIndex 
+    { 
+        get
+        {
+            if (!_selectionInitialized) return _downloadAssetIndex;
+            int[] matches = Enumerable.Range(0, AssetNames.Count)
+                .Where(index => HasAssetRule ? AssetSelection.Matches(AssetNames[index], AssetRule)
+                    : AssetName.Length > 0 && AssetNames[index] == AssetName).Take(2).ToArray();
+            return matches.Length == 1 ? matches[0] : -1;
+        }
+        set
+        {
+            if (_deserializing) { _downloadAssetIndex = value; return; }
+            // ComboBox bindings may clear selection while their item source is replaced.
+            if (_updatingAssets || value < 0 || value >= AssetNames.Count) return;
+            if (_selectionInitialized && DownloadAssetIndex == value) return;
+            _downloadAssetIndex = value;
+            _assetName = AssetNames[value];
+            _assetRule = string.Empty;
+            _selectionInitialized = true;
+            OnSelectedAssetChanged();
+            OnPropertyChanged(nameof(AssetName));
+            OnPropertyChanged(nameof(AssetRule));
+        }
+    }
+
+    public void InitializeAssetSelection()
+    {
+        if (_selectionInitialized) return;
+        if (_assetName == null && _downloadAssetIndex >= 0 && _downloadAssetIndex < AssetNames.Count)
+            _assetName = AssetNames[_downloadAssetIndex];
+        _assetName ??= string.Empty;
+        _selectionInitialized = true;
+    }
+
+    public void ReplaceAssets(IEnumerable<string> names, IEnumerable<string> urls)
+    {
+        InitializeAssetSelection();
+        _updatingAssets = true;
+        try
+        {
+            _assetNames.CollectionChanged -= AssetNamesOnCollectionChanged;
+            _assetNames = new ObservableCollection<string>(names);
+            _assetNames.CollectionChanged += AssetNamesOnCollectionChanged;
+            _downloadUrls = urls.ToList();
+            OnPropertyChanged(nameof(AssetNames));
+            OnPropertyChanged(nameof(DownloadUrls));
+            OnPropertyChanged(nameof(HasAssets));
+            OnSelectedAssetChanged();
+        }
+        finally { _updatingAssets = false; }
+    }
+
+    void IJsonOnDeserializing.OnDeserializing() => _deserializing = true;
+    void IJsonOnDeserialized.OnDeserialized()
+    {
+        _deserializing = false;
+        InitializeAssetSelection();
+    }
+    void IJsonOnSerializing.OnSerializing() => InitializeAssetSelection();
+
+    [JsonIgnore]
+    public bool HasAssetRule => AssetRule.Length > 0;
+
+    [JsonIgnore]
+    public List<string> AssetRuleMatches => HasAssetRule
+        ? AssetSelection.FindMatches(AssetNames, AssetRule) : [];
+
+    [JsonIgnore]
+    public bool HasMultipleAssetRuleMatches => HasAssetRule && AssetRuleMatches.Count > 1;
+
+    [JsonIgnore]
+    public bool HasNoAssetRuleMatches => HasAssetRule && AssetRuleMatches.Count == 0;
+
+    [JsonIgnore]
+    public string AssetSelectionStatus => HasAssetRule
+        ? AssetRuleMatches.Count switch
+        {
+            0 => "No assets match this rule. Download blocked; change the rule or select a file manually.",
+            1 => $"Rule matches: {SelectedAssetName}",
+            int count => $"{count} assets match this rule. Download blocked; make the rule more specific."
+        }
+        : SelectedAssetName.Length > 0 ? $"Selected: {SelectedAssetName}"
+        : AssetName.Length > 0 ? $"Saved asset '{AssetName}' is missing. Select a file or set a rule."
+        : "Select a file or set an asset rule before downloading.";
 
     private ObservableCollection<string> _assetNames = [];
     public ObservableCollection<string> AssetNames
@@ -235,7 +342,14 @@ public class Repo : INotifyPropertyChanged
 
     private void OnSelectedAssetChanged()
     {
+        OnPropertyChanged(nameof(DownloadAssetIndex));
         OnPropertyChanged(nameof(SelectedAssetName));
+        OnPropertyChanged(nameof(SelectedAssetUrl));
+        OnPropertyChanged(nameof(HasAssetRule));
+        OnPropertyChanged(nameof(AssetRuleMatches));
+        OnPropertyChanged(nameof(HasMultipleAssetRuleMatches));
+        OnPropertyChanged(nameof(HasNoAssetRuleMatches));
+        OnPropertyChanged(nameof(AssetSelectionStatus));
         OnPropertyChanged(nameof(CanUninstall));
         OnPropertyChanged(nameof(NeedsDebianPackageName));
     }

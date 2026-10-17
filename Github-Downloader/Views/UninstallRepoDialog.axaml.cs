@@ -8,6 +8,7 @@ namespace Github_Downloader.Views;
 public partial class UninstallRepoDialog : Window
 {
     private readonly Repo? _repo;
+    private readonly InstallationManager _installations = new();
 
     public UninstallRepoDialog()
     {
@@ -26,7 +27,9 @@ public partial class UninstallRepoDialog : Window
     private void UpdateConfirmation()
     {
         if (ConfirmUninstall is null) return;
-        ConfirmUninstall.IsEnabled = _repo is not null && (!_repo.NeedsDebianPackageName
+        if (_repo is not null)
+            UninstallDetails.Text = _installations.GetUninstallDescription(_repo, PackageName.Text);
+        ConfirmUninstall.IsEnabled = _repo is not null && _repo.CanUninstall && (!_repo.NeedsDebianPackageName
             || InstallationManager.IsValidDebianPackageName(PackageName.Text?.Trim()));
     }
 

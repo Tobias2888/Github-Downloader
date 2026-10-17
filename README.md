@@ -86,7 +86,7 @@ On macOS, extract the archive matching your architecture and launch the `Github-
 ## Desktop quick start
 
 1. Add a repository using its GitHub URL or the separate owner and repository fields.
-2. Select the release asset for your operating system and CPU architecture. Asset selection is manual.
+2. Review the default asset rule for your operating system and CPU architecture in **More → Download Settings**. Edit it if needed, or clear it to select a release asset manually. Manual selections are saved by filename, so reordering assets in a release does not change the selected file.
 3. Open **More** to read the changelog, choose a release version, and adjust download settings.
 4. Click **Update** for one repository, or select repositories and click **Update Selected**.
 5. Use **Search for updates** to refresh release information. Background checks and their interval can be configured in **Settings**.
@@ -102,6 +102,12 @@ Outside the allowed hours, completion alerts are skipped. Available updates are 
 On Linux, use the notification's **Open** button to show the desktop window. Clicking a Windows notification also brings the window forward. Hidden or minimized windows are restored, and clicking again keeps the window open.
 
 ### Download and installation behavior
+
+New repositories start with an editable asset rule for the architecture and operating system of the machine running GitHub Downloader. For example, a Debian/Ubuntu x64 machine uses `*{x64,amd64,x86_64}*.deb`; Windows uses `.msi`, macOS `.dmg`, RPM-based Linux distributions `.rpm`, and other Linux distributions `.AppImage`. Architecture aliases let the rule follow common naming conventions. Existing saved rules and manual selections are preserved. If a release uses a different format or omits the architecture from its filenames, edit or clear the rule.
+
+In **More → Download Settings → Asset rule**, enter an exact filename or a case-sensitive glob such as `*linux*x64*.AppImage` to follow filenames that change between releases. `*` matches any text (including no characters); `?` matches one character; `{x64,amd64}` matches either literal alternative. Other characters are literal. The details view previews matching filenames. A rule takes precedence over the saved manual selection and must match **exactly one** asset. No matches or multiple matches block that repository's download and report the reason; other repositories in a bulk update continue.
+
+Clear the rule to restore the saved manual filename or choose another file. If that filename is missing from a later release, no replacement is selected automatically. Existing configurations migrate the selected index to its filename using the cached asset list; an invalid or unavailable old selection requires choosing a file again. Rules and manual filenames are included in configuration exports.
 
 | Asset | Behavior |
 | --- | --- |
@@ -139,6 +145,10 @@ ghd list versions 0
 ghd repo 0 set-asset 1
 ghd repo 0 set-downloadpath "/path/to/downloads"
 
+# Follow a filename pattern across releases; quote it to prevent shell expansion
+ghd repo 0 set-asset-rule "*linux*x64*.AppImage"
+ghd repo 0 clear-asset-rule
+
 # Follow the latest release, or pin a tag returned by list versions
 ghd repo 0 set-version latest
 ghd repo 0 set-version v1.2.3
@@ -162,6 +172,8 @@ Replace the example repository, paths, IDs, and tag with your own values. `set-d
 ## Web interface and API
 
 The web UI provides **Repositories**, **Updates**, **Configuration**, and **Settings** tabs. Add repositories, adjust their assets and download settings, review changelogs, and follow operations in the activity panel.
+
+Repository details include the asset rule and a live match preview. The repository API exposes `assetName` (saved manual filename), `assetRule`, `assetRuleMatches`, `assetSelectionStatus`, and the resolved `downloadAssetIndex` (`-1` when unresolved). Update a rule with `PUT /api/repositories/{repoUrl}` using `assetRule`; an empty string clears it. An explicit `downloadAssetIndex` selects a manual file when no nonempty rule is supplied. `POST /api/repositories/{repoUrl}/asset-rule-preview` with `{ "assetRule": "*linux*.zip" }` previews matches without saving. URL-encode `repoUrl` in these paths.
 
 The packaged Linux service uses port **2008**. When running from source with the `http` launch profile, the default is **5033**.
 

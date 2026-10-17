@@ -158,6 +158,10 @@ public class GithubDownloaderService : IGithubDownloaderService
         Repo? repo = UpdateManager.Repos?.FirstOrDefault(r => r.Url == repoUrl);
         if (repo == null) return null;
 
+        if (request.DownloadAssetIndex.HasValue
+            && (request.DownloadAssetIndex.Value < -1 || request.DownloadAssetIndex.Value >= repo.AssetNames.Count))
+            throw new ArgumentOutOfRangeException(nameof(request.DownloadAssetIndex), "Asset index is out of range.");
+
         Logger.LogI("Repository settings update requested");
         if (request.DownloadPath != null) repo.DownloadPath = request.DownloadPath;
         if (request.SaveFileAnyway.HasValue) repo.SaveFileAnyway = request.SaveFileAnyway.Value;
@@ -165,7 +169,12 @@ public class GithubDownloaderService : IGithubDownloaderService
         if (request.NewFileName != null) repo.NewFileName = request.NewFileName;
         if (request.ExcludedFromDownloadAll.HasValue) repo.ExcludedFromDownloadAll = request.ExcludedFromDownloadAll.Value;
         if (request.TargetTag != null) repo.TargetTag = request.TargetTag;
-        if (request.DownloadAssetIndex.HasValue) repo.DownloadAssetIndex = request.DownloadAssetIndex.Value;
+        if (request.DownloadAssetIndex is >= 0 && string.IsNullOrEmpty(request.AssetRule))
+        {
+            repo.AssetRule = "";
+            repo.DownloadAssetIndex = request.DownloadAssetIndex.Value;
+        }
+        if (request.AssetRule != null) repo.AssetRule = request.AssetRule;
 
         FileManager.SaveRepos();
         return MapToRepoResponse(repo);
@@ -261,18 +270,24 @@ public class GithubDownloaderService : IGithubDownloaderService
         try
         {
             (Action<string> statusAction, Action<string> progressAction) = CreateCallbacks();
+            int failed = 0;
 
             foreach (Repo repo in repos)
             {
                 string initialTag = repo.CurrentInstallTag;
-                await UpdateManager.UpdateRepo(repo, statusAction, progressAction, downloadAnyways);
+                bool succeeded = await UpdateManager.UpdateRepo(repo, statusAction, progressAction, downloadAnyways);
+                if (!succeeded)
+                {
+                    failed++;
+                    continue;
+                }
 
                 if (repo.CurrentInstallTag != initialTag || downloadAnyways)
                 {
                     downloadedAssets.Add(new DTOs.DownloadedAsset(
                         repo.Url,
                         repo.Name,
-                        repo.AssetNames.Count > repo.DownloadAssetIndex ? repo.AssetNames[repo.DownloadAssetIndex] : "",
+                        repo.SelectedAssetName,
                         repo.Tag,
                         repo.AutoExtract && ArchiveExtractor.IsSupportedArchive(repo.SelectedAssetName)
                             ? repo.ExtractionDirectory
@@ -298,8 +313,9 @@ public class GithubDownloaderService : IGithubDownloaderService
                 }
             }
 
-            _tracker.Finish(true);
-            return new DTOs.DownloadResponse(true, $"Downloaded {downloadedAssets.Count} assets", downloadedAssets);
+            string summary = $"Downloaded {downloadedAssets.Count} assets; {failed} failed or were skipped. Check the activity log for details.";
+            _tracker.Finish(failed == 0, failed == 0 ? null : summary);
+            return new DTOs.DownloadResponse(failed == 0, summary, downloadedAssets);
         }
         catch (Exception ex)
         {
@@ -361,7 +377,7 @@ public class GithubDownloaderService : IGithubDownloaderService
             foreach (Repo repo in changedRepos)
             {
                 string assetName = repo.NewFileName == "" ?
-                    (repo.AssetNames.Count > repo.DownloadAssetIndex ? repo.AssetNames[repo.DownloadAssetIndex] : "")
+                    repo.SelectedAssetName
                     : repo.NewFileName;
 
                 installedAssets.Add(new DTOs.InstalledAsset(
@@ -541,7 +557,11 @@ public class GithubDownloaderService : IGithubDownloaderService
             repo.ExcludedFromDownloadAll,
             repo.IsSelected,
             repo.AutoExtract,
-            repo.ExtractionDirectory
+            repo.ExtractionDirectory,
+            repo.AssetName,
+            repo.AssetRule,
+            repo.AssetRuleMatches,
+            repo.AssetSelectionStatus
         );
     }
 }

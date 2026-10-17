@@ -94,6 +94,19 @@ public class RepositoriesController : ControllerBase
         }
     }
 
+    [HttpPost("{repoUrl}/asset-rule-preview")]
+    public async Task<ActionResult<AssetRulePreviewResponse>> PreviewAssetRule(string repoUrl, [FromBody] AssetRulePreviewRequest request)
+    {
+        RepoResponse? repo = await _service.GetRepoAsync(Uri.UnescapeDataString(repoUrl));
+        if (repo == null) return NotFound(new ErrorResponse("Repository not found"));
+        Github_Downloader_lib.Models.Repo preview = new()
+        {
+            Name = repo.Name, Url = repo.Url, AssetName = repo.AssetName, AssetRule = request.AssetRule
+        };
+        preview.ReplaceAssets(repo.AssetNames, []);
+        return Ok(new AssetRulePreviewResponse(preview.AssetRuleMatches, preview.AssetSelectionStatus));
+    }
+
     [HttpDelete("{repoUrl}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]

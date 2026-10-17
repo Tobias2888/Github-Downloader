@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Media;
@@ -19,12 +20,43 @@ public class RepositoryDragCollection : ICollectionFixture<RepositoryDragApplica
 
 public sealed class RepositoryDragApplication : IDisposable
 {
-    public HeadlessUnitTestSession Session { get; } = HeadlessUnitTestSession.StartNew(typeof(RepositoryDragApplication));
+    private readonly HeadlessUnitTestSession _session = HeadlessUnitTestSession.StartNew(typeof(RepositoryDragApplication));
 
-    public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>()
-        .WithInterFont().UseHeadless(new AvaloniaHeadlessPlatformOptions());
+    public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<HeadlessTestApp>()
+        .WithInterFont().UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false });
 
-    public void Dispose() => Session.Dispose();
+    public async Task Dispatch(Func<Task> action, CancellationToken cancellationToken)
+    {
+        // LoggerLib captures the UI context, which ends between headless tests. Logging has separate tests.
+        bool loggingEnabled = LoggerLib.Logger.ShouldLog;
+        LoggerLib.Logger.ShouldLog = false;
+        try
+        {
+            await _session.Dispatch<bool>(async () =>
+            {
+                await action();
+                return true;
+            }, cancellationToken);
+        }
+        finally
+        {
+            LoggerLib.Logger.ShouldLog = loggingEnabled;
+        }
+    }
+
+    public void Dispose() => _session.Dispose();
+}
+
+public sealed class HeadlessTestApp : App
+{
+    public override void OnFrameworkInitializationCompleted()
+    {
+        // UI tests supply their own state and must not load the user's configuration or contact GitHub.
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+            desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+        MainViewModel.AppSettings = new();
+        UpdateManager.Repos = [];
+    }
 }
 
 [Collection("Repository dragging")]
@@ -39,7 +71,7 @@ public sealed class RepositoryDragTests
     [InlineData(3, 0)]
     public async Task RowFollowsThePointerAndOrderChangesOnlyOnDrop(int from, int to)
     {
-        await _application.Session.Dispatch(async () =>
+        await _application.Dispatch(async () =>
         {
             ObservableCollection<Repo> repos = NewRepos(4);
             Repo dragged = repos[from];
@@ -51,11 +83,13 @@ public sealed class RepositoryDragTests
                 RepoEntryControl[] rows = Rows(home);
                 Border handle = rows[from].FindControl<Border>("DragHandle")!;
                 Point start = handle.TranslatePoint(new Point(14, 21), window)!.Value;
+                Assert.True(window.InputHitTest(start) is Visual hit && (ReferenceEquals(hit, handle)
+                    || hit.GetVisualAncestors().Contains(handle)), $"Drag handle hit test at {start}: {window.InputHitTest(start)}");
                 Point finish = rows[to].TranslatePoint(new Point(0, rows[to].Bounds.Height / 2), window)!.Value;
                 // Keep the same grab offset while crossing the target row's midpoint.
                 Point destination = new(start.X + 20, finish.Y + (from < to ? 10 : -10));
                 window.MouseDown(start, MouseButton.Left);
-                window.MouseMove(destination);
+                window.MouseMove(destination, RawInputModifiers.LeftMouseButton);
                 window.UpdateLayout();
 
                 Canvas overlay = home.FindControl<Canvas>("RepoDragOverlay")!;
@@ -85,14 +119,17 @@ public sealed class RepositoryDragTests
                     Assert.True(row.IsHitTestVisible);
                 });
             }
-            finally { window.Close(); }
+            finally
+            {
+                window.Close();
+            }
         }, CancellationToken.None);
     }
 
     [Fact]
     public async Task EscapeAndHandleClicksKeepTheOriginalOrder()
     {
-        await _application.Session.Dispatch(async () =>
+        await _application.Dispatch(async () =>
         {
             ObservableCollection<Repo> repos = NewRepos(4);
             Repo[] original = repos.ToArray();
@@ -106,7 +143,7 @@ public sealed class RepositoryDragTests
                 window.MouseUp(start, MouseButton.Left);
                 Assert.Equal(original, repos);
                 window.MouseDown(start, MouseButton.Left);
-                window.MouseMove(destination);
+                window.MouseMove(destination, RawInputModifiers.LeftMouseButton);
                 window.KeyPressQwerty(PhysicalKey.Escape, RawInputModifiers.None);
                 window.KeyReleaseQwerty(PhysicalKey.Escape, RawInputModifiers.None);
                 window.MouseUp(destination, MouseButton.Left);
@@ -115,14 +152,17 @@ public sealed class RepositoryDragTests
                 Assert.Empty(home.FindControl<Canvas>("RepoDragOverlay")!.Children);
                 Assert.All(Rows(home), row => Assert.Null(row.RenderTransform));
             }
-            finally { window.Close(); }
+            finally
+            {
+                window.Close();
+            }
         }, CancellationToken.None);
     }
 
     [Fact]
     public async Task DraggingAtTheEdgeScrollsAndSavedOrderCanBeReloaded()
     {
-        await _application.Session.Dispatch(async () =>
+        await _application.Dispatch(async () =>
         {
             ObservableCollection<Repo> repos = NewRepos(14);
             Repo dragged = repos[0];
@@ -141,7 +181,7 @@ public sealed class RepositoryDragTests
                 ScrollViewer scroll = home.FindControl<ScrollViewer>("RepoScroll")!;
                 Point edge = scroll.TranslatePoint(new Point(40, scroll.Bounds.Height - 8), window)!.Value;
                 window.MouseDown(start, MouseButton.Left);
-                window.MouseMove(new Point(start.X, edge.Y));
+                window.MouseMove(new Point(start.X, edge.Y), RawInputModifiers.LeftMouseButton);
                 await Task.Delay(350);
                 Assert.True(scroll.Offset.Y > 30);
                 Assert.Equal(0, saves);
@@ -163,18 +203,12 @@ public sealed class RepositoryDragTests
     [Fact]
     public async Task ReorderingDuringABatchDoesNotInvalidateTheDownloadEnumerator()
     {
-        ObservableCollection<Repo> repos = NewRepos(2);
-        Repo first = repos[0];
-        Repo second = repos[1];
-        string root = Path.Combine(Path.GetTempPath(), "ghd-drag-batch-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(root);
-        LoggerLib.Logger.LogDir = root;
-        LoggerLib.Logger.LogToTerminal = false;
-        LoggerLib.Logger.LogFirstChance = false;
-        await LoggerLib.Logger.CreateFile();
-        List<string> downloads = [];
-        try
+        await _application.Dispatch(async () =>
         {
+            ObservableCollection<Repo> repos = NewRepos(2);
+            Repo first = repos[0];
+            Repo second = repos[1];
+            List<string> downloads = [];
             bool succeeded = await UpdateManager.UpdateReposAsync(repos, message =>
             {
                 if (!message.StartsWith("Downloading owner/", StringComparison.Ordinal)) return;
@@ -187,8 +221,7 @@ public sealed class RepositoryDragTests
             Assert.False(succeeded);
             Assert.Equal(new[] { $"Downloading {first.Name}", $"Downloading {second.Name}" }, downloads);
             Assert.Same(first, repos[1]);
-        }
-        finally { Directory.Delete(root, recursive: true); }
+        }, CancellationToken.None);
     }
 
     private static ObservableCollection<Repo> NewRepos(int count) => new(Enumerable.Range(0, count)
@@ -204,7 +237,10 @@ public sealed class RepositoryDragTests
         HomeView home = new();
         Window window = new() { Width = 1400, Height = 780, Content = home };
         window.Show();
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
         window.UpdateLayout();
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
         return (window, home);
     }
 

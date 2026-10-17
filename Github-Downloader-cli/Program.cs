@@ -250,10 +250,10 @@ public static class Program
 
     private static void ShowHelpPage()
     {
-        Console.WriteLine($"""
+        Console.WriteLine($$"""
 
                            Command:
-                            {AppInfo.CliName} [list of arguments]
+                            {{AppInfo.CliName}} [list of arguments]
                             
                            Arguments:
                             -h / --help - Show this menu
@@ -264,6 +264,8 @@ public static class Program
                             list versions (repo id) - List all available versions of a specific repo
                             repo (repo id) - Show repository-details about specific repository
                             repo (repo id) set-asset (asset id) - Select specific asset to download from repository by id
+                            repo (repo id) set-asset-rule (pattern) - Save a case-sensitive glob (*, ?, and {x64,amd64} alternatives); quote the pattern
+                            repo (repo id) clear-asset-rule - Return to the saved manual filename
                             repo (repo id) set-version (version) - Select specific version to download from repository
                             repo (repo id) set-downloadpath (path) - Select specific download path
                             add (repo link) - Add a repository with github-link of repository

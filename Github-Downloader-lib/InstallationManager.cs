@@ -136,6 +136,30 @@ public sealed class InstallationManager
         }
     }
 
+    public string GetUninstallDescription(Repo repo, string? legacyDebianPackage = null)
+    {
+        if (!repo.CanUninstall)
+            return "This installation must be removed manually.";
+
+        List<string> actions = [];
+        if (repo.InstalledDebianPackage.Length > 0 || repo.NeedsDebianPackageName)
+        {
+            string package = repo.NeedsDebianPackageName
+                ? legacyDebianPackage?.Trim() ?? string.Empty : repo.InstalledDebianPackage;
+            string target = package.Length > 0 ? $"'{package}'" : "named below";
+            actions.Add($"Removes the Debian package {target}.");
+        }
+
+        bool hasAppImage = repo.InstalledAppImageId.Length > 0
+            || repo.InstalledDebianPackage.Length == 0
+            && Path.GetExtension(repo.SelectedAssetName).Equals(".appimage", StringComparison.OrdinalIgnoreCase);
+        if (hasAppImage)
+            actions.Add("Removes the AppImage and its application-menu entry.");
+
+        actions.Add("Your settings and saved downloads are kept.");
+        return string.Join(" ", actions);
+    }
+
     internal static ProcessStartInfo CreateDebianRemovalStartInfo(string package)
     {
         if (!IsValidDebianPackageName(package)) throw new ArgumentException("Invalid Debian package name.", nameof(package));

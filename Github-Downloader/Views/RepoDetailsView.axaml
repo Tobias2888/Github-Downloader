@@ -77,6 +77,17 @@
                         
                         <StackPanel Spacing="15">
                             <TextBlock Text="Download Settings" Classes="SubTitle"/>
+
+                            <TextBlock Text="Asset rule" FontWeight="SemiBold"/>
+                            <TextBox Name="TbxAssetRule" Text="{Binding Repo.AssetRule, Mode=TwoWay}"
+                                     Watermark="e.g. *linux*x64*.AppImage"/>
+                            <TextBlock Text="Case-sensitive glob: * matches any text, ? one character, {x64,amd64} either alias. Clear the rule to select a file manually."
+                                       TextWrapping="Wrap" Opacity="0.7" FontSize="12"/>
+                            <ComboBox Name="CobAsset" ItemsSource="{Binding Repo.AssetNames}"
+                                      SelectedIndex="{Binding Repo.DownloadAssetIndex, Mode=TwoWay}"
+                                      IsEnabled="{Binding !Repo.HasAssetRule}" HorizontalAlignment="Stretch"/>
+                            <TextBlock Name="TbxAssetSelectionStatus" Text="{Binding Repo.AssetSelectionStatus}" TextWrapping="Wrap"/>
+                            <ItemsControl Name="AssetRuleMatches" ItemsSource="{Binding Repo.AssetRuleMatches}" IsVisible="{Binding Repo.HasAssetRule}"/>
                             
                             <Grid Name="StpSaveFileAnyway" ColumnDefinitions="*, Auto">
                                 <TextBlock Text="Save file anyway" VerticalAlignment="Center"/>

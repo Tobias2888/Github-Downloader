@@ -70,8 +70,8 @@
     function selectedAssetName(source) {
         const names = source?.assetNames || [];
         if (names.length === 0) return '';
-        const index = Number.isInteger(source.downloadAssetIndex) ? source.downloadAssetIndex : 0;
-        return names[Math.min(Math.max(index, 0), names.length - 1)] || '';
+        const index = Number.isInteger(source.downloadAssetIndex) ? source.downloadAssetIndex : -1;
+        return index >= 0 && index < names.length ? names[index] : '';
     }
 
     /* ---------- Activity / progress ---------- */
@@ -364,7 +364,9 @@
                 <td>
                     ${selectedAsset
                         ? `<span class="asset-chip selected" title="${escapeHtml(selectedAsset)}">${escapeHtml(selectedAsset)}</span>`
-                        : '<span class="mono" style="color:var(--text-soft)">—</span>'}
+                        : `<span class="mono" style="color:var(--text-soft)">${repo.assetRule
+                            ? ((repo.assetRuleMatches || []).length > 1 ? 'Multiple assets match the rule.' : 'No assets match the rule.')
+                            : '—'}</span>`}
                 </td>
                 <td><span class="path" title="${escapeHtml(repo.downloadPath)}">${escapeHtml(repo.downloadPath || '—')}</span></td>
                 <td>
@@ -567,9 +569,7 @@
         $('repoDetailsTitle').textContent = repo.name || repo.url;
 
         const body = $('repoDetailsBody');
-        const selectedAssetIndex = repo.assetNames.length > 0
-            ? Math.min(repo.downloadAssetIndex, repo.assetNames.length - 1)
-            : 0;
+        const selectedAssetIndex = repo.downloadAssetIndex;
 
         body.innerHTML = `
             <div>
@@ -592,8 +592,16 @@
                 <div class="field-row" style="margin-top:10px">
                     <span style="color:var(--text-muted); font-size:13px">Asset to download</span>
                     <select id="detailAssetIndex" style="max-width:60%">
-                        ${(repo.assetNames || []).map((a, i) => `<option value="${i}" ${i === selectedAssetIndex ? 'selected' : ''}>${escapeHtml(a)}</option>`).join('') || '<option value="0">— no assets —</option>'}
+                        <option value="-1" ${selectedAssetIndex < 0 ? 'selected' : ''}>— select an asset —</option>
+                        ${(repo.assetNames || []).map((a, i) => `<option value="${i}" ${i === selectedAssetIndex ? 'selected' : ''}>${escapeHtml(a)}</option>`).join('')}
                     </select>
+                </div>
+                <div class="form-group" style="margin-top:12px">
+                    <label for="detailAssetRule">Asset rule</label>
+                    <input type="text" id="detailAssetRule" placeholder="*linux*x64*.AppImage" value="${escapeHtml(repo.assetRule || '')}">
+                    <p class="hint">Case-sensitive glob: * matches any text, ? one character, {x64,amd64} either alias. Clear to select a file manually.</p>
+                    <p id="detailAssetRuleStatus" class="repo-desc" role="status" aria-live="polite">${escapeHtml(repo.assetSelectionStatus)}</p>
+                    <ul id="detailAssetRuleMatches"></ul>
                 </div>
                 <p class="repo-desc" style="margin-top:8px">
                     <span class="tag tag-current">${escapeHtml(repo.currentInstallTag || '—')}</span>
@@ -626,6 +634,46 @@
                 </label>
             </div>`;
 
+        const ruleInput = $('detailAssetRule');
+        const assetSelect = $('detailAssetIndex');
+        const status = $('detailAssetRuleStatus');
+        const matchesList = $('detailAssetRuleMatches');
+        let previewVersion = 0;
+        let previewTimer;
+        const showMatches = (matches) => {
+            matchesList.replaceChildren(...matches.map(name => {
+                const item = document.createElement('li');
+                item.textContent = name;
+                return item;
+            }));
+        };
+        assetSelect.disabled = ruleInput.value.length > 0;
+        showMatches(repo.assetRuleMatches || []);
+        ruleInput.addEventListener('input', () => {
+            const version = ++previewVersion;
+            clearTimeout(previewTimer);
+            assetSelect.disabled = ruleInput.value.length > 0;
+            if (!assetSelect.disabled) {
+                // Restore the saved manual filename, never silently keep a rule-selected index.
+                assetSelect.value = String((repo.assetNames || []).indexOf(repo.assetName));
+                status.textContent = 'Select a file manually, or enter an asset rule.';
+                showMatches([]);
+                return;
+            }
+            status.textContent = 'Checking rule…';
+            previewTimer = setTimeout(async () => {
+                try {
+                    const preview = await apiRequest(`repositories/${encodeURIComponent(repo.url)}/asset-rule-preview`, {
+                        body: { assetRule: ruleInput.value },
+                    });
+                    if (version !== previewVersion || !ruleInput.isConnected) return;
+                    status.textContent = preview.status;
+                    showMatches(preview.matches);
+                } catch (err) {
+                    if (version === previewVersion && ruleInput.isConnected) status.textContent = `Preview unavailable: ${err.message}`;
+                }
+            }, 180);
+        });
         showModal('repoDetailsModal');
     }
 
@@ -633,7 +681,8 @@
         return {
             downloadPath: $('detailDownloadPath').value,
             targetTag: $('detailTargetTag').value,
-            downloadAssetIndex: parseInt($('detailAssetIndex').value, 10) || 0,
+            downloadAssetIndex: $('detailAssetRule').value.length > 0 ? null : parseInt($('detailAssetIndex').value, 10),
+            assetRule: $('detailAssetRule').value,
             saveFileAnyway: $('detailSaveAnyway').checked,
             autoExtract: $('detailAutoExtract').checked,
             newFileName: $('detailNewFileName').value,

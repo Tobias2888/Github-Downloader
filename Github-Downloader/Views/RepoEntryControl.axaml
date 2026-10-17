@@ -56,12 +56,18 @@
                             <TextBlock Text="{Binding Tag}" FontSize="12" Foreground="Orange" FontWeight="Bold"/>
                         </Border>
                     </StackPanel>
+                    <TextBlock Text="Multiple assets match the rule." IsVisible="{Binding HasMultipleAssetRuleMatches}"
+                               FontSize="12" Foreground="#CCC" VerticalAlignment="Center"/>
+                    <TextBlock Text="No assets match the rule." IsVisible="{Binding HasNoAssetRuleMatches}"
+                               FontSize="12" Foreground="#CCC" VerticalAlignment="Center"/>
                 </StackPanel>
             </StackPanel>
             
             <ComboBox Grid.Column="3"
                       ItemsSource="{Binding AssetNames}" 
                       SelectedIndex="{Binding DownloadAssetIndex}" 
+                      IsEnabled="{Binding !HasAssetRule}"
+                      ToolTip.Tip="Manual file selection. Edit or clear an asset rule in More."
                       Width="250" 
                       VerticalAlignment="Center" 
                       Margin="15,0"

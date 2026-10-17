@@ -32,7 +32,11 @@ public record RepoResponse(
     bool ExcludedFromDownloadAll,
     bool IsSelected,
     bool AutoExtract,
-    string ExtractionDirectory
+    string ExtractionDirectory,
+    string AssetName,
+    string AssetRule,
+    List<string> AssetRuleMatches,
+    string AssetSelectionStatus
 );
 
 public record UpdateRepoRequest(
@@ -42,13 +46,17 @@ public record UpdateRepoRequest(
     bool? ExcludedFromDownloadAll,
     string? TargetTag,
     int? DownloadAssetIndex,
-    bool? AutoExtract = null
+    bool? AutoExtract = null,
+    string? AssetRule = null
 );
 
 public record ReposListResponse(
     List<RepoResponse> Repos,
     int TotalCount
 );
+
+public record AssetRulePreviewRequest(string AssetRule);
+public record AssetRulePreviewResponse(List<string> Matches, string Status);
 
 public record ExportConfigRequest(
     [Required] string DestinationPath
