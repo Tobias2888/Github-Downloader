@@ -174,6 +174,27 @@ ghd remove 0
 
 Replace the example repository, paths, IDs, and tag with your own values. `set-downloadpath` requires a directory that already exists. Use `ghd --help` for the command reference or `ghd --version` for the installed version. `ghd --gui` requires the desktop application to be installed; it checks beside `ghd`, the platform's installation directory, and directories on `PATH`.
 
+## Operation history
+
+Open **History** from the desktop header or the web **History** tab to review downloads, installations, reinstalls, and uninstalls. Filter by repository, date range, and result; changes apply immediately. **Show download and installation steps** reveals the individual phases; batch entries summarize successes and failures. Skipped entries and batches with no actions are hidden by default. Enable **Show skipped** to include them. Times are shown in your local time zone. A date selected under **Through** includes that entire day.
+
+History is saved separately in `history.json` inside the application data directory. It survives restarts and stays available after a repository is removed or a repository configuration is imported. Operations interrupted by a process exit are marked **Interrupted** when history is next read, rather than reported as successful. Deleting completed history requires confirmation; running entries are kept. History is not part of configuration exports. Technical logs remain separate.
+
+A completed download does not confirm an installation. Files saved without installation use `lastDownloadTag`; `currentInstallTag` changes only after a successful installer or archive extraction. Failed repositories do not stop the remaining repositories in a batch. The web download endpoint saves files without running installers or extracting archives.
+
+```bash
+ghd history
+ghd history --repo owner/repository --status Failed --json
+ghd history --from 2026-10-01 --to 2026-11-01 --steps --json
+ghd history --include-skipped --json
+ghd history --action Uninstall --offset 0 --limit 100 --json
+ghd history clear --yes
+```
+
+JSON output contains `entries`, `total`, `offset`, and `limit`. Each entry includes its ID, optional parent and batch IDs, repository name and opaque key, UTC start/end times, action, source/target versions, status, summary, and batch counts. `--batch <id>` selects one batch. `--include-skipped` includes skipped entries; filtering with `--status Skipped` also reveals them. Results are `Running`, `Succeeded`, `Failed`, `PartialFailure`, `Skipped`, or `Interrupted`. Actions are `Update`, `Download`, `Save`, `Install`, `Extract`, `Reinstall`, or `Uninstall`. `--to` is exclusive; timestamps without a timezone are interpreted as UTC. The page size is 1–1000 (default 200). History commands do not initialize repositories, contact GitHub, or clear the download cache. Invalid arguments return exit code 2; history access errors return 1.
+
+The same data is available through `GET /api/history`, with `repository`, `from`, `to`, `status`, `action`, `batchId`, `offset`, `limit`, `includeSteps`, and `includeSkipped` query parameters. `DELETE /api/history?confirm=true` deliberately clears completed entries. Stored history uses fixed result messages and does not include request URLs, credentials, raw exceptions, or installer output.
+
 ## Web interface and API
 
 The web UI provides **Repositories**, **Updates**, **Configuration**, and **Settings** tabs. Add repositories, adjust their assets and download settings, review changelogs, and follow operations in the activity panel.

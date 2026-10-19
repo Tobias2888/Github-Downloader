@@ -68,7 +68,8 @@ public static class UpdateManager
             nameof(Repo.NewFileName),
             nameof(Repo.InstalledDebianPackage),
             nameof(Repo.InstalledAppImageId),
-            nameof(Repo.CurrentInstallTag)
+            nameof(Repo.CurrentInstallTag),
+            nameof(Repo.LastDownloadTag)
         };
 
         if (e.PropertyName == nameof(Repo.IsSelected)) Logger.LogI("Repository selection changed");
@@ -79,7 +80,8 @@ public static class UpdateManager
         }
     }
     
-    internal readonly record struct Asset(Repo Repo, string TempAssetPath, string Tag, string? TemporaryDirectory = null);
+    internal readonly record struct Asset(Repo Repo, string TempAssetPath, string Tag, string? TemporaryDirectory = null,
+        Guid? ParentHistoryId = null, Guid? BatchId = null);
 
     public static async Task<Repo?> AddRepo(string repoUrl)
     {
@@ -344,141 +346,182 @@ public static class UpdateManager
         return JsonSerializer.Deserialize<List<Response>>(await httpResponse.Content.ReadAsStringAsync());
     }
 
-    public static async Task<bool> UpdateRepo(Repo repo, Action<string> statusText, Action<string> progressText, bool downloadAnyways = false)
+    public static bool IsInstallerAsset(string name)
     {
-        if (!downloadAnyways && repo.Tag == repo.CurrentInstallTag)
-        {
-            Logger.LogD("Repository update skipped: already up to date");
-            return true;
-        }
-        Asset? asset = await DownloadAsset(repo, statusText, progressText, downloadAnyways);
-        if (asset == null) return false;
-        return await UpdateReposAsync([asset], statusText, progressText);
+        string extension = Path.GetExtension(name).ToLowerInvariant();
+        return OperatingSystem.IsLinux() && extension is ".deb" or ".appimage"
+            || extension is ".exe" or ".msi";
     }
 
-    public static async Task<bool> UpdateReposAsync(IEnumerable<Repo> repos, Action<string> statusText, Action<string> progressText, bool downloadAnyways = false)
-    {
-        statusText.Invoke("Downloading updates...");
-        
-        List<Asset?> assets = [];
-        bool downloadsOk = true;
-        // Keep an in-flight batch stable while the desktop list is reordered.
-        foreach (Repo repo in repos.ToArray())
-        {
-            if (repo.ExcludedFromDownloadAll || (!downloadAnyways && repo.Tag == repo.CurrentInstallTag))
-            {
-                continue;
-            }
-            
-            Asset? asset = await DownloadAsset(repo, statusText, progressText, downloadAnyways);
-            if (asset == null) downloadsOk = false;
-            assets.Add(asset);
-        }
+    public static async Task<bool> UpdateRepo(Repo repo, Action<string> statusText,
+        Action<string> progressText, bool downloadAnyways = false)
+        => await RunRepositoryAsync(repo, statusText, progressText, downloadAnyways) is not HistoryStatus.Failed;
 
-        bool installed = await UpdateReposAsync(assets, statusText, progressText);
-        return downloadsOk && installed;
+    public static Task<bool> UpdateReposAsync(IEnumerable<Repo> repos, Action<string> statusText,
+        Action<string> progressText, bool downloadAnyways = false,
+        Action<Repo, HistoryStatus>? completed = null, bool respectExclusions = true) =>
+        RunBatchAsync(repos, statusText, progressText, downloadAnyways, downloadOnly: false,
+            completed: completed, respectExclusions: respectExclusions);
+
+    public static Task<bool> DownloadReposAsync(IEnumerable<Repo> repos, Action<string> statusText,
+        Action<string> progressText, bool downloadAnyways = false, Action<Repo, HistoryStatus>? completed = null) =>
+        RunBatchAsync(repos, statusText, progressText, downloadAnyways, downloadOnly: true, completed: completed);
+
+    internal static async Task<bool> RunBatchAsync(IEnumerable<Repo> repos, Action<string> statusText,
+        Action<string> progressText, bool force, bool downloadOnly,
+        Func<string, string, IProgress<double>, Task>? downloadFile = null,
+        Func<Asset, Task<bool>>? installAsset = null, string? cachePath = null,
+        Action<Repo, HistoryStatus>? completed = null, bool respectExclusions = true)
+    {
+        Repo[] snapshot = repos.ToArray();
+        using HistoryScope batch = OperationHistory.Store.Begin(downloadOnly ? HistoryAction.Download
+            : force ? HistoryAction.Reinstall : HistoryAction.Update, isBatch: true);
+        int succeeded = 0;
+        int failed = 0;
+        int skipped = 0;
+        statusText("Downloading updates...");
+        foreach (Repo repo in snapshot)
+        {
+            HistoryStatus result = await RunRepositoryAsync(repo, statusText, progressText, force,
+                downloadOnly, batch.Id, respectExclusion: !downloadOnly && respectExclusions,
+                downloadFile: downloadFile, installAsset: installAsset, cachePath: cachePath);
+            completed?.Invoke(repo, result);
+            if (result == HistoryStatus.Skipped) skipped++;
+            else if (result == HistoryStatus.Succeeded) succeeded++;
+            else failed++;
+        }
+        batch.Finish(failed == 0 ? HistoryStatus.Succeeded : succeeded > 0 ? HistoryStatus.PartialFailure
+            : HistoryStatus.Failed, HistoryOutcome.BatchCompleted, succeeded, failed, skipped);
+        return failed == 0;
     }
 
-    internal static async Task<bool> UpdateReposAsync(List<Asset?> assets, Action<string> statusText, Action<string> progressText)
+    internal static async Task<HistoryStatus> RunRepositoryAsync(Repo repo, Action<string> statusText,
+        Action<string> progressText, bool force = false, bool downloadOnly = false,
+        Guid? batchId = null, bool respectExclusion = false,
+        Func<string, string, IProgress<double>, Task>? downloadFile = null,
+        Func<Asset, Task<bool>>? installAsset = null, string? cachePath = null)
     {
-        Logger.LogI("Updating repos");
-        
-        List<Asset> debs = [];
-        List<Asset> exes = [];
-        List<Asset> appImages = [];
-        bool archivesOk = true;
-        
-        foreach (Asset? asset in assets)
+        using HistoryScope operation = OperationHistory.Store.Begin(downloadOnly ? HistoryAction.Download
+            : force ? HistoryAction.Reinstall : HistoryAction.Update, repo, batchId, batchId: batchId);
+        if (respectExclusion && repo.ExcludedFromDownloadAll || !force
+            && (downloadOnly ? repo.LastDownloadTag == repo.Tag : repo.IsUpToDate))
         {
-            if (asset == null)
-            {
-                continue;
-            }
-            
-            if (asset.Value.Repo.AutoExtract && ArchiveExtractor.IsSupportedArchive(asset.Value.TempAssetPath))
-            {
-                statusText.Invoke($"Extracting {asset.Value.Repo.Name}");
-                try
-                {
-                    await ArchiveExtractor.ExtractDownloadAsync(asset.Value.Repo, asset.Value.TempAssetPath,
-                        asset.Value.Tag, progressText);
-                }
-                catch (Exception exception)
-                {
-                    archivesOk = false;
-                    string message = $"Extraction failed ({exception.GetType().Name})";
-                    Logger.LogE(message);
-                    progressText.Invoke(message);
-                }
-                finally
-                {
-                    if (asset.Value.TemporaryDirectory is string directory && Directory.Exists(directory))
-                        Directory.Delete(directory, recursive: true);
-                }
-                continue;
-            }
-
-            if (OperatingSystem.IsLinux() && asset.Value.TempAssetPath.EndsWith(".deb", StringComparison.OrdinalIgnoreCase))
-            {
-                debs.Add(asset.Value);
-                if (!asset.Value.Repo.SaveFileAnyway) continue;
-            }
-            else if (OperatingSystem.IsLinux() && asset.Value.TempAssetPath.EndsWith(".appimage", StringComparison.OrdinalIgnoreCase))
-            {
-                appImages.Add(asset.Value);
-                if (!asset.Value.Repo.SaveFileAnyway) continue;
-            }
-            else if (asset.Value.TempAssetPath.EndsWith(".exe") ||
-                     asset.Value.TempAssetPath.EndsWith(".msi"))
-            {
-                exes.Add(asset.Value);
-                if (!asset.Value.Repo.SaveFileAnyway) continue;
-            }
-
-            statusText.Invoke($"Move file {asset.Value.Repo.Name}");
-            CopyFile(asset.Value);
-            if (!debs.Contains(asset.Value) && !exes.Contains(asset.Value) && !appImages.Contains(asset.Value))
-                asset.Value.Repo.CurrentInstallTag = asset.Value.Tag;
+            operation.Finish(HistoryStatus.Skipped, respectExclusion && repo.ExcludedFromDownloadAll
+                ? HistoryOutcome.Excluded : HistoryOutcome.AlreadyCurrent);
+            return HistoryStatus.Skipped;
         }
-        
-        statusText.Invoke("Installing Updates...");
-        
-        await HandleAppImagesAsync(appImages);
-        foreach (Asset asset in appImages)
-        {
-            asset.Repo.InstalledAppImageId = InstallationManager.GetAppImageId(asset.Repo);
-            asset.Repo.CurrentInstallTag = asset.Tag;
-        }
-        bool debsOk = true;
-        Dictionary<Repo, string> debianPackages = new();
-        InstallationManager installations = new();
+        bool downloaded = false;
         try
         {
-            foreach (Asset asset in debs)
-                debianPackages[asset.Repo] = await installations.ReadDebianPackageNameAsync(asset.TempAssetPath);
+            Asset? asset = await DownloadAsset(repo, statusText, progressText,
+                operation.Id, batchId, downloadFile, cachePath);
+            if (asset is null)
+            {
+                operation.Finish(HistoryStatus.Failed, HistoryOutcome.SelectionUnresolved);
+                return HistoryStatus.Failed;
+            }
+            downloaded = true;
+            bool success = await ApplyAssetAsync(asset.Value, statusText, progressText, downloadOnly, installAsset);
+            bool extract = !downloadOnly && repo.AutoExtract && ArchiveExtractor.IsSupportedArchive(asset.Value.TempAssetPath);
+            bool install = !downloadOnly && IsInstallerAsset(asset.Value.TempAssetPath);
+            operation.Finish(success ? HistoryStatus.Succeeded : HistoryStatus.Failed, success
+                ? extract ? HistoryOutcome.Extracted : install ? HistoryOutcome.Installed : HistoryOutcome.Saved
+                : extract ? HistoryOutcome.ExtractionFailed : install ? HistoryOutcome.InstallFailed : HistoryOutcome.SaveFailed);
+            return success ? HistoryStatus.Succeeded : HistoryStatus.Failed;
         }
         catch (Exception exception)
         {
-            debsOk = false;
-            Logger.LogE($"Debian package metadata could not be read ({exception.GetType().Name})");
-            progressText("Could not read the Debian package metadata.");
+            Logger.LogE($"Repository operation failed ({exception.GetType().Name})");
+            progressText("Repository operation failed. Check connectivity, permissions, and installation requirements.");
+            operation.Finish(HistoryStatus.Failed, downloaded ? HistoryOutcome.Failed : HistoryOutcome.DownloadFailed);
+            return HistoryStatus.Failed;
         }
-        if (debsOk) debsOk = await InstallDebsAsync(debs.Select(asset => asset.TempAssetPath).ToList(), progressText);
-        if (debsOk)
+    }
+
+    internal static async Task<bool> UpdateReposAsync(List<Asset?> assets, Action<string> statusText,
+        Action<string> progressText, Func<Asset, Task<bool>>? installAsset = null)
+    {
+        bool succeeded = true;
+        foreach (Asset? asset in assets)
+            if (asset.HasValue)
+                succeeded &= await ApplyAssetAsync(asset.Value, statusText, progressText, false, installAsset);
+        return succeeded;
+    }
+
+    private static async Task<bool> ApplyAssetAsync(Asset asset, Action<string> statusText,
+        Action<string> progressText, bool downloadOnly, Func<Asset, Task<bool>>? installAsset)
+    {
+        bool extract = !downloadOnly && asset.Repo.AutoExtract && ArchiveExtractor.IsSupportedArchive(asset.TempAssetPath);
+        bool install = !downloadOnly && IsInstallerAsset(asset.TempAssetPath);
+        using HistoryScope history = OperationHistory.Store.Begin(extract ? HistoryAction.Extract
+            : install ? HistoryAction.Install : HistoryAction.Save, asset.Repo, asset.ParentHistoryId,
+            batchId: asset.BatchId, toVersion: asset.Tag);
+        try
         {
-            foreach (Asset asset in debs)
+            if (extract)
             {
-                asset.Repo.InstalledDebianPackage = debianPackages[asset.Repo];
-                asset.Repo.CurrentInstallTag = asset.Tag;
+                statusText($"Extracting {asset.Repo.Name}");
+                await ArchiveExtractor.ExtractDownloadAsync(asset.Repo, asset.TempAssetPath, asset.Tag, progressText);
+            }
+            else
+            {
+                if (!install || asset.Repo.SaveFileAnyway)
+                {
+                    statusText($"Move file {asset.Repo.Name}");
+                    CopyFile(asset);
+                    asset.Repo.LastDownloadTag = asset.Tag;
+                }
+                if (install)
+                {
+                    statusText($"Installing {asset.Repo.Name}");
+                    if (!await (installAsset ?? InstallAssetAsync)(asset))
+                    {
+                        history.Finish(HistoryStatus.Failed, HistoryOutcome.InstallFailed);
+                        return false;
+                    }
+                    asset.Repo.CurrentInstallTag = asset.Tag;
+                }
+            }
+            history.Complete(extract ? HistoryOutcome.Extracted : install ? HistoryOutcome.Installed : HistoryOutcome.Saved);
+            return true;
+        }
+        catch (Exception exception)
+        {
+            string action = extract ? "Extraction" : install ? "Installation" : "Saving downloaded file";
+            Logger.LogE($"{action} failed ({exception.GetType().Name})");
+            progressText($"{action} failed ({exception.GetType().Name})");
+            history.Finish(HistoryStatus.Failed, extract ? HistoryOutcome.ExtractionFailed
+                : install ? HistoryOutcome.InstallFailed : HistoryOutcome.SaveFailed);
+            return false;
+        }
+        finally
+        {
+            if (asset.TemporaryDirectory is string directory && Directory.Exists(directory))
+            {
+                try { Directory.Delete(directory, recursive: true); }
+                catch (IOException) { Logger.LogW("Temporary download cleanup failed"); }
+                catch (UnauthorizedAccessException) { Logger.LogW("Temporary download cleanup failed"); }
             }
         }
-        bool exesOk = await InstallExeAsync(exes.Select(asset => asset.TempAssetPath).ToList(), progressText);
-        if (exesOk)
-            foreach (Asset asset in exes) asset.Repo.CurrentInstallTag = asset.Tag;
-        bool succeeded = archivesOk && debsOk && exesOk;
-        if (succeeded) Logger.LogI("Repository updates completed");
-        else Logger.LogE("Repository updates failed");
-        return succeeded;
+    }
+
+    private static async Task<bool> InstallAssetAsync(Asset asset)
+    {
+        if (OperatingSystem.IsLinux() && asset.TempAssetPath.EndsWith(".deb", StringComparison.OrdinalIgnoreCase))
+        {
+            InstallationManager installations = new();
+            string package = await installations.ReadDebianPackageNameAsync(asset.TempAssetPath);
+            if (!await InstallDebsAsync([asset.TempAssetPath], _ => { })) return false;
+            asset.Repo.InstalledDebianPackage = package;
+            return true;
+        }
+        if (OperatingSystem.IsLinux() && asset.TempAssetPath.EndsWith(".appimage", StringComparison.OrdinalIgnoreCase))
+        {
+            await HandleAppImagesAsync([asset]);
+            asset.Repo.InstalledAppImageId = InstallationManager.GetAppImageId(asset.Repo);
+            return true;
+        }
+        return await InstallExeAsync([asset.TempAssetPath], _ => { });
     }
 
     private static async Task HandleAppImagesAsync(List<Asset> assets)
@@ -562,16 +605,14 @@ public static class UpdateManager
         File.WriteAllText(desktopFilePath, desktopFile);
     }
         
-    private static async Task<Asset?> DownloadAsset(Repo repo, Action<string> statusText, Action<string> progressText, bool downloadAnyways = false)
+    private static async Task<Asset?> DownloadAsset(Repo repo, Action<string> statusText, Action<string> progressText,
+        Guid? parentId = null, Guid? batchId = null,
+        Func<string, string, IProgress<double>, Task>? downloadFile = null, string? cachePath = null)
     {
         Logger.LogI("Preparing asset download");
         
-        if (!downloadAnyways && repo.Tag == repo.CurrentInstallTag)
-        {
-            return null;
-        }
-        
-        statusText.Invoke( $"Downloading {repo.Name}");
+        using HistoryScope history = OperationHistory.Store.Begin(HistoryAction.Download, repo, parentId, batchId: batchId);
+        statusText.Invoke($"Downloading {repo.Name}");
         
         Progress<double> progress = new(p =>
         {
@@ -586,21 +627,27 @@ public static class UpdateManager
             string message = $"Skipped {repo.Name}: {repo.AssetSelectionStatus}";
             statusText.Invoke(message);
             progressText.Invoke(message);
+            history.Finish(HistoryStatus.Failed, HistoryOutcome.SelectionUnresolved);
             return null;
         }
 
         string downloadTag = repo.Tag;
+        cachePath ??= FileManager.CachePath;
         string? temporaryDirectory = repo.AutoExtract && ArchiveExtractor.IsSupportedArchive(downloadAssetName)
-            ? Path.Combine(FileManager.CachePath, $"archive-{Guid.NewGuid():N}")
+            ? Path.Combine(cachePath, $"archive-{Guid.NewGuid():N}")
             : null;
-        string temporaryPath = Path.Combine(temporaryDirectory ?? FileManager.CachePath, downloadAssetName);
+        string temporaryPath = Path.Combine(temporaryDirectory ?? cachePath, downloadAssetName);
         if (temporaryDirectory != null) Directory.CreateDirectory(temporaryDirectory);
         try
         {
-            await Api.DownloadFileAsync(downloadAssetUrl, temporaryPath, SecretsManager.LookupSecret("pat"), progress);
+            if (downloadFile is null)
+                await Api.DownloadFileAsync(downloadAssetUrl, temporaryPath, SecretsManager.LookupSecret("pat"), progress);
+            else await downloadFile(downloadAssetUrl, temporaryPath, progress);
+            history.Complete(HistoryOutcome.Downloaded);
         }
         catch
         {
+            history.Finish(HistoryStatus.Failed, HistoryOutcome.DownloadFailed);
             if (temporaryDirectory != null) Directory.Delete(temporaryDirectory, recursive: true);
             throw;
         }
@@ -610,7 +657,9 @@ public static class UpdateManager
             Repo = repo,
             TempAssetPath = temporaryPath,
             Tag = downloadTag,
-            TemporaryDirectory = temporaryDirectory
+            TemporaryDirectory = temporaryDirectory,
+            ParentHistoryId = parentId,
+            BatchId = batchId
         };
         
         return asset;

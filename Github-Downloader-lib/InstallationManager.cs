@@ -80,6 +80,7 @@ public sealed class InstallationManager
         string? legacyDebianPackage = null)
     {
         Logger.LogI("Repository uninstall started");
+        using HistoryScope history = OperationHistory.Store.Begin(HistoryAction.Uninstall, repo);
         try
         {
             if (!OperatingSystem.IsLinux()) throw new PlatformNotSupportedException("Uninstall is supported on Linux.");
@@ -108,6 +109,7 @@ public sealed class InstallationManager
                 {
                     Logger.LogE($"Debian package removal failed (exit code {result.ExitCode})");
                     progress($"Uninstall failed (exit code {result.ExitCode}). Check authorization and package dependencies.");
+                    history.Finish(HistoryStatus.Failed, HistoryOutcome.UninstallFailed);
                     return false;
                 }
                 Logger.LogI("Debian package removed");
@@ -127,11 +129,13 @@ public sealed class InstallationManager
             repo.ExcludedFromDownloadAll = true;
             status($"Uninstalled {repo.Name}");
             Logger.LogI("Repository uninstall completed");
+            history.Complete(HistoryOutcome.Uninstalled);
             return true;
         }
         catch (Exception exception)
         {
             Logger.LogE($"Repository uninstall failed ({exception.GetType().Name})");
+            history.Finish(HistoryStatus.Failed, HistoryOutcome.UninstallFailed);
             throw;
         }
     }

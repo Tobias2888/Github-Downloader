@@ -1,0 +1,73 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:Github_Downloader.ViewModels"
+        x:Class="Github_Downloader.Views.HistoryWindow" x:DataType="vm:HistoryViewModel"
+        Title="Operation history" Width="1120" Height="700" MinWidth="840" MinHeight="480"
+        WindowStartupLocation="CenterOwner" Background="#222226" RequestedThemeVariant="Dark">
+    <Grid Margin="24" RowDefinitions="Auto,Auto,Auto,*,Auto,Auto">
+        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+            <StackPanel Spacing="4">
+                <TextBlock Text="History" FontSize="24" FontWeight="SemiBold" Foreground="White"/>
+                <TextBlock Text="Downloads, installations, and uninstalls. Entries stay here when a repository is removed."
+                           Foreground="#AAA" TextWrapping="Wrap"/>
+            </StackPanel>
+            <Button Name="ClearHistory" Grid.Column="1" Content="Clear history" Click="Clear_OnClick" VerticalAlignment="Center"/>
+        </Grid>
+        <WrapPanel Margin="0,0,0,8" Grid.Row="1" Orientation="Horizontal">
+            <StackPanel Margin="0,0,12,8" Spacing="4">
+                <TextBlock Text="Repository" Foreground="#CCC"/>
+                <TextBox Name="RepositoryFilter" Width="210" Watermark="All repositories"/>
+            </StackPanel>
+            <StackPanel Margin="0,0,12,8" Spacing="4">
+                <TextBlock Text="From" Foreground="#CCC"/>
+                <CalendarDatePicker Name="FromDate" Width="160" Watermark="Any date"/>
+            </StackPanel>
+            <StackPanel Margin="0,0,12,8" Spacing="4">
+                <TextBlock Text="Through" Foreground="#CCC"/>
+                <CalendarDatePicker Name="ToDate" Width="160" Watermark="Any date"/>
+            </StackPanel>
+            <StackPanel Margin="0,0,12,8" Spacing="4">
+                <TextBlock Text="Result" Foreground="#CCC"/>
+                <ComboBox Name="ResultFilter" Width="150"/>
+            </StackPanel>
+        </WrapPanel>
+        <WrapPanel Margin="0,0,0,8" Grid.Row="2">
+            <Button Margin="0,0,16,8" Content="Reset filters" Click="Reset_OnClick"/>
+            <CheckBox Margin="0,0,16,8" Name="IncludeSkipped" Content="Show skipped" VerticalAlignment="Center"/>
+            <CheckBox Margin="0,0,0,8" Name="IncludeSteps" Content="Show download and installation steps" VerticalAlignment="Center"/>
+        </WrapPanel>
+        <ScrollViewer Grid.Row="3" HorizontalScrollBarVisibility="Disabled">
+            <ItemsControl ItemsSource="{Binding Entries}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:HistoryRow">
+                        <Border Background="#2B2B35" CornerRadius="6" Padding="14" Margin="0,0,0,8"
+                                ToolTip.Tip="{Binding Group}">
+                            <Grid ColumnDefinitions="145,*,110,150,120" RowDefinitions="Auto,Auto">
+                                <TextBlock Text="{Binding Timestamp}" Foreground="#AAA"/>
+                                <TextBlock Grid.Column="1" Text="{Binding Repository}" Foreground="White" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Grid.Column="2" Text="{Binding Action}" Foreground="#A5DEE0"/>
+                                <TextBlock Grid.Column="3" Text="{Binding Versions}" Foreground="#CCC" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Grid.Column="4" Text="{Binding Result}" Foreground="{Binding ResultBrush}"/>
+                                <TextBlock Grid.Row="1" Grid.ColumnSpan="5" Margin="0,8,0,0" Text="{Binding Summary}" Foreground="#CCC" TextWrapping="Wrap"/>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+        <Grid Margin="0,12,0,0" Grid.Row="4" ColumnDefinitions="*,Auto,Auto">
+            <TextBlock Name="PageStatus" Foreground="#CCC" VerticalAlignment="Center" TextWrapping="Wrap"/>
+            <Button Name="PreviousPage" Grid.Column="1" Content="Previous" Click="Previous_OnClick"/>
+            <Button Name="NextPage" Grid.Column="2" Content="Next" Margin="10,0,0,0" Click="Next_OnClick"/>
+        </Grid>
+        <Border Margin="0,12,0,0" Name="ClearConfirmation" Grid.Row="5" IsVisible="False" Background="#3D2D2D" CornerRadius="6" Padding="12">
+            <StackPanel Spacing="10">
+                <TextBlock Text="Clear completed history? Running operations are kept." Foreground="White"/>
+                <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+                    <Button Content="Cancel" Click="CancelClear_OnClick"/>
+                    <Button Name="ConfirmClear" Content="Clear history" Click="ConfirmClear_OnClick" Background="#963B3B"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

@@ -19,9 +19,10 @@
               </LinearGradientBrush>
           </Border.Background>
           
-          <Grid ColumnDefinitions="*,Auto">
+          <Grid ColumnDefinitions="*,Auto,Auto">
               <TextBlock Text="GitHub Repository Tracker" Classes="Title"/>
-              <Image Grid.Column="1" Source="../resources/settings.png" Cursor="Hand" PointerPressed="InputElement_OnPointerPressed" Height="30" Width="30"/>
+              <Button Grid.Column="1" Content="History" Margin="0,0,14,0" Click="History_OnClick" VerticalAlignment="Center"/>
+              <Image Grid.Column="2" Source="../resources/settings.png" Cursor="Hand" PointerPressed="InputElement_OnPointerPressed" Height="30" Width="30"/>
           </Grid>
       </Border>
       

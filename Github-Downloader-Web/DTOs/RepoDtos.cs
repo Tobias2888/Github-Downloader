@@ -36,7 +36,9 @@ public record RepoResponse(
     string AssetName,
     string AssetRule,
     List<string> AssetRuleMatches,
-    string AssetSelectionStatus
+    string AssetSelectionStatus,
+    string LastDownloadTag = "",
+    string CurrentVersion = ""
 );
 
 public record UpdateRepoRequest(

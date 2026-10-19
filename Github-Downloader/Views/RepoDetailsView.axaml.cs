@@ -82,7 +82,7 @@ public partial class RepoDetailsView : UserControl
             bool hasUpdates = false;
             foreach (Repo repo in UpdateManager.Repos)
             {
-                if (repo.CurrentInstallTag != repo.Tag)
+                if (!repo.IsUpToDate)
                 {
                     hasUpdates = true;
                 }
@@ -93,7 +93,7 @@ public partial class RepoDetailsView : UserControl
         };
         
         TbxVersion.DataContext = _repoDetailsViewModel.Repo;
-        TbxVersion.Bind(TextBlock.TextProperty, new Binding(nameof(_repoDetailsViewModel.Repo.CurrentInstallTag)));
+        TbxVersion.Bind(TextBlock.TextProperty, new Binding(nameof(_repoDetailsViewModel.Repo.CurrentVersion)));
         TbxVersion.Bind(IsVisibleProperty, new Binding(nameof(_repoDetailsViewModel.Repo.IsUpToDate)));
         
         TbxUpdateVersion.DataContext = _repoDetailsViewModel.Repo;
@@ -104,7 +104,7 @@ public partial class RepoDetailsView : UserControl
                 StringFormat = "{0} -> {1}",
                 Bindings =
                 {
-                    new Binding(nameof(_repoDetailsViewModel.Repo.CurrentInstallTag)),
+                    new Binding(nameof(_repoDetailsViewModel.Repo.CurrentVersion)),
                     new Binding(nameof(_repoDetailsViewModel.Repo.Tag)),
                 }
             });

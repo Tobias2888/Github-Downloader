@@ -232,12 +232,27 @@ public class Repo : INotifyPropertyChanged, IJsonOnDeserializing, IJsonOnDeseria
             if (_currentInstallTag == value) return;
             _currentInstallTag = value;
             OnPropertyChanged(nameof(CurrentInstallTag));
+            OnPropertyChanged(nameof(CurrentVersion));
             OnPropertyChanged(nameof(IsUpToDate));
             OnPropertyChanged(nameof(CanUninstall));
             OnPropertyChanged(nameof(NeedsDebianPackageName));
         }
     }
     
+    private string _lastDownloadTag = string.Empty;
+    public string LastDownloadTag
+    {
+        get => _lastDownloadTag;
+        set
+        {
+            if (_lastDownloadTag == value) return;
+            _lastDownloadTag = value;
+            OnPropertyChanged(nameof(LastDownloadTag));
+            OnPropertyChanged(nameof(CurrentVersion));
+            OnPropertyChanged(nameof(IsUpToDate));
+        }
+    }
+
     private string _targetTag = "latest";
     public string TargetTag
     {
@@ -299,7 +314,14 @@ public class Repo : INotifyPropertyChanged, IJsonOnDeserializing, IJsonOnDeseria
     }
 
     [JsonIgnore]
-    public bool IsUpToDate => Tag == CurrentInstallTag;
+    public bool IsUpToDate => Tag == CurrentVersion;
+
+    [JsonIgnore]
+    public string CurrentVersion => IsDownloadOnly && LastDownloadTag.Length > 0 ? LastDownloadTag : CurrentInstallTag;
+
+    [JsonIgnore]
+    public bool IsDownloadOnly => !(AutoExtract && ArchiveExtractor.IsSupportedArchive(SelectedAssetName))
+        && !UpdateManager.IsInstallerAsset(SelectedAssetName);
 
     private string _installedDebianPackage = string.Empty;
     public string InstalledDebianPackage
@@ -345,6 +367,9 @@ public class Repo : INotifyPropertyChanged, IJsonOnDeserializing, IJsonOnDeseria
         OnPropertyChanged(nameof(DownloadAssetIndex));
         OnPropertyChanged(nameof(SelectedAssetName));
         OnPropertyChanged(nameof(SelectedAssetUrl));
+        OnPropertyChanged(nameof(IsDownloadOnly));
+        OnPropertyChanged(nameof(CurrentVersion));
+        OnPropertyChanged(nameof(IsUpToDate));
         OnPropertyChanged(nameof(HasAssetRule));
         OnPropertyChanged(nameof(AssetRuleMatches));
         OnPropertyChanged(nameof(HasMultipleAssetRuleMatches));
@@ -403,6 +428,9 @@ public class Repo : INotifyPropertyChanged, IJsonOnDeserializing, IJsonOnDeseria
             if (_autoExtract == value) return;
             _autoExtract = value;
             OnPropertyChanged(nameof(AutoExtract));
+            OnPropertyChanged(nameof(IsDownloadOnly));
+            OnPropertyChanged(nameof(CurrentVersion));
+            OnPropertyChanged(nameof(IsUpToDate));
         }
     }
 
@@ -456,7 +484,7 @@ public class Repo : INotifyPropertyChanged, IJsonOnDeserializing, IJsonOnDeseria
 
     public override string ToString()
     {
-        return $"{Name} - " + (Tag == CurrentInstallTag ? CurrentInstallTag : "\x1b[38;2;255;165;0m" + CurrentInstallTag + " -> " + Tag + "\x1b[0m");
+        return $"{Name} - " + (IsUpToDate ? CurrentVersion : "\x1b[38;2;255;165;0m" + CurrentVersion + " -> " + Tag + "\x1b[0m");
     }
     
     public event PropertyChangedEventHandler? PropertyChanged;

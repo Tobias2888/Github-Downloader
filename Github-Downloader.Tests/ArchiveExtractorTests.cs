@@ -56,7 +56,8 @@ public sealed class ArchiveExtractorTests : IDisposable
             [new UpdateManager.Asset(repo, archive, "v2")], _ => { }, _ => { });
 
         Assert.True(success);
-        Assert.Equal("v2", repo.CurrentInstallTag);
+        Assert.Equal(autoExtract ? "v2" : "v1", repo.CurrentInstallTag);
+        if (!autoExtract) Assert.Equal("v2", repo.LastDownloadTag);
         string savedArchive = Path.Combine(repo.DownloadPath, "renamed.zip");
         if (autoExtract)
         {

@@ -30,6 +30,7 @@
         <nav class="tabs" id="tabs">
             <button class="tab active" data-tab="repositories">Repositories</button>
             <button class="tab" data-tab="updates">Updates</button>
+            <button class="tab" data-tab="history">History</button>
             <button class="tab" data-tab="config">Configuration</button>
             <button class="tab" data-tab="settings">Settings</button>
         </nav>
@@ -69,6 +70,39 @@
                         Add Repository
                     </button>
                 </div>
+            </section>
+
+            <section class="tab-panel" id="history-panel">
+                <div class="panel-header">
+                    <div><h2>History</h2><p class="hint">Past downloads, installations, and uninstalls.</p></div>
+                    <div class="panel-actions">
+                        <button class="btn btn-secondary" id="refreshHistory">Refresh</button>
+                        <button class="btn btn-danger" id="clearHistory">Clear history</button>
+                    </div>
+                </div>
+                <div class="history-filters">
+                    <label>Repository<input id="historyRepository" type="text" placeholder="All repositories"></label>
+                    <label>From<input id="historyFrom" type="date"></label>
+                    <label>Through<input id="historyTo" type="date"></label>
+                    <label>Result<select id="historyResult">
+                        <option value="">All results</option><option>Succeeded</option><option>Failed</option>
+                        <option value="PartialFailure">Partial failure</option><option>Skipped</option>
+                        <option>Interrupted</option><option>Running</option>
+                    </select></label>
+                    <label class="history-steps"><input id="historySkipped" type="checkbox">Show skipped</label>
+                    <label class="history-steps"><input id="historySteps" type="checkbox">Show download and installation steps</label>
+                </div>
+                <div class="table-container">
+                    <table class="repo-table">
+                        <thead><tr><th>Time</th><th>Repository</th><th>Action</th><th>Versions</th><th>Result</th><th>Summary</th></tr></thead>
+                        <tbody id="historyRows"></tbody>
+                    </table>
+                </div>
+                <div class="panel-header history-pagination">
+                    <span id="historyStatus" role="status" aria-live="polite">Open History to load entries.</span>
+                    <div class="panel-actions"><button class="btn" id="historyPrevious" disabled>Previous</button><button class="btn" id="historyNext" disabled>Next</button></div>
+                </div>
+                <p class="hint">History stays available when a repository is removed.</p>
             </section>
 
             <!-- Updates Tab -->
@@ -332,5 +366,6 @@
     <script src="vendor/dompurify/purify.min.js"></script>
     <script src="changelog.js"></script>
     <script src="app.js"></script>
+    <script src="history.js"></script>
 </body>
 </html>

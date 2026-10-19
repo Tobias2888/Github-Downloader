@@ -1377,3 +1377,11 @@ input[type="password"]::placeholder {
         justify-content: center;
     }
 }
+/* Operation history */
+.history-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 16px; margin-bottom: 20px; }
+.history-filters label { display: flex; flex-direction: column; gap: 6px; color: var(--text-muted); font-size: 13px; }
+.history-filters .history-steps { flex-direction: row; align-items: center; padding-bottom: 10px; }
+.history-filters input[type="date"] { background: rgba(0,0,0,.25); color: var(--text); color-scheme: dark; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 12px; font: inherit; }
+.history-result.succeeded { color: #6ee7b7; }
+.history-result.failed, .history-result.partialfailure, .history-result.interrupted { color: #fca5a5; }
+.history-pagination { margin-top: 16px; }

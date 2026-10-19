@@ -12,6 +12,12 @@ public static class Program
 {
     private static async Task Main(string[] args)
     {
+        // Reading history must not initialize repositories, contact GitHub, or clear a shared cache.
+        if (args.Length > 0 && args[0] == "history")
+        {
+            Environment.ExitCode = ArgHistory.Execute(args, Console.Out, Console.Error);
+            return;
+        }
         // Hand off before loading CLI state, which also clears the shared download cache.
         if (args.Length > 0 && args[0] == "--gui")
         {
@@ -133,7 +139,7 @@ public static class Program
                 int count = 0;
                 UpdateManager.Repos.ToList().ForEach(repo =>
                 {
-                    if (repo.Tag != repo.CurrentInstallTag)
+                    if (!repo.IsUpToDate)
                     {
                         count++;
                     }
@@ -273,6 +279,8 @@ public static class Program
                             -h / --help - Show this menu
                             -v / --version - Show installed version
                             --gui - Open the desktop application
+                            history [--repo name] [--from date] [--to date] [--status result] [--action action] [--include-skipped] [--json] - Read history
+                            history clear --yes - Clear completed history (keeps running entries)
                             
                             list repos - List all tracked repositories
                             list assets (repo id) - List all available assets of a specific repo

@@ -70,7 +70,7 @@ public partial class RepoEntryControl : UserControl
         bool hasUpdates = false;
         foreach (Repo repo in UpdateManager.Repos)
         {
-            if (repo.CurrentInstallTag != repo.Tag)
+            if (!repo.IsUpToDate)
             {
                 hasUpdates = true;
                 break;

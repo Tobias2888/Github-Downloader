@@ -130,6 +130,7 @@ public static class FileManager
             foreach (Repo repo in UpdateManager.Repos)
             {
                 repo.CurrentInstallTag = "";
+                repo.LastDownloadTag = "";
                 repo.InstalledDebianPackage = "";
                 repo.InstalledAppImageId = "";
             }

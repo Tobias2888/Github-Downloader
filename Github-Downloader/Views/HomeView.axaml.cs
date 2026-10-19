@@ -18,6 +18,11 @@ namespace Github_Downloader.Views;
 
 public partial class HomeView : UserControl
 {
+    private void History_OnClick(object? sender, RoutedEventArgs e)
+    {
+        if (TopLevel.GetTopLevel(this) is Window owner) new HistoryWindow().Show(owner);
+    }
+
     private readonly MainViewModel _mainViewModel;
     private readonly HomeViewModel _homeViewModel;
     private readonly DownloadStatusViewModel _downloadStatusViewModel;
@@ -101,7 +106,7 @@ public partial class HomeView : UserControl
         bool hasUpdates = false;
         foreach (Repo repo in UpdateManager.Repos)
         {
-            if (repo.CurrentInstallTag != repo.Tag)
+            if (!repo.IsUpToDate)
             {
                 hasUpdates = true;
                 break;

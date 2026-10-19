@@ -237,11 +237,11 @@ public class GithubDownloaderService : IGithubDownloaderService
             {
                 await UpdateManager.SearchForUpdates(repo, status);
 
-                bool hasUpdate = repo.Tag != repo.CurrentInstallTag && repo.Tag != "";
+                bool hasUpdate = !repo.IsUpToDate && repo.Tag != "";
                 updates.Add(new DTOs.RepoUpdateInfo(
                     repo.Url,
                     repo.Name,
-                    repo.CurrentInstallTag,
+                    repo.CurrentVersion,
                     repo.Tag,
                     hasUpdate,
                     repo.AssetNames.ToList(),
@@ -263,64 +263,33 @@ public class GithubDownloaderService : IGithubDownloaderService
     public async Task<DTOs.DownloadResponse> DownloadAssetsAsync(List<string> repoUrls, bool downloadAnyways = false, IProgress<DTOs.DownloadProgress>? progress = null)
     {
         await InitializeAsync();
-        List<Repo> repos = UpdateManager.Repos?.Where(r => repoUrls.Contains(r.Url)).ToList() ?? [];
-        List<DTOs.DownloadedAsset> downloadedAssets = new();
-
+        List<Repo> repos = UpdateManager.Repos?.Where(repo => repoUrls.Contains(repo.Url)).ToList() ?? [];
+        Dictionary<Repo, HistoryStatus> outcomes = [];
         _tracker.Start($"Downloading {repos.Count} repositories", repos.Count);
         try
         {
-            (Action<string> statusAction, Action<string> progressAction) = CreateCallbacks();
-            int failed = 0;
-
-            foreach (Repo repo in repos)
-            {
-                string initialTag = repo.CurrentInstallTag;
-                bool succeeded = await UpdateManager.UpdateRepo(repo, statusAction, progressAction, downloadAnyways);
-                if (!succeeded)
+            (Action<string> status, Action<string> detail) = CreateCallbacks();
+            bool succeeded = await UpdateManager.DownloadReposAsync(repos, status, detail, downloadAnyways,
+                (repo, result) =>
                 {
-                    failed++;
-                    continue;
-                }
-
-                if (repo.CurrentInstallTag != initialTag || downloadAnyways)
-                {
-                    downloadedAssets.Add(new DTOs.DownloadedAsset(
-                        repo.Url,
-                        repo.Name,
-                        repo.SelectedAssetName,
-                        repo.Tag,
-                        repo.AutoExtract && ArchiveExtractor.IsSupportedArchive(repo.SelectedAssetName)
-                            ? repo.ExtractionDirectory
-                            : Path.Join(FileManager.CachePath, repo.SelectedAssetName),
-                        repo.AutoExtract && ArchiveExtractor.IsSupportedArchive(repo.SelectedAssetName)
-                    ));
-
-                    progress?.Report(new DTOs.DownloadProgress(
-                        repo.Url,
-                        repo.Name,
-                        100,
-                        $"Downloaded: {repo.Name}"
-                    ));
-                }
-                else
-                {
-                    progress?.Report(new DTOs.DownloadProgress(
-                        repo.Url,
-                        repo.Name,
-                        100,
-                        $"Up to date: {repo.Name}"
-                    ));
-                }
-            }
-
-            string summary = $"Downloaded {downloadedAssets.Count} assets; {failed} failed or were skipped. Check the activity log for details.";
-            _tracker.Finish(failed == 0, failed == 0 ? null : summary);
-            return new DTOs.DownloadResponse(failed == 0, summary, downloadedAssets);
+                    outcomes[repo] = result;
+                    progress?.Report(new DTOs.DownloadProgress(repo.Url, repo.Name, 100, result.ToString()));
+                });
+            List<DTOs.DownloadedAsset> downloaded = repos
+                .Where(repo => outcomes.GetValueOrDefault(repo) == HistoryStatus.Succeeded)
+                .Select(repo => new DTOs.DownloadedAsset(repo.Url, repo.Name, repo.SelectedAssetName, repo.Tag,
+                    Path.Combine(repo.DownloadPath, repo.NewFileName.Length > 0 ? repo.NewFileName : repo.SelectedAssetName), false))
+                .ToList();
+            FileManager.SaveRepos();
+            string summary = $"Saved {downloaded.Count} files. No installers were run."
+                + (succeeded ? "" : " Some downloads failed; see History.");
+            _tracker.Finish(succeeded, succeeded ? null : summary);
+            return new DTOs.DownloadResponse(succeeded, summary, downloaded);
         }
-        catch (Exception ex)
+        catch (Exception exception)
         {
-            Logger.LogE($"Web operation failed ({ex.GetType().Name})");
-            _tracker.Finish(false, $"Operation failed ({ex.GetType().Name})");
+            Logger.LogE($"Web download failed ({exception.GetType().Name})");
+            _tracker.Finish(false, "Download failed; see History.");
             throw;
         }
     }
@@ -331,12 +300,12 @@ public class GithubDownloaderService : IGithubDownloaderService
         List<Repo> repos = UpdateManager.Repos?.Where(r => repoUrls.Contains(r.Url)).ToList() ?? [];
         List<DTOs.InstalledAsset> installedAssets = new();
 
-        List<Repo> repoList = repos.Where(r => !r.ExcludedFromDownloadAll).ToList();
+        List<Repo> repoList = downloadAnyways ? repos : repos.Where(r => !r.ExcludedFromDownloadAll).ToList();
         // Only repos with an actual update are processed (repos already at the target tag are
         // skipped by the update loop), so count those for an accurate tracker.
         List<Repo> operationItems = downloadAnyways
             ? repos
-            : repoList.Where(r => r.Tag != "" && r.Tag != r.CurrentInstallTag).ToList();
+            : repoList.Where(r => r.Tag != "" && !r.IsUpToDate).ToList();
 
         _tracker.Start($"{(downloadAnyways ? "Reinstalling" : "Updating")} {operationItems.Count} repositories", operationItems.Count);
         string? previousPassword = UpdateManager.RootPassword;
@@ -345,28 +314,12 @@ public class GithubDownloaderService : IGithubDownloaderService
         {
             (Action<string> statusAction, Action<string> progressAction) = CreateCallbacks();
 
-            bool installOk = true;
-            List<Repo> changedRepos;
-            if (downloadAnyways)
-            {
-                foreach (Repo repo in repos)
-                {
-                    installOk &= await UpdateManager.UpdateRepo(repo, statusAction, progressAction, true);
-                }
-                changedRepos = repos;
-            }
-            else
-            {
-                List<(Repo Repo, string Tag)> tagsBefore = repoList.Select(r => (Repo: r, Tag: r.CurrentInstallTag)).ToList();
-                if (repoList.Count > 0)
-                {
-                    installOk &= await UpdateManager.UpdateReposAsync(repoList, statusAction, progressAction);
-                }
-                changedRepos = tagsBefore
-                    .Where(t => t.Repo.CurrentInstallTag != t.Tag)
-                    .Select(t => t.Repo)
-                    .ToList();
-            }
+            Dictionary<Repo, HistoryStatus> outcomes = [];
+            bool installOk = await UpdateManager.UpdateReposAsync(repos, statusAction, progressAction, downloadAnyways,
+                (repo, result) => outcomes[repo] = result, respectExclusions: !downloadAnyways);
+            FileManager.SaveRepos();
+            List<Repo> changedRepos = repos.Where(repo => outcomes.GetValueOrDefault(repo) == HistoryStatus.Succeeded
+                && !repo.IsDownloadOnly).ToList();
 
             if (!installOk)
             {
@@ -392,8 +345,9 @@ public class GithubDownloaderService : IGithubDownloaderService
             }
 
             _tracker.Finish(true);
-            string message = installedAssets.Count > 0
-                ? $"Updated {installedAssets.Count} assets"
+            int saved = outcomes.Count(item => item.Value == HistoryStatus.Succeeded && item.Key.IsDownloadOnly);
+            string message = installedAssets.Count + saved > 0
+                ? $"{installedAssets.Count} installed, {saved} files saved."
                 : "Everything is up to date";
             return new DTOs.InstallResponse(true, message, installedAssets);
         }
@@ -561,7 +515,9 @@ public class GithubDownloaderService : IGithubDownloaderService
             repo.AssetName,
             repo.AssetRule,
             repo.AssetRuleMatches,
-            repo.AssetSelectionStatus
+            repo.AssetSelectionStatus,
+            repo.LastDownloadTag,
+            repo.CurrentVersion
         );
     }
 }

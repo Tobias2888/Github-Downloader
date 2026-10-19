@@ -26,9 +26,9 @@ public static class ArgRepo
         {
             Repo repo = UpdateManager.Repos[repoId];
             Console.WriteLine($"Name: {repo.Name}\n" +
-                              "Version: " + (repo.Tag == repo.CurrentInstallTag
-                                  ? repo.CurrentInstallTag
-                                  : "\x1b[38;2;255;165;0m" + repo.CurrentInstallTag + " -> " + repo.Tag + "\x1b[0m") + "\n" +
+                              "Version: " + (repo.IsUpToDate
+                                  ? repo.CurrentVersion
+                                  : "\x1b[38;2;255;165;0m" + repo.CurrentVersion + " -> " + repo.Tag + "\x1b[0m") + "\n" +
                               $"Release Date: {repo.ReleaseDate}\n" +
                               $"Download Path: {repo.DownloadPath}\n" +
                               $"Selected Asset: {repo.SelectedAssetName}\n" +

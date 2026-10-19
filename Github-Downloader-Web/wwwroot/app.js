@@ -350,7 +350,7 @@
                         <a class="repo-name-link" href="${escapeHtml(repoGithubLink(repo))}" target="_blank" rel="noopener" title="${escapeHtml(repo.url)}">${escapeHtml(repo.name || repo.url)}</a>
                     </div>
                 </td>
-                <td><span class="tag tag-current">${escapeHtml(repo.currentInstallTag || '—')}</span></td>
+                <td><span class="tag tag-current">${escapeHtml(repo.currentVersion || repo.currentInstallTag || '—')}</span></td>
                 <td>
                     ${isUpToDate
                         ? `<span class="tag tag-current">${escapeHtml(repo.tag || '—')}</span>`
@@ -604,7 +604,7 @@
                     <ul id="detailAssetRuleMatches"></ul>
                 </div>
                 <p class="repo-desc" style="margin-top:8px">
-                    <span class="tag tag-current">${escapeHtml(repo.currentInstallTag || '—')}</span>
+                    <span class="tag tag-current">${escapeHtml(repo.currentVersion || repo.currentInstallTag || '—')}</span>
                     <span class="tag tag-update">${escapeHtml(repo.tag || '—')}</span>
                 </p>
             </div>
