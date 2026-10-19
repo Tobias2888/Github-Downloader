@@ -246,11 +246,10 @@ public sealed class AssetSelectionTests
         repo.DownloadAssetIndex = 1;
         repo.AssetRule = "*linux*.zip";
         Assert.True(await UpdateManager.SearchForUpdates(repo, _ => { }, url =>
-            Task.FromResult<HttpResponseMessage?>(JsonResponse(url.EndsWith("/tags?per_page=100")
-                ? "[]" : """
-                {"tag_name":"v2","body":"notes","published_at":"2026-10-16","assets":[
+            Task.FromResult<HttpResponseMessage?>(JsonResponse("""
+                [{"tag_name":"v2","body":"notes","published_at":"2026-10-16","assets":[
                   {"name":"v2-linux.zip","url":"linux-url"},
-                  {"name":"v2-windows.zip","url":"windows-url"}]}
+                  {"name":"v2-windows.zip","url":"windows-url"}]}]
                 """))));
         Assert.Equal("v2-linux.zip", repo.SelectedAssetName);
         Assert.Equal("linux-url", repo.SelectedAssetUrl);

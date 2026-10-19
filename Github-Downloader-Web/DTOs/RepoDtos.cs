@@ -38,7 +38,10 @@ public record RepoResponse(
     List<string> AssetRuleMatches,
     string AssetSelectionStatus,
     string LastDownloadTag = "",
-    string CurrentVersion = ""
+    string CurrentVersion = "",
+    bool IncludePrereleases = false,
+    bool HasRelease = true,
+    string ReleaseStatus = ""
 );
 
 public record UpdateRepoRequest(
@@ -49,7 +52,8 @@ public record UpdateRepoRequest(
     string? TargetTag,
     int? DownloadAssetIndex,
     bool? AutoExtract = null,
-    string? AssetRule = null
+    string? AssetRule = null,
+    bool? IncludePrereleases = null
 );
 
 public record ReposListResponse(

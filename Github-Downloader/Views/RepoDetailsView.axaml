@@ -52,6 +52,15 @@
                                 <TextBlock Name="TbxUpdateVersion" Text="UpdateVersion" Foreground="Orange" VerticalAlignment="Center"/>
                                 <TextBlock Name="TbxVersion" Text="Version" VerticalAlignment="Center"/>
                             </StackPanel>
+
+                            <TextBlock Text="Release channel" FontWeight="SemiBold"/>
+                            <ComboBox Name="CobReleaseChannel" HorizontalAlignment="Stretch">
+                                <ComboBoxItem Content="Stable releases only"/>
+                                <ComboBoxItem Content="Stable releases and pre-releases"/>
+                            </ComboBox>
+                            <TextBlock Text="An explicit tag overrides the channel. Changing channels only checks releases; use Update to install."
+                                       TextWrapping="Wrap" Opacity="0.7" FontSize="12"/>
+                            <TextBlock Text="{Binding Repo.ReleaseStatus}" IsVisible="{Binding !Repo.HasRelease}" TextWrapping="Wrap"/>
                             
                             <WrapPanel>
                                 <Button Name="BtnUpdate" Content="Update" Click="BtnUpdate_OnClick" Margin="0,0,10,6"/>

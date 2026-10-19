@@ -29,6 +29,8 @@ public static class ArgRepo
                               "Version: " + (repo.IsUpToDate
                                   ? repo.CurrentVersion
                                   : "\x1b[38;2;255;165;0m" + repo.CurrentVersion + " -> " + repo.Tag + "\x1b[0m") + "\n" +
+                              $"Release Channel: {repo.ReleaseChannel}\n" +
+                              (repo.HasRelease ? "" : $"{repo.ReleaseStatus}\n") +
                               $"Release Date: {repo.ReleaseDate}\n" +
                               $"Download Path: {repo.DownloadPath}\n" +
                               $"Selected Asset: {repo.SelectedAssetName}\n" +
@@ -79,6 +81,17 @@ public static class ArgRepo
                 Console.WriteLine(UpdateManager.Repos[repoId].AssetSelectionStatus);
                 break;
                     
+            case "set-channel":
+                if (args.Length != 4 || args[3] is not ("stable" or "prerelease"))
+                {
+                    Console.WriteLine($"Usage: {AppInfo.CliName} repo {repoId} set-channel stable|prerelease");
+                    return;
+                }
+                UpdateManager.Repos[repoId].IncludePrereleases = args[3] == "prerelease";
+                FileManager.SaveRepos();
+                Console.WriteLine($"Channel: {UpdateManager.Repos[repoId].ReleaseChannel}. Run check to refresh releases; use update to install.");
+                break;
+
             case "set-version":
                 if (args.Length <= 3)
                 {
@@ -88,12 +101,6 @@ public static class ArgRepo
                 }
                         
                 string version = args[3];
-                if (!UpdateManager.Repos[repoId].Tags.Contains(version))
-                {
-                    Console.WriteLine($"Version {version} does not exist");
-                    return;
-                }
-
                 UpdateManager.Repos[repoId].TargetTag = version;
                 FileManager.SaveRepos();
                         

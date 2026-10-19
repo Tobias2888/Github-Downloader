@@ -168,6 +168,7 @@ public class GithubDownloaderService : IGithubDownloaderService
         if (request.AutoExtract.HasValue) repo.AutoExtract = request.AutoExtract.Value;
         if (request.NewFileName != null) repo.NewFileName = request.NewFileName;
         if (request.ExcludedFromDownloadAll.HasValue) repo.ExcludedFromDownloadAll = request.ExcludedFromDownloadAll.Value;
+        if (request.IncludePrereleases.HasValue) repo.IncludePrereleases = request.IncludePrereleases.Value;
         if (request.TargetTag != null) repo.TargetTag = request.TargetTag;
         if (request.DownloadAssetIndex is >= 0 && string.IsNullOrEmpty(request.AssetRule))
         {
@@ -517,7 +518,10 @@ public class GithubDownloaderService : IGithubDownloaderService
             repo.AssetRuleMatches,
             repo.AssetSelectionStatus,
             repo.LastDownloadTag,
-            repo.CurrentVersion
+            repo.CurrentVersion,
+            repo.IncludePrereleases,
+            repo.HasRelease,
+            repo.ReleaseStatus
         );
     }
 }

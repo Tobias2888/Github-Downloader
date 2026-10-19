@@ -223,7 +223,7 @@ public partial class App : Application
         bool hasUpdates = false;
         foreach (Repo repo in UpdateManager.Repos)
         {
-            if (!repo.IsUpToDate)
+            if (repo.HasRelease && !repo.IsUpToDate)
             {
                 hasUpdates = true;
                 break;

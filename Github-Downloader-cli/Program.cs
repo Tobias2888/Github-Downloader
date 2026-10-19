@@ -298,6 +298,7 @@ public static class Program
                             repo (repo id) set-asset (asset id) - Select specific asset to download from repository by id
                             repo (repo id) set-asset-rule (pattern) - Save a case-sensitive glob (*, ?, and {x64,amd64} alternatives); quote the pattern
                             repo (repo id) clear-asset-rule - Return to the saved manual filename
+                            repo (repo id) set-channel stable|prerelease - Select the release channel
                             repo (repo id) set-version (version) - Select specific version to download from repository
                             repo (repo id) set-downloadpath (path) - Select specific download path
                             add (repo link) - Add a repository with github-link of repository

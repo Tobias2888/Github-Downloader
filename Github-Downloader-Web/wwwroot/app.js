@@ -589,6 +589,15 @@
                         ${repo.tags.map(t => `<option value="${escapeHtml(t)}" ${t === repo.targetTag ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('')}
                     </select>
                 </div>
+                <div class="field-row">
+                    <label for="detailReleaseChannel">Release channel</label>
+                    <select id="detailReleaseChannel">
+                        <option value="stable" ${!repo.includePrereleases ? 'selected' : ''}>Stable releases only</option>
+                        <option value="prerelease" ${repo.includePrereleases ? 'selected' : ''}>Stable releases and pre-releases</option>
+                    </select>
+                </div>
+                <p class="hint">An explicit tag overrides the channel. Save and check to refresh; installation requires Update.</p>
+                ${repo.hasRelease === false ? `<p class="repo-desc">${escapeHtml(repo.releaseStatus || '')}</p>` : ''}
                 <div class="field-row" style="margin-top:10px">
                     <span style="color:var(--text-muted); font-size:13px">Asset to download</span>
                     <select id="detailAssetIndex" style="max-width:60%">
@@ -681,6 +690,7 @@
         return {
             downloadPath: $('detailDownloadPath').value,
             targetTag: $('detailTargetTag').value,
+            includePrereleases: $('detailReleaseChannel').value === 'prerelease',
             downloadAssetIndex: $('detailAssetRule').value.length > 0 ? null : parseInt($('detailAssetIndex').value, 10),
             assetRule: $('detailAssetRule').value,
             saveFileAnyway: $('detailSaveAnyway').checked,

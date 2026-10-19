@@ -60,7 +60,8 @@ public static class UpdateManager
             nameof(Repo.AssetName),
             nameof(Repo.AssetRule),
             nameof(Repo.ExcludedFromDownloadAll), 
-            nameof(Repo.TargetTag), 
+            nameof(Repo.TargetTag),
+            nameof(Repo.IncludePrereleases),
             nameof(Repo.Tag), 
             nameof(Repo.DownloadPath),
             nameof(Repo.SaveFileAnyway),
@@ -222,21 +223,33 @@ public static class UpdateManager
             statusText.Invoke($"Checking for {repo.Name}");
         }
 
-        bool tagsAvailable = await UpdateTags(repo, request);
-
-        if (tagsAvailable && repo.TargetTag != "latest" && !repo.Tags.Contains(repo.TargetTag))
+        List<Response>? releases = await GetReleaseList(repo, request);
+        if (releases == null)
         {
-            repo.TargetTag = "latest";
+            statusText($"Failed to check releases for {repo.Name}. Previous release information was kept.");
+            return false;
         }
 
-        (ReleaseLookup lookup, Response? response) = await GetRelease(repo, repo.TargetTag, request);
+        List<string> tags = ["latest"];
+        tags.AddRange(releases.Where(release => !release.draft
+            && (repo.IncludePrereleases || !release.prerelease)).Select(release => release.tag_name).Distinct());
+        // A pin remains selectable even when it is outside the channel or no longer published.
+        if (!tags.Contains(repo.TargetTag)) tags.Add(repo.TargetTag);
+        repo.Tags = tags;
+
+        (ReleaseLookup lookup, Response? response) = repo.TargetTag != "latest"
+            ? await GetReleaseByUrl($"https://api.github.com/repos/{repo.Name}/releases/tags/{Uri.EscapeDataString(repo.TargetTag)}", request)
+            : (ReleaseLookup.Found, releases.Where(release => !release.draft
+                && (repo.IncludePrereleases || !release.prerelease))
+                .OrderByDescending(release => DateTimeOffset.TryParse(release.published_at, out DateTimeOffset published)
+                    ? published : DateTimeOffset.MinValue).FirstOrDefault());
         if (lookup == ReleaseLookup.Failed)
         {
             statusText.Invoke($"Failed to check releases for {repo.Name}. The request failed; previous release information was kept.");
             return false;
         }
 
-        if (response == null)
+        if (response == null || response.draft)
         {
             Logger.LogD("Repository has no available release");
             repo.HasRelease = false;
@@ -244,6 +257,7 @@ public static class UpdateManager
             repo.Tag = "";
             repo.LatestChangelog = "";
             repo.ReleaseDate = "";
+            statusText(repo.ReleaseStatus);
             return true;
         }
 
@@ -258,56 +272,6 @@ public static class UpdateManager
 
         Logger.LogD("Repository release information refreshed");
         return true;
-    }
-
-    private static async Task<bool> UpdateTags(Repo repo, Func<string, Task<HttpResponseMessage?>> request)
-    {
-        string tagsUrl = $"https://api.github.com/repos/{repo.Name}/tags?per_page=100";
-        using HttpResponseMessage? httpResponseTags = await request(tagsUrl);
-        if (httpResponseTags is not { IsSuccessStatusCode: true })
-        {
-            Logger.LogW(httpResponseTags is null ? "Repository tags could not be refreshed"
-                : $"Repository tags could not be refreshed (HTTP {(int)httpResponseTags.StatusCode})");
-            return false;
-        }
-
-        List<TagsResponse>? tagsResponse = JsonSerializer.Deserialize<List<TagsResponse>>(await httpResponseTags.Content.ReadAsStringAsync());
-        if (tagsResponse == null) return false;
-
-        List<string> tags = ["latest"];
-        tags.AddRange(tagsResponse.Select(tag => tag.name));
-        repo.Tags = tags;
-        return true;
-    }
-
-    private static async Task<(ReleaseLookup Lookup, Response? Response)> GetRelease(Repo repo, string targetTag, Func<string, Task<HttpResponseMessage?>> request)
-    {
-        if (targetTag != "latest")
-        {
-            return await GetReleaseByUrl($"https://api.github.com/repos/{repo.Name}/releases/tags/{targetTag}", request);
-        }
-
-        (ReleaseLookup lookup, Response? response) = await GetReleaseByUrl(repo.Url, request);
-        if (lookup == ReleaseLookup.Found)
-        {
-            return (lookup, response);
-        }
-        if (lookup == ReleaseLookup.Failed)
-        {
-            return (lookup, null);
-        }
-
-        List<Response>? releases = await GetReleaseList(repo, request);
-        if (releases == null)
-        {
-            return (ReleaseLookup.Failed, null);
-        }
-
-        Response? fallback = releases.FirstOrDefault(release => !release.draft && !release.prerelease)
-            ?? releases.FirstOrDefault(release => !release.draft);
-        return fallback == null
-            ? (ReleaseLookup.NotFound, null)
-            : (ReleaseLookup.Found, fallback);
     }
 
     private static async Task<(ReleaseLookup Lookup, Response? Response)> GetReleaseByUrl(string url, Func<string, Task<HttpResponseMessage?>> request)
@@ -335,16 +299,26 @@ public static class UpdateManager
 
     private static async Task<List<Response>?> GetReleaseList(Repo repo, Func<string, Task<HttpResponseMessage?>> request)
     {
-        string releasesUrl = $"https://api.github.com/repos/{repo.Name}/releases?per_page=100";
-        using HttpResponseMessage? httpResponse = await request(releasesUrl);
-        if (httpResponse is not { IsSuccessStatusCode: true })
+        List<Response> releases = [];
+        for (int page = 1; ; page++)
         {
-            if (httpResponse is not null)
-                Logger.LogE($"Release list check failed (HTTP {(int)httpResponse.StatusCode})");
-            return null;
-        }
+            string releasesUrl = $"https://api.github.com/repos/{repo.Name}/releases?per_page=100"
+                + (page == 1 ? "" : $"&page={page}");
+            using HttpResponseMessage? httpResponse = await request(releasesUrl);
+            if (httpResponse is not { IsSuccessStatusCode: true })
+            {
+                Logger.LogW("Release list could not be refreshed");
+                return null;
+            }
 
-        return JsonSerializer.Deserialize<List<Response>>(await httpResponse.Content.ReadAsStringAsync());
+            List<Response>? items = JsonSerializer.Deserialize<List<Response>>(await httpResponse.Content.ReadAsStringAsync());
+            if (items == null) return null;
+            releases.AddRange(items);
+            // Search every page: GitHub's list order does not guarantee publication order.
+            bool hasNext = httpResponse.Headers.TryGetValues("Link", out IEnumerable<string>? links)
+                && links.Any(link => link.Contains("rel=\"next\"", StringComparison.Ordinal));
+            if (!hasNext && items.Count < 100) return releases;
+        }
     }
 
     public static bool IsInstallerAsset(string name)

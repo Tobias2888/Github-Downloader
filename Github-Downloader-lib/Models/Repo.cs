@@ -219,6 +219,7 @@ public class Repo : INotifyPropertyChanged, IJsonOnDeserializing, IJsonOnDeseria
             if (_tag == value) return;
             _tag = value;
             OnPropertyChanged(nameof(Tag));
+            OnPropertyChanged(nameof(ReleaseStatus));
             OnPropertyChanged(nameof(IsUpToDate));
         }
     }
@@ -253,6 +254,38 @@ public class Repo : INotifyPropertyChanged, IJsonOnDeserializing, IJsonOnDeseria
         }
     }
 
+    private bool _includePrereleases;
+    public bool IncludePrereleases
+    {
+        get => _includePrereleases;
+        set
+        {
+            if (_includePrereleases == value) return;
+            _includePrereleases = value;
+            if (!_deserializing && TargetTag == "latest") ClearOfferedRelease();
+            OnPropertyChanged(nameof(IncludePrereleases));
+            OnPropertyChanged(nameof(ReleaseChannel));
+            OnPropertyChanged(nameof(ReleaseStatus));
+        }
+    }
+
+    [JsonIgnore]
+    public string ReleaseChannel => IncludePrereleases ? "Stable releases and pre-releases" : "Stable releases only";
+
+    [JsonIgnore]
+    public string ReleaseStatus => HasRelease ? $"Offered version: {Tag}"
+        : TargetTag != "latest" ? $"No published release found for tag '{TargetTag}'."
+        : $"No published releases available in channel: {ReleaseChannel}. Check for updates to refresh.";
+
+    private void ClearOfferedRelease()
+    {
+        HasRelease = false;
+        ReplaceAssets([], []);
+        LatestChangelog = "";
+        ReleaseDate = "";
+        Tag = "";
+    }
+
     private string _targetTag = "latest";
     public string TargetTag
     {
@@ -261,6 +294,8 @@ public class Repo : INotifyPropertyChanged, IJsonOnDeserializing, IJsonOnDeseria
         {
             if (_targetTag == value || value == null) return;
             _targetTag = value;
+            if (!_deserializing) ClearOfferedRelease();
+            OnPropertyChanged(nameof(ReleaseStatus));
             OnPropertyChanged(nameof(TargetTag));
         }
     }
@@ -388,6 +423,7 @@ public class Repo : INotifyPropertyChanged, IJsonOnDeserializing, IJsonOnDeseria
             if (_hasRelease == value) return;
             _hasRelease = value;
             OnPropertyChanged(nameof(HasRelease));
+            OnPropertyChanged(nameof(ReleaseStatus));
         }
     }
 

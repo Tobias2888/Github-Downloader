@@ -170,7 +170,7 @@ public partial class HomeView : UserControl
         bool hasUpdates = false;
         foreach (Repo repo in UpdateManager.Repos)
         {
-            if (!repo.IsUpToDate)
+            if (repo.HasRelease && !repo.IsUpToDate)
             {
                 hasUpdates = true;
                 break;

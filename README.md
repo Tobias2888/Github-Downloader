@@ -103,6 +103,21 @@ Outside the allowed hours, completion alerts are skipped. Available updates are 
 
 On Linux, use the notification's **Open** button to show the desktop window. Clicking a Windows notification also brings the window forward. Hidden or minimized windows are restored, and clicking again keeps the window open.
 
+### Release channels
+
+Each repository defaults to **Stable releases only**. In desktop repository details or the web details dialog, choose **Stable releases and pre-releases** to also follow previews. Checks select the most recently published eligible release across all API pages using GitHub's pre-release metadata and publication date, including tags without version numbers. Drafts are excluded. The version selector lists published releases in the chosen channel; an explicit tag overrides the channel and remains pinned even if unavailable. Select `latest` to follow the channel again.
+
+Details show the channel, installed version and offered release, or explain when no release is available. Channel changes only change the offered release; use **Update** to download or install. Settings survive restarts and configuration export/import. Manual checks, background checks and notifications use the same selection.
+
+```bash
+ghd repo 0 set-channel stable
+ghd repo 0 set-channel prerelease
+ghd check 0
+ghd repo 0 set-version nightly-tag
+```
+
+The web repository API accepts and returns `includePrereleases` (boolean, default `false`) and returns `hasRelease` and `releaseStatus`. After changing the channel or tag, run an update check to resolve the offered release.
+
 ### Download and installation behavior
 
 New repositories start with an editable asset rule for the architecture and operating system of the machine running GitHub Downloader. For example, a Debian/Ubuntu x64 machine uses `*{x64,amd64,x86_64}*.deb`; Windows uses `.msi`, macOS `.dmg`, RPM-based Linux distributions `.rpm`, and other Linux distributions `.AppImage`. Architecture aliases let the rule follow common naming conventions. Existing saved rules and manual selections are preserved. If a release uses a different format or omits the architecture from its filenames, edit or clear the rule.

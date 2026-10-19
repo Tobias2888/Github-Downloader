@@ -27,6 +27,7 @@ namespace Github_Downloader.Views;
 
 public partial class RepoDetailsView : UserControl
 {
+    private bool _refreshingVersion;
     private readonly MainViewModel _mainViewModel;
     private readonly RepoDetailsViewModel _repoDetailsViewModel;
     private readonly DownloadStatusViewModel _downloadStatusViewModel;
@@ -65,6 +66,13 @@ public partial class RepoDetailsView : UserControl
         TbxDescription.DataContext = _repoDetailsViewModel.Repo;
         TbxDescription.Bind(TextBlock.TextProperty, new Binding(nameof(_repoDetailsViewModel.Repo.Description)));
 
+        CobReleaseChannel.SelectedIndex = _repoDetailsViewModel.Repo.IncludePrereleases ? 1 : 0;
+        CobReleaseChannel.SelectionChanged += async (o, args) =>
+        {
+            _repoDetailsViewModel.Repo.IncludePrereleases = CobReleaseChannel.SelectedIndex == 1;
+            await RefreshReleaseAsync();
+        };
+
         CobVersion.ItemsSource = _repoDetailsViewModel.Repo.Tags;
         int targetTagIndex = _repoDetailsViewModel.Repo.Tags.IndexOf(_repoDetailsViewModel.Repo.TargetTag);
         CobVersion.SelectedIndex = targetTagIndex >= 0
@@ -72,24 +80,14 @@ public partial class RepoDetailsView : UserControl
             : (_repoDetailsViewModel.Repo.Tags.Count > 0 ? 0 : -1);
         CobVersion.SelectionChanged += async (o, args) =>
         {
+            if (_refreshingVersion) return;
             int selectedIndex = CobVersion.SelectedIndex;
             if (selectedIndex < 0 || selectedIndex >= _repoDetailsViewModel.Repo.Tags.Count) return;
-            _repoDetailsViewModel.Repo.TargetTag = _repoDetailsViewModel.Repo.Tags[selectedIndex];
+            string tag = _repoDetailsViewModel.Repo.Tags[selectedIndex];
+            if (tag == _repoDetailsViewModel.Repo.TargetTag) return;
+            _repoDetailsViewModel.Repo.TargetTag = tag;
             
-            await _downloadStatusViewModel.RunAsync(() =>
-                UpdateManager.SearchForUpdates(_repoDetailsViewModel.Repo, _downloadStatusViewModel.LogStatus));
-            
-            bool hasUpdates = false;
-            foreach (Repo repo in UpdateManager.Repos)
-            {
-                if (!repo.IsUpToDate)
-                {
-                    hasUpdates = true;
-                }
-            }
-            _mainViewModel.HasUpdates = hasUpdates;
-            FileManager.SaveRepos();
-            await ((App)Application.Current!).Notifications.NotifyUpdatesAvailableAsync(UpdateManager.Repos);
+            await RefreshReleaseAsync();
         };
         
         TbxVersion.DataContext = _repoDetailsViewModel.Repo;
@@ -140,6 +138,22 @@ public partial class RepoDetailsView : UserControl
         TbxRenameFile.IsVisible = TglRenameFile.IsChecked == true;
         TbxRenameFile.Text = _repoDetailsViewModel.Repo.NewFileName;
     }
+    private async Task RefreshReleaseAsync()
+    {
+        await _downloadStatusViewModel.RunAsync(() =>
+            UpdateManager.SearchForUpdates(_repoDetailsViewModel.Repo, _downloadStatusViewModel.LogStatus));
+        _refreshingVersion = true;
+        try
+        {
+            CobVersion.ItemsSource = _repoDetailsViewModel.Repo.Tags;
+            CobVersion.SelectedItem = _repoDetailsViewModel.Repo.TargetTag;
+        }
+        finally { _refreshingVersion = false; }
+        _mainViewModel.HasUpdates = UpdateManager.Repos.Any(repo => repo.HasRelease && !repo.IsUpToDate);
+        FileManager.SaveRepos();
+        await ((App)Application.Current!).Notifications.NotifyUpdatesAvailableAsync(UpdateManager.Repos);
+    }
+
     private void PopulateChangelog(string? text)
     {
         if (string.IsNullOrWhiteSpace(text))
