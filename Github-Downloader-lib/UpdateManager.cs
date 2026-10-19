@@ -81,7 +81,8 @@ public static class UpdateManager
     }
     
     internal readonly record struct Asset(Repo Repo, string TempAssetPath, string Tag, string? TemporaryDirectory = null,
-        Guid? ParentHistoryId = null, Guid? BatchId = null);
+        Guid? ParentHistoryId = null, Guid? BatchId = null, string? LocalSourcePath = null,
+        string? ExtractionDirectory = null, Action<string, bool>? ExtractionFileWritten = null);
 
     public static async Task<Repo?> AddRepo(string repoUrl)
     {
@@ -448,32 +449,40 @@ public static class UpdateManager
         return succeeded;
     }
 
-    private static async Task<bool> ApplyAssetAsync(Asset asset, Action<string> statusText,
+    internal static async Task<bool> ApplyAssetAsync(Asset asset, Action<string> statusText,
         Action<string> progressText, bool downloadOnly, Func<Asset, Task<bool>>? installAsset)
     {
         bool extract = !downloadOnly && asset.Repo.AutoExtract && ArchiveExtractor.IsSupportedArchive(asset.TempAssetPath);
         bool install = !downloadOnly && IsInstallerAsset(asset.TempAssetPath);
+        string displayName = asset.LocalSourcePath is null ? asset.Repo.Name : Path.GetFileName(asset.LocalSourcePath);
         using HistoryScope history = OperationHistory.Store.Begin(extract ? HistoryAction.Extract
             : install ? HistoryAction.Install : HistoryAction.Save, asset.Repo, asset.ParentHistoryId,
-            batchId: asset.BatchId, toVersion: asset.Tag);
+            batchId: asset.BatchId, toVersion: asset.Tag, localFileName: asset.LocalSourcePath is null ? null : Path.GetFileName(asset.LocalSourcePath));
         try
         {
+            if (asset.LocalSourcePath is string source)
+            {
+                statusText("Preparing local file...");
+                Directory.CreateDirectory(asset.TemporaryDirectory!);
+                await Task.Run(() => File.Copy(source, asset.TempAssetPath));
+            }
             if (extract)
             {
-                statusText($"Extracting {asset.Repo.Name}");
-                await ArchiveExtractor.ExtractDownloadAsync(asset.Repo, asset.TempAssetPath, asset.Tag, progressText);
+                statusText($"Extracting {displayName}");
+                await ArchiveExtractor.ExtractDownloadAsync(asset.Repo, asset.TempAssetPath, asset.Tag, progressText,
+                    asset.ExtractionDirectory, asset.LocalSourcePath, asset.ExtractionFileWritten);
             }
             else
             {
                 if (!install || asset.Repo.SaveFileAnyway)
                 {
-                    statusText($"Move file {asset.Repo.Name}");
+                    statusText($"Move file {displayName}");
                     CopyFile(asset);
                     asset.Repo.LastDownloadTag = asset.Tag;
                 }
                 if (install)
                 {
-                    statusText($"Installing {asset.Repo.Name}");
+                    statusText($"Installing {displayName}");
                     if (!await (installAsset ?? InstallAssetAsync)(asset))
                     {
                         history.Finish(HistoryStatus.Failed, HistoryOutcome.InstallFailed);
@@ -586,11 +595,14 @@ public static class UpdateManager
 
     private static void CreateStartMenuEntry(Asset asset, string iconPath)
     {
+        string displayName = asset.LocalSourcePath is null ? asset.Repo.Name
+            : Path.GetFileNameWithoutExtension(asset.LocalSourcePath);
+        displayName = displayName.Replace('\r', ' ').Replace('\n', ' ').Replace("\\", "\\\\");
         string desktopFile = $"""
                              [Desktop Entry]
-                             Name={asset.Repo.Name}
+                             Name={displayName}
                              Comment={asset.Repo.Description}
-                             GenericName={asset.Repo.Name}
+                             GenericName={displayName}
                              Exec={asset.TempAssetPath}
                              Icon={iconPath}
                              Type=Application
@@ -686,20 +698,9 @@ public static class UpdateManager
             return true;
         }
 
-        string installCommand = "apt-get install -y --allow-downgrades --reinstall ";
-        foreach (string debPath in debPaths)
-        {
-            if (!debPath.Contains(".deb"))
-            {
-                continue;
-            }
-            installCommand += $"\"{debPath}\" ";
-        }
-
-        if (installCommand == "apt-get install -y --allow-downgrades --reinstall ")
-        {
-            return true;
-        }
+        string[] packages = debPaths.Where(path => Path.GetExtension(path).Equals(".deb", StringComparison.OrdinalIgnoreCase))
+            .Select(Path.GetFullPath).ToArray();
+        if (packages.Length == 0) return true;
 
         bool usePkexec = CurPlatform == Platform.Avalonia;
         bool providePassword = !usePkexec && !string.IsNullOrEmpty(RootPassword);
@@ -712,7 +713,6 @@ public static class UpdateManager
             StartInfo = new()
             {
                 FileName = "/usr/bin/" + (usePkexec ? "pkexec" : "sudo"),
-                Arguments = providePassword ? $"-S -p \"\" {installCommand}" : installCommand,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 RedirectStandardInput = providePassword,
@@ -722,6 +722,16 @@ public static class UpdateManager
             EnableRaisingEvents = true
         };
         
+        if (providePassword)
+        {
+            process.StartInfo.ArgumentList.Add("-S");
+            process.StartInfo.ArgumentList.Add("-p");
+            process.StartInfo.ArgumentList.Add("");
+        }
+        process.StartInfo.ArgumentList.Add("/usr/bin/apt-get");
+        foreach (string argument in new[] { "install", "-y", "--allow-downgrades", "--reinstall", "--" })
+            process.StartInfo.ArgumentList.Add(argument);
+        foreach (string package in packages) process.StartInfo.ArgumentList.Add(package);
         process.Start();
 
         if (providePassword)

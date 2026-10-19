@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
@@ -7,6 +9,7 @@ using Avalonia.Controls;
 using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 using Github_Downloader_lib;
 using Github_Downloader_lib.Models;
 using Github_Downloader.Enums;
@@ -18,6 +21,67 @@ namespace Github_Downloader.Views;
 
 public partial class HomeView : UserControl
 {
+    private async void InstallLocal_OnClick(object? sender, RoutedEventArgs e)
+    {
+        if (_downloadStatusViewModel.IsUpdating)
+        {
+            _downloadStatusViewModel.Show();
+            return;
+        }
+        TopLevel? topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel is null) return;
+        try
+        {
+            IReadOnlyList<IStorageFile> files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Install local file",
+                AllowMultiple = false,
+                FileTypeFilter = [new FilePickerFileType("Installers and archives")
+                {
+                    Patterns = LocalFileInstaller.SupportedExtensions
+                        .SelectMany(extension => new[] { "*" + extension, "*" + extension.ToUpperInvariant() })
+                        .Append("*.AppImage").Distinct().ToArray()
+                }, FilePickerFileTypes.All]
+            });
+            if (files.Count == 0) return;
+            string? path = files[0].TryGetLocalPath();
+            if (path is null) throw new IOException("Choose a file stored on this computer.");
+            string? destination = null;
+            if (ArchiveExtractor.IsSupportedArchive(path))
+            {
+                IReadOnlyList<IStorageFolder> folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+                {
+                    Title = "Extract archive to",
+                    AllowMultiple = false
+                });
+                if (folders.Count == 0) return;
+                destination = folders[0].TryGetLocalPath();
+                if (destination is null) throw new IOException("Choose a folder on this computer.");
+            }
+            bool installed = await _downloadStatusViewModel.RunAsync(() => LocalFileInstaller.InstallAsync(path,
+                _downloadStatusViewModel.LogStatus, _downloadStatusViewModel.LogProgress, destination), "Install local file");
+            LocalAppsPanel.Refresh();
+            if (installed) AppTabs.SelectedIndex = 1;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            ToastText.Text = "Could not open the local file. Choose a supported installer or archive.";
+            ToastPopup.IsOpen = true;
+            await Task.Delay(2500);
+            ToastPopup.IsOpen = false;
+        }
+    }
+
+    private void AppTabs_OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (e.Source != AppTabs || RepoScroll is null || LocalAppsPanel is null || RepositoryActions is null) return;
+        bool localApps = AppTabs.SelectedIndex == 1;
+        RepoScroll.IsVisible = !localApps;
+        RepositoryActions.IsVisible = !localApps;
+        LocalAppsPanel.IsVisible = localApps;
+        if (localApps) LocalAppsPanel.Refresh();
+    }
+
     private void History_OnClick(object? sender, RoutedEventArgs e)
     {
         if (TopLevel.GetTopLevel(this) is Window owner) new HistoryWindow().Show(owner);

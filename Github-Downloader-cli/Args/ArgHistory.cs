@@ -59,7 +59,7 @@ internal static class ArgHistory
             {
                 foreach (HistoryEntry entry in page.Entries)
                     output.WriteLine($"{entry.StartedAt.ToLocalTime():yyyy-MM-dd HH:mm:ss} | " +
-                        $"{(entry.IsBatch ? "Batch" : entry.RepositoryName)} | {entry.Action} | " +
+                        $"{entry.DisplayName} | {entry.Action} | " +
                         $"{entry.FromVersion} → {entry.ToVersion} | {entry.Status} | {entry.Summary}");
                 output.WriteLine($"Showing {page.Entries.Count} of {page.Total} entries.");
             }

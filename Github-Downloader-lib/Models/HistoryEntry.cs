@@ -24,6 +24,8 @@ public sealed record HistoryEntry
     public bool IsBatch { get; init; }
     public string RepositoryKey { get; init; } = "";
     public string RepositoryName { get; init; } = "";
+    public string LocalFileName { get; init; } = "";
+    public string DisplayName => IsBatch ? "Batch" : LocalFileName.Length > 0 ? $"Local: {LocalFileName}" : RepositoryName;
     public DateTimeOffset StartedAt { get; init; }
     public DateTimeOffset? FinishedAt { get; init; }
     public HistoryAction Action { get; init; }

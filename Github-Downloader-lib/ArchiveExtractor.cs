@@ -14,15 +14,18 @@ public static class ArchiveExtractor
         ".xz", ".txz", ".zst", ".tzst", ".lz"
     ];
 
+    public static IReadOnlyList<string> SupportedExtensions { get; } = Array.AsReadOnly(Extensions);
+
     public static bool IsSupportedArchive(string fileName) =>
         Extensions.Any(extension => fileName.EndsWith(extension, StringComparison.OrdinalIgnoreCase));
 
-    public static async Task ExtractAsync(string archivePath, string destination, Action<string>? progress = null)
+    public static async Task ExtractAsync(string archivePath, string destination, Action<string>? progress = null,
+        string? protectedFile = null, Action<string, bool>? fileWritten = null)
     {
         Logger.LogI("Archive extraction started");
         try
         {
-            await Task.Run(() => Extract(archivePath, destination, progress));
+            await Task.Run(() => Extract(archivePath, destination, progress, protectedFile, fileWritten));
             Logger.LogI("Archive extraction completed");
         }
         catch (Exception exception)
@@ -32,11 +35,12 @@ public static class ArchiveExtractor
         }
     }
 
-    internal static async Task ExtractDownloadAsync(Repo repo, string archivePath, string tag, Action<string> progress)
+    internal static async Task ExtractDownloadAsync(Repo repo, string archivePath, string tag, Action<string> progress,
+        string? destination = null, string? protectedFile = null, Action<string, bool>? fileWritten = null)
     {
         try
         {
-            await ExtractAsync(archivePath, repo.ExtractionDirectory, progress);
+            await ExtractAsync(archivePath, destination ?? repo.ExtractionDirectory, progress, protectedFile, fileWritten);
         }
         finally
         {
@@ -45,7 +49,8 @@ public static class ArchiveExtractor
         repo.CurrentInstallTag = tag;
     }
 
-    private static void Extract(string archivePath, string destination, Action<string>? progress)
+    private static void Extract(string archivePath, string destination, Action<string>? progress, string? protectedFile,
+        Action<string, bool>? fileWritten)
     {
         destination = Path.GetFullPath(destination);
         EnsureNoLinks(destination);
@@ -105,6 +110,9 @@ public static class ArchiveExtractor
             foreach (string file in files)
             {
                 string target = GetEntryPath(destination, Path.GetRelativePath(staging, file));
+                if (protectedFile is not null && target.Equals(Path.GetFullPath(protectedFile),
+                    OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+                    throw new IOException("Archive extraction would overwrite the original local file.");
                 EnsureNoLinks(target);
                 if (Directory.Exists(target)) throw new IOException($"A folder blocks the extracted file: {target}");
             }
@@ -113,7 +121,12 @@ public static class ArchiveExtractor
             foreach (string directory in directories)
                 Directory.CreateDirectory(GetEntryPath(destination, Path.GetRelativePath(staging, directory)));
             foreach (string file in files)
-                File.Move(file, GetEntryPath(destination, Path.GetRelativePath(staging, file)), overwrite: true);
+            {
+                string target = GetEntryPath(destination, Path.GetRelativePath(staging, file));
+                bool existed = File.Exists(target);
+                File.Move(file, target, overwrite: true);
+                fileWritten?.Invoke(target, existed);
+            }
         }
         finally
         {
@@ -123,7 +136,7 @@ public static class ArchiveExtractor
         }
     }
 
-    private static string GetEntryPath(string root, string key)
+    internal static string GetEntryPath(string root, string key)
     {
         string relative = key.Replace('\\', '/');
         if (relative.StartsWith('/') || relative.Contains(':') || relative.Split('/').Contains(".."))
@@ -137,7 +150,7 @@ public static class ArchiveExtractor
         return result;
     }
 
-    private static void EnsureNoLinks(string path)
+    internal static void EnsureNoLinks(string path)
     {
         for (string? current = path; current != null; current = Path.GetDirectoryName(current))
         {

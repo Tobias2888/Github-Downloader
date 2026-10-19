@@ -77,10 +77,10 @@ public sealed class InstallationManager
     }
 
     public async Task<bool> UninstallAsync(Repo repo, Action<string> status, Action<string> progress,
-        string? legacyDebianPackage = null)
+        string? legacyDebianPackage = null, string? localFileName = null)
     {
         Logger.LogI("Repository uninstall started");
-        using HistoryScope history = OperationHistory.Store.Begin(HistoryAction.Uninstall, repo);
+        using HistoryScope history = OperationHistory.Store.Begin(HistoryAction.Uninstall, repo, localFileName: localFileName);
         try
         {
             if (!OperatingSystem.IsLinux()) throw new PlatformNotSupportedException("Uninstall is supported on Linux.");

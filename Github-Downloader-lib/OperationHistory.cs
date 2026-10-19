@@ -29,13 +29,14 @@ public sealed class HistoryStore
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(repo.Url.TrimEnd('/').ToUpperInvariant())));
 
     public HistoryScope Begin(HistoryAction action, Repo? repo = null, Guid? parentId = null,
-        bool isBatch = false, Guid? batchId = null, string? toVersion = null)
+        bool isBatch = false, Guid? batchId = null, string? toVersion = null, string? localFileName = null)
     {
         HistoryEntry entry = new()
         {
             Id = Guid.NewGuid(), ParentId = parentId, BatchId = batchId, IsBatch = isBatch,
-            RepositoryKey = repo is null ? "" : RepositoryKey(repo),
-            RepositoryName = repo is null ? "" : SafeName(repo.Name),
+            RepositoryKey = repo is null || localFileName is not null ? "" : RepositoryKey(repo),
+            RepositoryName = repo is null || localFileName is not null ? "" : SafeName(repo.Name),
+            LocalFileName = localFileName is null ? "" : SafeFileName(localFileName),
             FromVersion = repo is null ? "" : SafeVersion(action switch
             {
                 HistoryAction.Download => repo.LastDownloadTag,
@@ -74,7 +75,7 @@ public sealed class HistoryStore
                 filtered = filtered.Where(entry => !entry.ParentId.HasValue || batches.Contains(entry.ParentId.Value));
             }
             if (!string.IsNullOrWhiteSpace(query.Repository))
-                filtered = filtered.Where(entry => entry.RepositoryName.Contains(query.Repository, StringComparison.OrdinalIgnoreCase)
+                filtered = filtered.Where(entry => entry.DisplayName.Contains(query.Repository, StringComparison.OrdinalIgnoreCase)
                     || entry.RepositoryKey.Equals(query.Repository, StringComparison.OrdinalIgnoreCase));
             if (query.From.HasValue) filtered = filtered.Where(entry => entry.StartedAt >= query.From.Value);
             if (query.To.HasValue) filtered = filtered.Where(entry => entry.StartedAt < query.To.Value);
@@ -136,7 +137,7 @@ public sealed class HistoryStore
             }
             if (entries.Any(stored => stored is null || stored.Entry is null || stored.Entry.Id == Guid.Empty
                 || stored.Entry.RepositoryName is null || stored.Entry.RepositoryKey is null
-                || stored.Entry.FromVersion is null || stored.Entry.ToVersion is null
+                || stored.Entry.LocalFileName is null || stored.Entry.FromVersion is null || stored.Entry.ToVersion is null
                 || !Enum.IsDefined(stored.Entry.Action) || !Enum.IsDefined(stored.Entry.Status)
                 || !Enum.IsDefined(stored.Entry.Outcome)))
                 throw new InvalidDataException("History could not be read. The existing file was preserved.");
@@ -191,6 +192,12 @@ public sealed class HistoryStore
     // History contains identifiers and fixed outcomes, never request URLs or exception/installer output.
     private static string SafeName(string value) => Regex.IsMatch(value, @"\A[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\z")
         && value.Length <= 256 ? value : "Repository";
+    private static string SafeFileName(string value)
+    {
+        string name = Regex.Replace(Path.GetFileName(value), @"[\p{Cc}\p{Cf}]", "");
+        return name[..Math.Min(256, name.Length)];
+    }
+
     private static string SafeVersion(string value) => value.Length <= 128
         && Regex.IsMatch(value, @"\A[A-Za-z0-9._/+\-]*\z") ? value : "[redacted]";
 

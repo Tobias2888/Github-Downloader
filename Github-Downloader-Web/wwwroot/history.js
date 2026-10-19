@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
             for (const entry of page.entries) {
                 const row = document.createElement('tr');
                 row.title = entry.batchId ? `Batch: ${entry.batchId}` : `Operation: ${entry.id}`;
-                const cells = [new Date(entry.startedAt).toLocaleString(), entry.isBatch ? 'Batch' : entry.repositoryName,
+                const cells = [new Date(entry.startedAt).toLocaleString(), entry.displayName,
                     `${entry.isBatch ? 'Batch ' : ''}${entry.action}`, `${entry.fromVersion || '—'} → ${entry.toVersion || '—'}`,
                     entry.status === 'PartialFailure' ? 'Partial failure' : entry.status, entry.summary];
                 cells.forEach((text, index) => {

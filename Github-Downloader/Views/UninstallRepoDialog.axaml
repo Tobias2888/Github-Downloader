@@ -8,12 +8,12 @@
         WindowStartupLocation="CenterOwner"
         RequestedThemeVariant="Dark" Background="#222226">
     <StackPanel Margin="24" Spacing="16">
-        <TextBlock Text="Uninstall application?" FontSize="20" FontWeight="SemiBold" Foreground="White"/>
-        <TextBlock Text="{Binding Name}" TextWrapping="Wrap" Foreground="#A5DEE0" FontSize="16"/>
+        <TextBlock Name="DialogQuestion" Text="Uninstall application?" FontSize="20" FontWeight="SemiBold" Foreground="White"/>
+        <TextBlock Name="AppName" Text="{Binding Name}" TextWrapping="Wrap" Foreground="#A5DEE0" FontSize="16"/>
         <TextBlock Name="UninstallDetails" TextWrapping="Wrap" Foreground="#DDD"/>
-        <TextBlock Text="The repository stays tracked and is excluded from Update All."
+        <TextBlock Name="RepositoryNotice" Text="The repository stays tracked and is excluded from Update All."
                    IsVisible="{Binding CanUninstall}" TextWrapping="Wrap" Foreground="#AAA"/>
-        <StackPanel Spacing="8" IsVisible="{Binding NeedsDebianPackageName}">
+        <StackPanel Name="PackageFields" Spacing="8" IsVisible="{Binding NeedsDebianPackageName}">
             <TextBlock Text="Installed Debian package name" Foreground="White"/>
             <TextBlock Text="Enter the package name shown in your package manager."
                        TextWrapping="Wrap" FontSize="12" Foreground="#AAA"/>

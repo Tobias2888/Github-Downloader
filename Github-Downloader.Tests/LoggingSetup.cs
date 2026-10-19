@@ -19,6 +19,7 @@ internal static class LoggingSetup
         string directory = Path.Combine(Path.GetTempPath(), "ghd-test-logs-" + Guid.NewGuid().ToString("N"));
         Logger.LogDir = directory;
         Github_Downloader_lib.OperationHistory.Store = new(Path.Combine(directory, "history.json"));
+        Github_Downloader_lib.LocalApps.Store = new(Path.Combine(directory, "local-apps.json"));
         Task.Run(Logger.CreateFile).GetAwaiter().GetResult();
         AppDomain.CurrentDomain.ProcessExit += (_, _) =>
         {

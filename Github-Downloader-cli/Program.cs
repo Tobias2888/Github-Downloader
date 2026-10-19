@@ -40,6 +40,14 @@ public static class Program
         await Logger.CreateFile();
         Logger.LogI("Mode: cli");
         
+        // Local installs need neither repository refresh nor shared-cache clearing.
+        if (args.Length > 0 && args[0] == "install-local")
+        {
+            UpdateManager.CurPlatform = Platform.Terminal;
+            Environment.ExitCode = await ArgInstallLocal.ExecuteAsync(args, Console.Out, Console.Error);
+            return;
+        }
+
         if (!SecretsManager.Initialized)
         {
             SecretsManager.Initialize("hofinga.gh-downloader.secret");
@@ -280,6 +288,7 @@ public static class Program
                             -v / --version - Show installed version
                             --gui - Open the desktop application
                             history [--repo name] [--from date] [--to date] [--status result] [--action action] [--include-skipped] [--json] - Read history
+                            install-local <file> [--extract-to <folder>] - Install a local installer or extract an archive
                             history clear --yes - Clear completed history (keeps running entries)
                             
                             list repos - List all tracked repositories

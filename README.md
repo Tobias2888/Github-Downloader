@@ -174,6 +174,22 @@ ghd remove 0
 
 Replace the example repository, paths, IDs, and tag with your own values. `set-downloadpath` requires a directory that already exists. Use `ghd --help` for the command reference or `ghd --version` for the installed version. `ghd --gui` requires the desktop application to be installed; it checks beside `ghd`, the platform's installation directory, and directories on `PATH`.
 
+## Local files
+
+Choose **Install local file…** on the desktop to install a file already on your computer. Local `.deb` and `.AppImage` files use the same Linux package installation and application-menu integration as repository assets; `.exe` and `.msi` files use the existing executable installer handler. Supported archives can be extracted into a folder you choose. Windows executables require an operating system configured to run them.
+
+The original file is kept. Results appear in **History** as **Local: filename**, without adding a tracked repository or contacting GitHub. Local files do not receive automatic update checks.
+
+Successful local installations also appear in the separate **Local apps** tab and survive restarts. **Uninstall** removes Debian packages or AppImages through the same handlers as tracked repositories. For archives, it removes only newly created app files whose contents have not changed; pre-existing files, your edits, and the original archive are kept. Use a separate extraction folder for each app; another archive installed into the same folder updates that app's entry. Windows executable installers open the system uninstaller; remove their list entry after uninstalling there. Failed removals keep the app in the list.
+
+The list and uninstall details are saved separately in `local-apps.json`, including extraction locations and file hashes. Clearing history or importing repository settings does not remove this list. CLI local installs appear here too.
+
+```bash
+ghd install-local "/path/to/package.deb"
+ghd install-local "/path/to/application.AppImage"
+ghd install-local "/path/to/archive.zip" --extract-to "/path/to/destination"
+```
+
 ## Operation history
 
 Open **History** from the desktop header or the web **History** tab to review downloads, installations, reinstalls, and uninstalls. Filter by repository, date range, and result; changes apply immediately. **Show download and installation steps** reveals the individual phases; batch entries summarize successes and failures. Skipped entries and batches with no actions are hidden by default. Enable **Show skipped** to include them. Times are shown in your local time zone. A date selected under **Through** includes that entire day.

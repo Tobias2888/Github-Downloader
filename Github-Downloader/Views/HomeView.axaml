@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:viewModel="clr-namespace:Github_Downloader.ViewModels"
              xmlns:views="clr-namespace:Github_Downloader.Views"
+             xmlns:primitives="clr-namespace:Avalonia.Controls.Primitives;assembly=Avalonia.Controls"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="Github_Downloader.Views.HomeView"
              x:DataType="viewModel:HomeViewModel"
@@ -52,6 +53,9 @@
               <TextBox Name="TbxOwner" Watermark="Owner (e.g. torvalds)"/>
               <TextBox Name="TbxRepo" Watermark="Repository name (e.g. linux)"/>
               <Button Name="BtnAddRepo" Click="BtnAddRepo_OnClick" Content="Add Repository" Margin="0 0 0 40"/>
+
+              <TextBlock Text="Local files" Classes="SubTitle"/>
+              <Button Name="BtnInstallLocal" Click="InstallLocal_OnClick" Content="Install local file…" Margin="0 0 0 30"/>
               
               <TextBlock Text="Manage Personal Access Token" Classes="SubTitle"/>
               <TextBox Name="TbxPat" Watermark="Personal Access Token"/>
@@ -72,24 +76,23 @@
               </LinearGradientBrush>
           </Border.Background>
           
+          <ThemeVariantScope RequestedThemeVariant="Dark">
           <Grid RowDefinitions="Auto,Auto,*">
-            <Grid ColumnDefinitions="*,Auto,Auto,Auto">
-                <TextBlock Text="Tracked Repositories" Classes="SubTitle"/>
-                <StackPanel 
-                    Name="PgbDownloading" 
-                    Grid.Column="1" 
-                    VerticalAlignment="Center" 
-                    Background="Transparent"
-                    IsVisible="False"
-                    PointerPressed="PgbDownloading_OnPointerPressed">
-                    
-                    <ProgressBar IsIndeterminate="True" Margin="10"/>
+            <Grid ColumnDefinitions="*,Auto">
+                <primitives:TabStrip Name="AppTabs" SelectedIndex="0" SelectionChanged="AppTabs_OnSelectionChanged" VerticalAlignment="Center">
+                    <primitives:TabStripItem Content="Tracked Repositories"/>
+                    <primitives:TabStripItem Content="Local apps"/>
+                </primitives:TabStrip>
+                <StackPanel Name="RepositoryActions" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <StackPanel Name="PgbDownloading" VerticalAlignment="Center" Background="Transparent"
+                                IsVisible="False" PointerPressed="PgbDownloading_OnPointerPressed">
+                        <ProgressBar IsIndeterminate="True" Margin="10"/>
+                    </StackPanel>
+                    <Button Name="BtnSearchForUpdates" Margin="10,0" Click="BtnSearchForUpdates_OnClick">Search for updates</Button>
+                    <Button Name="BtnUpdateAll" Click="BtnUpdateAll_OnClick">Update Selected</Button>
                 </StackPanel>
-                <Button Name="BtnSearchForUpdates" Grid.Column="2" Margin="10, 0" Click="BtnSearchForUpdates_OnClick">Search for updates</Button>
-                <Button Name="BtnUpdateAll" Grid.Column="3" Click="BtnUpdateAll_OnClick">Update Selected</Button>
             </Grid>
-            <Separator Grid.Row="1" Margin="0, 5, 0, 25"></Separator>
-
+            <Separator Grid.Row="1" Margin="0,5,0,25"/>
             <ScrollViewer Name="RepoScroll" Grid.Row="2" HorizontalScrollBarVisibility="Disabled">
                 <ItemsControl Name="RepoList" ItemsSource="{Binding Repos}" ClipToBounds="True" Padding="0 4 0 0">
                     <ItemsControl.ItemTemplate>
@@ -99,7 +102,9 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </ScrollViewer>
-        </Grid>
+            <views:LocalAppsView Name="LocalAppsPanel" Grid.Row="2" IsVisible="False" InstallRequested="InstallLocal_OnClick"/>
+          </Grid>
+          </ThemeVariantScope>
       </Border>
 
     </Grid>

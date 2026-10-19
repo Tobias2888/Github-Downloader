@@ -13,7 +13,7 @@ public sealed class HistoryViewModel : ViewModelBase
 public sealed record HistoryRow(HistoryEntry Entry)
 {
     public string Timestamp => Entry.StartedAt.ToLocalTime().ToString("g");
-    public string Repository => Entry.IsBatch ? "Batch" : Entry.RepositoryName;
+    public string Repository => Entry.DisplayName;
     public string Action => (Entry.IsBatch ? "Batch " : "") + Entry.Action;
     public string Versions => $"{(Entry.FromVersion.Length > 0 ? Entry.FromVersion : "—")} → {(Entry.ToVersion.Length > 0 ? Entry.ToVersion : "—")}";
     public string Result => Entry.Status == HistoryStatus.PartialFailure ? "Partial failure" : Entry.Status.ToString();
