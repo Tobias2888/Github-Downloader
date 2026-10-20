@@ -1,5 +1,6 @@
 using Github_Downloader_Web.DTOs;
 using LoggerLib;
+using DownloadProgress = Github_Downloader_lib.DownloadProgress;
 
 namespace Github_Downloader_Web.Services;
 
@@ -14,6 +15,7 @@ public sealed class OperationTracker
     private string _title = "";
     private string _status = "";
     private double? _itemPercent;
+    private DownloadProgress? _transfer;
     private bool _itemStarted;
     private bool _installing;
     private int _completedItems;
@@ -33,6 +35,7 @@ public sealed class OperationTracker
             _title = title;
             _status = "Starting...";
             _itemPercent = null;
+            _transfer = null;
             _itemStarted = false;
             _installing = false;
             _completedItems = 0;
@@ -52,6 +55,8 @@ public sealed class OperationTracker
         lock (_lock)
         {
             _status = message;
+            if (_transfer is not null) _itemPercent = null;
+            _transfer = null;
             if (message == "Installing Updates...") _installing = true;
             AddLogUnsafe(message, level);
         }
@@ -64,6 +69,16 @@ public sealed class OperationTracker
             if (_itemStarted) _completedItems++;
             _itemStarted = true;
             _itemPercent = null;
+            _transfer = null;
+        }
+    }
+
+    public void SetTransferProgress(DownloadProgress progress)
+    {
+        lock (_lock)
+        {
+            _transfer = progress;
+            _itemPercent = progress.Percent;
         }
     }
 
@@ -79,6 +94,7 @@ public sealed class OperationTracker
         lock (_lock)
         {
             _isRunning = false;
+            _transfer = null;
             _success = success;
             _error = error;
             _finishedAt = DateTime.UtcNow;
@@ -128,7 +144,9 @@ public sealed class OperationTracker
 
             if (percent.HasValue) percent = Math.Clamp(percent.Value, 0, 100);
 
-            bool indeterminate = _isRunning && _itemPercent == null && _completedItems == 0 && !_installing;
+            bool indeterminate = _isRunning && _itemPercent == null
+                && (_transfer is not null || _completedItems == 0 && !_installing);
+            if (indeterminate) percent = null;
 
             return new OperationProgressResponse(
                 _isRunning,
@@ -142,7 +160,8 @@ public sealed class OperationTracker
                 _finishedAt,
                 _success,
                 _error,
-                _logs.ToList()
+                _logs.ToList(),
+                _transfer
             );
         }
     }

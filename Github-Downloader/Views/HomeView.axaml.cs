@@ -158,7 +158,8 @@ public partial class HomeView : UserControl
     public async void BtnUpdateAll_OnClick(object? sender, RoutedEventArgs e)
     {
         await ((App)Application.Current!).RunDownloadsAsync(() => UpdateManager.UpdateReposAsync(UpdateManager.Repos,
-            _downloadStatusViewModel.LogStatus, _downloadStatusViewModel.LogProgress),
+            _downloadStatusViewModel.LogStatus, _downloadStatusViewModel.LogProgress,
+            transferProgress: _downloadStatusViewModel.ReportTransfer),
             UpdateManager.Repos.Where(repo => !repo.ExcludedFromDownloadAll && !repo.IsUpToDate));
         
         CheckForGlobalUpdates();

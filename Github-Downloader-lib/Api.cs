@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net.Http.Headers;
 using FileLib;
 using LoggerLib;
@@ -66,7 +67,8 @@ public static class Api
         return null;
     }
 
-    public static async Task DownloadFileAsync(string url, string outputPath, string token = "", IProgress<double>? progress = null)
+    public static async Task DownloadFileAsync(string url, string outputPath, string token = "", IProgress<double>? progress = null,
+        Action<DownloadProgress>? transferProgress = null)
     {
         Logger.LogI("Asset download started");
         try
@@ -96,20 +98,7 @@ public static class Api
             await using FileStream fs = File.OpenWrite(outputPath);
             Stream stream = await response.Content.ReadAsStreamAsync();
         
-            byte[] buffer = new byte[81920]; // 80 KB buffer
-            long totalRead = 0;
-            int bytesRead;
-
-            while ((bytesRead = await stream.ReadAsync(buffer)) > 0)
-            {
-                await fs.WriteAsync(buffer.AsMemory(0, bytesRead));
-                totalRead += bytesRead;
-
-                if (!totalBytes.HasValue || progress == null) continue;
-            
-                double percent = (double)totalRead / totalBytes.Value * 100;
-                progress.Report(percent);
-            }
+            await CopyDownloadAsync(stream, fs, totalBytes, progress, transferProgress);
             Logger.LogI("Asset download completed");
         }
         catch (Exception exception)
@@ -117,5 +106,27 @@ public static class Api
             Logger.LogE($"Asset download failed ({exception.GetType().Name})");
             throw;
         }
+    }
+
+    internal static async Task CopyDownloadAsync(Stream source, Stream destination, long? totalBytes,
+        IProgress<double>? progress = null, Action<DownloadProgress>? transferProgress = null)
+    {
+        DownloadProgressSampler sampler = new(totalBytes, snapshot =>
+        {
+            transferProgress?.Invoke(snapshot);
+            if (snapshot.Percent is double percent) progress?.Report(percent);
+        });
+        transferProgress?.Invoke(new DownloadProgress(0, totalBytes is > 0 ? totalBytes : null, 0, null));
+        Stopwatch stopwatch = Stopwatch.StartNew();
+        byte[] buffer = new byte[81920];
+        long totalRead = 0;
+        int bytesRead;
+        while ((bytesRead = await source.ReadAsync(buffer)) > 0)
+        {
+            await destination.WriteAsync(buffer.AsMemory(0, bytesRead));
+            totalRead += bytesRead;
+            sampler.Report(totalRead, stopwatch.Elapsed);
+        }
+        sampler.Report(totalRead, stopwatch.Elapsed, completed: true);
     }
 }

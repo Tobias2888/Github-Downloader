@@ -197,5 +197,6 @@ public record OperationProgressResponse(
     DateTime? FinishedAt,
     bool? Success,
     string? Error,
-    List<OperationLogEntry> Logs
+    List<OperationLogEntry> Logs,
+    Github_Downloader_lib.DownloadProgress? Transfer = null
 );

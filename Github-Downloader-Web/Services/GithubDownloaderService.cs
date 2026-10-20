@@ -275,7 +275,7 @@ public class GithubDownloaderService : IGithubDownloaderService
                 {
                     outcomes[repo] = result;
                     progress?.Report(new DTOs.DownloadProgress(repo.Url, repo.Name, 100, result.ToString()));
-                });
+                }, transferProgress: _tracker.SetTransferProgress);
             List<DTOs.DownloadedAsset> downloaded = repos
                 .Where(repo => outcomes.GetValueOrDefault(repo) == HistoryStatus.Succeeded)
                 .Select(repo => new DTOs.DownloadedAsset(repo.Url, repo.Name, repo.SelectedAssetName, repo.Tag,
@@ -317,7 +317,8 @@ public class GithubDownloaderService : IGithubDownloaderService
 
             Dictionary<Repo, HistoryStatus> outcomes = [];
             bool installOk = await UpdateManager.UpdateReposAsync(repos, statusAction, progressAction, downloadAnyways,
-                (repo, result) => outcomes[repo] = result, respectExclusions: !downloadAnyways);
+                (repo, result) => outcomes[repo] = result, respectExclusions: !downloadAnyways,
+                transferProgress: _tracker.SetTransferProgress);
             FileManager.SaveRepos();
             List<Repo> changedRepos = repos.Where(repo => outcomes.GetValueOrDefault(repo) == HistoryStatus.Succeeded
                 && !repo.IsDownloadOnly).ToList();

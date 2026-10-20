@@ -84,7 +84,7 @@ public partial class App : Application
 
             performedUpdate = reinstall || !repo.IsUpToDate;
             return await UpdateManager.UpdateRepo(repo, DownloadStatusViewModel.LogStatus,
-                DownloadStatusViewModel.LogProgress, reinstall);
+                DownloadStatusViewModel.LogProgress, reinstall, DownloadStatusViewModel.ReportTransfer);
         });
         if (succeeded && performedUpdate)
             await Notifications.NotifyDownloadsCompletedAsync(1, repo.Name);
@@ -269,7 +269,8 @@ public partial class App : Application
         updateAllItem.Click += async (_, _) =>
         {
             await RunDownloadsAsync(() => UpdateManager.UpdateReposAsync(UpdateManager.Repos,
-                DownloadStatusViewModel.LogStatus, DownloadStatusViewModel.LogProgress),
+                DownloadStatusViewModel.LogStatus, DownloadStatusViewModel.LogProgress,
+                transferProgress: DownloadStatusViewModel.ReportTransfer),
                 UpdateManager.Repos.Where(repo => !repo.ExcludedFromDownloadAll && !repo.IsUpToDate));
             FileManager.SaveRepos();
         };

@@ -7,6 +7,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
 using Github_Downloader.Models;
+using Github_Downloader_lib;
 using LoggerLib;
 
 namespace Github_Downloader.ViewModels;
@@ -102,6 +103,8 @@ public class DownloadStatusViewModel : ViewModelBase
         }
         finally
         {
+            if (Dispatcher.UIThread.CheckAccess()) ProgressText = "";
+            else Dispatcher.UIThread.Post(() => ProgressText = "");
             IsUpdating = false;
         }
 
@@ -124,6 +127,17 @@ public class DownloadStatusViewModel : ViewModelBase
             else Dispatcher.UIThread.Post(ReportFailure);
         }
         return succeeded;
+    }
+
+    public void ReportTransfer(DownloadProgress progress)
+    {
+        void Update()
+        {
+            ProgressText = progress.DisplayText;
+            Percent = progress.Percent;
+        }
+        if (Dispatcher.UIThread.CheckAccess()) Update();
+        else Dispatcher.UIThread.Post(Update);
     }
 
     public void LogStatus(string message)
@@ -158,6 +172,8 @@ public class DownloadStatusViewModel : ViewModelBase
 
         void Add()
         {
+            ProgressText = "";
+            Percent = null;
             StatusText = message;
             Logs.Add(new DownloadLogEntry
             {

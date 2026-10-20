@@ -329,24 +329,27 @@ public static class UpdateManager
     }
 
     public static async Task<bool> UpdateRepo(Repo repo, Action<string> statusText,
-        Action<string> progressText, bool downloadAnyways = false)
-        => await RunRepositoryAsync(repo, statusText, progressText, downloadAnyways) is not HistoryStatus.Failed;
+        Action<string> progressText, bool downloadAnyways = false, Action<DownloadProgress>? transferProgress = null)
+        => await RunRepositoryAsync(repo, statusText, progressText, downloadAnyways, transferProgress: transferProgress) is not HistoryStatus.Failed;
 
     public static Task<bool> UpdateReposAsync(IEnumerable<Repo> repos, Action<string> statusText,
         Action<string> progressText, bool downloadAnyways = false,
-        Action<Repo, HistoryStatus>? completed = null, bool respectExclusions = true) =>
+        Action<Repo, HistoryStatus>? completed = null, bool respectExclusions = true,
+        Action<DownloadProgress>? transferProgress = null) =>
         RunBatchAsync(repos, statusText, progressText, downloadAnyways, downloadOnly: false,
-            completed: completed, respectExclusions: respectExclusions);
+            completed: completed, respectExclusions: respectExclusions, transferProgress: transferProgress);
 
     public static Task<bool> DownloadReposAsync(IEnumerable<Repo> repos, Action<string> statusText,
-        Action<string> progressText, bool downloadAnyways = false, Action<Repo, HistoryStatus>? completed = null) =>
-        RunBatchAsync(repos, statusText, progressText, downloadAnyways, downloadOnly: true, completed: completed);
+        Action<string> progressText, bool downloadAnyways = false, Action<Repo, HistoryStatus>? completed = null,
+        Action<DownloadProgress>? transferProgress = null) =>
+        RunBatchAsync(repos, statusText, progressText, downloadAnyways, downloadOnly: true, completed: completed, transferProgress: transferProgress);
 
     internal static async Task<bool> RunBatchAsync(IEnumerable<Repo> repos, Action<string> statusText,
         Action<string> progressText, bool force, bool downloadOnly,
         Func<string, string, IProgress<double>, Task>? downloadFile = null,
         Func<Asset, Task<bool>>? installAsset = null, string? cachePath = null,
-        Action<Repo, HistoryStatus>? completed = null, bool respectExclusions = true)
+        Action<Repo, HistoryStatus>? completed = null, bool respectExclusions = true,
+        Action<DownloadProgress>? transferProgress = null)
     {
         Repo[] snapshot = repos.ToArray();
         using HistoryScope batch = OperationHistory.Store.Begin(downloadOnly ? HistoryAction.Download
@@ -359,7 +362,7 @@ public static class UpdateManager
         {
             HistoryStatus result = await RunRepositoryAsync(repo, statusText, progressText, force,
                 downloadOnly, batch.Id, respectExclusion: !downloadOnly && respectExclusions,
-                downloadFile: downloadFile, installAsset: installAsset, cachePath: cachePath);
+                downloadFile: downloadFile, installAsset: installAsset, cachePath: cachePath, transferProgress: transferProgress);
             completed?.Invoke(repo, result);
             if (result == HistoryStatus.Skipped) skipped++;
             else if (result == HistoryStatus.Succeeded) succeeded++;
@@ -374,7 +377,8 @@ public static class UpdateManager
         Action<string> progressText, bool force = false, bool downloadOnly = false,
         Guid? batchId = null, bool respectExclusion = false,
         Func<string, string, IProgress<double>, Task>? downloadFile = null,
-        Func<Asset, Task<bool>>? installAsset = null, string? cachePath = null)
+        Func<Asset, Task<bool>>? installAsset = null, string? cachePath = null,
+        Action<DownloadProgress>? transferProgress = null)
     {
         using HistoryScope operation = OperationHistory.Store.Begin(downloadOnly ? HistoryAction.Download
             : force ? HistoryAction.Reinstall : HistoryAction.Update, repo, batchId, batchId: batchId);
@@ -389,7 +393,7 @@ public static class UpdateManager
         try
         {
             Asset? asset = await DownloadAsset(repo, statusText, progressText,
-                operation.Id, batchId, downloadFile, cachePath);
+                operation.Id, batchId, downloadFile, cachePath, transferProgress);
             if (asset is null)
             {
                 operation.Finish(HistoryStatus.Failed, HistoryOutcome.SelectionUnresolved);
@@ -594,7 +598,8 @@ public static class UpdateManager
         
     private static async Task<Asset?> DownloadAsset(Repo repo, Action<string> statusText, Action<string> progressText,
         Guid? parentId = null, Guid? batchId = null,
-        Func<string, string, IProgress<double>, Task>? downloadFile = null, string? cachePath = null)
+        Func<string, string, IProgress<double>, Task>? downloadFile = null, string? cachePath = null,
+        Action<DownloadProgress>? transferProgress = null)
     {
         Logger.LogI("Preparing asset download");
         
@@ -628,7 +633,11 @@ public static class UpdateManager
         try
         {
             if (downloadFile is null)
-                await Api.DownloadFileAsync(downloadAssetUrl, temporaryPath, SecretsManager.LookupSecret("pat"), progress);
+                await Api.DownloadFileAsync(downloadAssetUrl, temporaryPath, SecretsManager.LookupSecret("pat"), transferProgress: snapshot =>
+                {
+                    if (transferProgress is null) progressText(snapshot.DisplayText);
+                    else transferProgress(snapshot);
+                });
             else await downloadFile(downloadAssetUrl, temporaryPath, progress);
             history.Complete(HistoryOutcome.Downloaded);
         }

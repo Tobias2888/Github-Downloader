@@ -146,6 +146,7 @@
         if (!state) return;
         if (state.title) activity.title.textContent = state.title;
         activity.status.textContent = state.status || '';
+        $('activityTransfer').textContent = state.transfer?.displayText || '';
         activity.count.textContent = state.totalItems > 0
             ? `${state.completedItems} / ${state.totalItems}`
             : '';
@@ -198,6 +199,7 @@
     }
 
     function finishActivity(success) {
+        $('activityTransfer').textContent = '';
         activity.bar.classList.remove('indeterminate');
         activity.bar.style.width = '100%';
         activity.spinner.hidden = true;
@@ -224,6 +226,7 @@
         activity.panel.classList.add('visible', 'running');
         activity.title.textContent = title;
         activity.status.textContent = 'Starting...';
+        $('activityTransfer').textContent = '';
         activity.count.textContent = '';
         activity.logs.innerHTML = '';
         activity.bar.classList.remove('indeterminate');
@@ -236,6 +239,7 @@
         try {
             const result = await work();
             stopProgressPolling();
+            $('activityTransfer').textContent = '';
 
             try {
                 const state = await apiRequest('updates/progress');
@@ -250,6 +254,7 @@
             return result;
         } catch (err) {
             stopProgressPolling();
+            $('activityTransfer').textContent = '';
             activity.bar.classList.remove('indeterminate');
             activity.bar.style.width = '100%';
             activity.spinner.hidden = true;
