@@ -100,6 +100,39 @@ public sealed class ActionLoggingTests : IAsyncLifetime
         Assert.DoesNotContain(_root, log);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(7)]
+    public async Task DebianInstallationForwardsBothStreamsWithoutPersistingRawOutput(int exitCode)
+    {
+        if (!OperatingSystem.IsLinux()) return;
+        ProcessStartInfo start = new("/bin/sh")
+        {
+            UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true
+        };
+        start.ArgumentList.Add("-c");
+        start.ArgumentList.Add("printf '%s\\n' \"$GHD_TEST_PRIVATE/stdout\"; "
+            + "attempt=0; while [ ! -f \"$GHD_TEST_SIGNAL\" ]; do "
+            + "attempt=$((attempt + 1)); [ \"$attempt\" -lt 1000 ] || exit 99; sleep 0.01; done; "
+            + "printf '%s' \"$GHD_TEST_PRIVATE/stderr\" >&2; exit \"$GHD_TEST_EXIT\"");
+        start.Environment["GHD_TEST_PRIVATE"] = PrivateData;
+        start.Environment["GHD_TEST_EXIT"] = exitCode.ToString();
+        string signal = Path.Combine(_root, "output-received");
+        start.Environment["GHD_TEST_SIGNAL"] = signal;
+        System.Collections.Concurrent.ConcurrentQueue<string> progress = new();
+
+        // The child cannot exit until stdout reaches the callback, proving output is live.
+        Assert.Equal(exitCode, await UpdateManager.RunDebianInstallCommandAsync(start, line =>
+        {
+            progress.Enqueue(line);
+            if (line == PrivateData + "/stdout") File.WriteAllText(signal, "received");
+        }));
+
+        Assert.Contains(PrivateData + "/stdout", progress);
+        Assert.Contains(PrivateData + "/stderr", progress);
+        Assert.DoesNotContain(PrivateData, await ReadLogAsync());
+    }
+
     private async Task<string> ReadLogAsync()
     {
         // Await a final write so all earlier LoggerLib writes have flushed before reading.

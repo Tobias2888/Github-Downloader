@@ -23,6 +23,8 @@
         </PackageReference>
         <AvaloniaResource Include="resources/**" />
         <PackageReference Include="Markdown.Avalonia" Version="11.0.3" />
+        <!-- Override the Markdown/SVG runtime dependency (CVE-2019-0657, CVE-2019-0980, CVE-2019-0981). -->
+        <PackageReference Include="System.Private.Uri" Version="4.3.2" />
         <PackageReference Include="Markdig" Version="1.2.0" />
     </ItemGroup>
 

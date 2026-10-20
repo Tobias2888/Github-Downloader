@@ -457,7 +457,8 @@ public static class UpdateManager
                 if (install)
                 {
                     statusText($"Installing {displayName}");
-                    if (!await (installAsset ?? InstallAssetAsync)(asset))
+                    if (!await (installAsset is null
+                        ? InstallAssetAsync(asset, progressText) : installAsset(asset)))
                     {
                         history.Finish(HistoryStatus.Failed, HistoryOutcome.InstallFailed);
                         return false;
@@ -488,13 +489,13 @@ public static class UpdateManager
         }
     }
 
-    private static async Task<bool> InstallAssetAsync(Asset asset)
+    private static async Task<bool> InstallAssetAsync(Asset asset, Action<string> progressText)
     {
         if (OperatingSystem.IsLinux() && asset.TempAssetPath.EndsWith(".deb", StringComparison.OrdinalIgnoreCase))
         {
             InstallationManager installations = new();
             string package = await installations.ReadDebianPackageNameAsync(asset.TempAssetPath);
-            if (!await InstallDebsAsync([asset.TempAssetPath], _ => { })) return false;
+            if (!await InstallDebsAsync([asset.TempAssetPath], progressText)) return false;
             asset.Repo.InstalledDebianPackage = package;
             return true;
         }
@@ -504,7 +505,7 @@ public static class UpdateManager
             asset.Repo.InstalledAppImageId = InstallationManager.GetAppImageId(asset.Repo);
             return true;
         }
-        return await InstallExeAsync([asset.TempAssetPath], _ => { });
+        return await InstallExeAsync([asset.TempAssetPath], progressText);
     }
 
     private static async Task HandleAppImagesAsync(List<Asset> assets)
@@ -682,57 +683,63 @@ public static class UpdateManager
         Logger.LogI($"Installing Debian packages (count {debPaths.Count})");
         progressText("Installing Debian packages...");
         
-        using Process process = new()
+        ProcessStartInfo start = new()
         {
-            StartInfo = new()
-            {
-                FileName = "/usr/bin/" + (usePkexec ? "pkexec" : "sudo"),
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                RedirectStandardInput = providePassword,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            },
-            EnableRaisingEvents = true
+            FileName = "/usr/bin/" + (usePkexec ? "pkexec" : "sudo"),
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            RedirectStandardInput = providePassword,
+            UseShellExecute = false,
+            CreateNoWindow = true
         };
-        
+
         if (providePassword)
         {
-            process.StartInfo.ArgumentList.Add("-S");
-            process.StartInfo.ArgumentList.Add("-p");
-            process.StartInfo.ArgumentList.Add("");
+            start.ArgumentList.Add("-S");
+            start.ArgumentList.Add("-p");
+            start.ArgumentList.Add("");
         }
-        process.StartInfo.ArgumentList.Add("/usr/bin/apt-get");
+        start.ArgumentList.Add("/usr/bin/apt-get");
         foreach (string argument in new[] { "install", "-y", "--allow-downgrades", "--reinstall", "--" })
-            process.StartInfo.ArgumentList.Add(argument);
-        foreach (string package in packages) process.StartInfo.ArgumentList.Add(package);
-        process.Start();
+            start.ArgumentList.Add(argument);
+        foreach (string package in packages) start.ArgumentList.Add(package);
+        int exitCode = await RunDebianInstallCommandAsync(start, progressText);
 
-        if (providePassword)
-        {
-            await process.StandardInput.WriteLineAsync(RootPassword);
-            process.StandardInput.Close();
-        }
-
-        // Package managers print private paths. Keep diagnostic logs to action names and exit codes.
-        Task<string> output = process.StandardOutput.ReadToEndAsync();
-        Task<string> errors = process.StandardError.ReadToEndAsync();
-
-        await process.WaitForExitAsync();
-        await Task.WhenAll(output, errors);
-        
-        if (process.ExitCode == 0)
+        if (exitCode == 0)
         {
             Logger.LogI("Installation complete");
             return true;
         }
 
-        string hint = providePassword && process.ExitCode == 1
+        string hint = providePassword && exitCode == 1
             ? " (the supplied root password may be incorrect)"
             : "";
-        Logger.LogE($"Installation failed with exit code {process.ExitCode}");
-        progressText($"Installation failed with exit code {process.ExitCode}{hint}");
+        Logger.LogE($"Installation failed with exit code {exitCode}");
+        progressText($"Installation failed with exit code {exitCode}{hint}");
         return false;
+    }
+
+    internal static async Task<int> RunDebianInstallCommandAsync(ProcessStartInfo start, Action<string> progressText)
+    {
+        using Process process = new() { StartInfo = start };
+        process.Start();
+        // Show package-manager output live without writing private paths to activity logs.
+        Task output = ForwardInstallationOutputAsync(process.StandardOutput, progressText);
+        Task errors = ForwardInstallationOutputAsync(process.StandardError, progressText);
+        if (start.RedirectStandardInput)
+        {
+            await process.StandardInput.WriteLineAsync(RootPassword);
+            process.StandardInput.Close();
+        }
+        await process.WaitForExitAsync();
+        await Task.WhenAll(output, errors);
+        return process.ExitCode;
+    }
+
+    private static async Task ForwardInstallationOutputAsync(StreamReader reader, Action<string> progressText)
+    {
+        while (await reader.ReadLineAsync() is string line)
+            progressText(line);
     }
 
     private static async Task<bool> InstallExeAsync(List<string> exePaths, Action<string> progressText)
