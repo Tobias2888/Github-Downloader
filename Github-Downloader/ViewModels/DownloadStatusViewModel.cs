@@ -108,6 +108,14 @@ public class DownloadStatusViewModel : ViewModelBase
             IsUpdating = false;
         }
 
+        if (UpdateManager.SelfUpdate.ShutdownRequested)
+        {
+            // Repository and batch history scopes have finished before the process exits.
+            // Also exit if a history write failed after the installer was launched.
+            await Dispatcher.UIThread.InvokeAsync(() => ((App)Application.Current!).ShutdownForSelfUpdate());
+            return succeeded;
+        }
+
         if (succeeded)
         {
             Logger.LogD("Operation completed");

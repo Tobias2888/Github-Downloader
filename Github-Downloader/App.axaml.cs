@@ -40,6 +40,16 @@ public partial class App : Application
             message => DesktopNotificationSender.SendAsync(message, ShowMainWindow));
     }
 
+    internal void ShutdownForSelfUpdate()
+    {
+        if (ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
+            throw new InvalidOperationException("Self-updates require the desktop application.");
+        MainViewModel.AutoCheckForUpdatesTimer.Stop();
+        _notificationTimer.Stop();
+        _trayIcon.IsVisible = false;
+        desktop.Shutdown();
+    }
+
     public void ShowMainWindow()
     {
         if (!Dispatcher.UIThread.CheckAccess())
@@ -194,7 +204,11 @@ public partial class App : Application
         Logger.LogI("Mode: avalonia-desktop-app");
         MainViewModel.AppSettings = AppSettings.Load();
         await InitializeRepositoriesAsync(Program.DesktopActivation,
-            () => FileManager.LoadRepos(refreshDetails: false),
+            async () =>
+            {
+                await FileManager.LoadRepos(refreshDetails: false);
+                WindowsSelfUpdate.Initialize(UpdateManager.Repos);
+            },
             async () =>
             {
                 await UpdateManager.UpdateRepoDetails(UpdateManager.Repos);

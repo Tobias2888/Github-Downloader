@@ -79,7 +79,11 @@ chmod +x Github_Downloader-x86_64.AppImage
 
 ### Windows and macOS
 
-On Windows, run the installer matching your architecture. It creates application shortcuts and registers the desktop app to start hidden in the tray at sign-in.
+On Windows, run the installer matching your architecture. It creates application shortcuts and registers the desktop app to start hidden in the tray at sign-in. The finish page has an **Open GitHub Downloader** checkbox, selected by default; leave it checked to open the app when you click **Finish**.
+
+When the Windows desktop app updates its own `Tobias2888/Github-Downloader` setup asset, it updates the other repositories first, then launches setup and exits. Setup waits for the app to stop before replacing its files and keeps the current installation directory. Leave **Open GitHub Downloader** checked on the finish page to reopen the app after updating. Cancelling the administrator prompt keeps the app running; cancelling setup after the app exits leaves the installed version unchanged. The app checks its running version on startup instead of treating a launched self-update installer as a completed installation. Download-only operations keep the repository order and do not exit the app.
+
+To upgrade from a version without this handoff, quit the running app from its tray menu before continuing setup.
 
 On macOS, extract the archive matching your architecture and launch the `Github-Downloader` executable inside it.
 

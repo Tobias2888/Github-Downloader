@@ -13,7 +13,7 @@ public enum HistoryOutcome
 {
     Started, Completed, Downloaded, Saved, Installed, Extracted, Uninstalled,
     SelectionUnresolved, DownloadFailed, SaveFailed, InstallFailed, ExtractionFailed,
-    UninstallFailed, AlreadyCurrent, Excluded, Interrupted, Failed, BatchCompleted
+    UninstallFailed, AlreadyCurrent, Excluded, Interrupted, Failed, BatchCompleted, InstallerLaunched
 }
 
 public sealed record HistoryEntry
@@ -45,6 +45,7 @@ public sealed record HistoryEntry
             HistoryOutcome.Downloaded => "Download completed; installation has not been confirmed.",
             HistoryOutcome.Saved => "File saved. No installation performed.",
             HistoryOutcome.Installed => "Installation completed.",
+            HistoryOutcome.InstallerLaunched => "Self-update installer started; installation has not been confirmed. Setup offers to reopen the app on its finish page.",
             HistoryOutcome.Extracted => "Archive extracted successfully.",
             HistoryOutcome.Uninstalled => "Uninstall completed.",
             HistoryOutcome.SelectionUnresolved => "No unique asset selected. Download blocked.",

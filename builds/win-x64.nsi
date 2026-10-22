@@ -10,14 +10,23 @@ InstallDir "$PROGRAMFILES\${COMPANY}\${APPNAME}"
 InstallDirRegKey HKCU "Software\${COMPANY}\${APPNAME}" ""
 
 RequestExecutionLevel admin
+!include "MUI2.nsh"
+!include "windows-self-update.nsh"
 
-Page directory
-Page instfiles
-UninstPage uninstConfirm
-UninstPage instfiles
+!define MUI_PAGE_CUSTOMFUNCTION_PRE SkipSelfUpdateDirectory
+!insertmacro MUI_PAGE_DIRECTORY
+!insertmacro MUI_PAGE_INSTFILES
+!define MUI_FINISHPAGE_RUN
+!define MUI_FINISHPAGE_RUN_TEXT "Open GitHub Downloader"
+!define MUI_FINISHPAGE_RUN_FUNCTION LaunchInstalledApp
+!insertmacro MUI_PAGE_FINISH
+!insertmacro MUI_UNPAGE_CONFIRM
+!insertmacro MUI_UNPAGE_INSTFILES
+!insertmacro MUI_LANGUAGE "English"
 
 Section "Install"
 
+  Call WaitForUpdatingApp
   SetOutPath "$INSTDIR"
 
   ; copy entire publish directory recursively

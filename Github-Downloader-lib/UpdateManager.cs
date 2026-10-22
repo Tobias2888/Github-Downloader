@@ -19,6 +19,7 @@ public static class UpdateManager
     public static ObservableCollection<Repo> Repos;
     public static Platform CurPlatform;
     public static string? RootPassword;
+    public static WindowsSelfUpdate SelfUpdate { get; } = new();
 
     public static void WatchRepos()
     {
@@ -269,6 +270,8 @@ public static class UpdateManager
         // Set Tag last: it is a persisted property, so its change triggers SaveRepos()
         // and this writes the whole, fully-updated release state to disk.
         repo.Tag = response.tag_name;
+        if (WindowsSelfUpdate.IsSelfUpdate(repo))
+            WindowsSelfUpdate.ReconcileInstalledVersions([repo], AppInfo.Version);
 
         Logger.LogD("Repository release information refreshed");
         return true;
@@ -352,7 +355,7 @@ public static class UpdateManager
         Action<DownloadProgress>? transferProgress = null,
         Func<IReadOnlyList<Asset>, Task<bool>>? installDebianAssets = null)
     {
-        Repo[] snapshot = repos.ToArray();
+        Repo[] snapshot = WindowsSelfUpdate.OrderRepositories(repos, downloadOnly);
         using HistoryScope batch = OperationHistory.Store.Begin(downloadOnly ? HistoryAction.Download
             : force ? HistoryAction.Reinstall : HistoryAction.Update, isBatch: true);
         int succeeded = 0;
@@ -495,8 +498,10 @@ public static class UpdateManager
             bool success = await ApplyAssetAsync(asset.Value, statusText, progressText, downloadOnly, installAsset);
             bool extract = !downloadOnly && repo.AutoExtract && ArchiveExtractor.IsSupportedArchive(asset.Value.TempAssetPath);
             bool install = !downloadOnly && IsInstallerAsset(asset.Value.TempAssetPath);
+            bool handedOff = success && SelfUpdate.ShutdownRequested && WindowsSelfUpdate.IsSelfUpdate(repo);
             operation.Finish(success ? HistoryStatus.Succeeded : HistoryStatus.Failed, success
-                ? extract ? HistoryOutcome.Extracted : install ? HistoryOutcome.Installed : HistoryOutcome.Saved
+                ? handedOff ? HistoryOutcome.InstallerLaunched
+                    : extract ? HistoryOutcome.Extracted : install ? HistoryOutcome.Installed : HistoryOutcome.Saved
                 : extract ? HistoryOutcome.ExtractionFailed : install ? HistoryOutcome.InstallFailed : HistoryOutcome.SaveFailed);
             return success ? HistoryStatus.Succeeded : HistoryStatus.Failed;
         }
@@ -553,6 +558,13 @@ public static class UpdateManager
                 if (install)
                 {
                     statusText($"Installing {displayName}");
+                    if (installAsset is null && asset.LocalSourcePath is null && WindowsSelfUpdate.IsSelfUpdate(asset.Repo))
+                    {
+                        SelfUpdate.Launch(asset.TempAssetPath);
+                        progressText("Installer started. GitHub Downloader will exit to complete its update. Leave 'Open GitHub Downloader' checked on the finish page to reopen it.");
+                        history.Complete(HistoryOutcome.InstallerLaunched);
+                        return true;
+                    }
                     if (!await (installAsset is null
                         ? InstallAssetAsync(asset, progressText) : installAsset(asset)))
                     {
