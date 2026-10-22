@@ -91,6 +91,33 @@ public partial class App : Application
         return succeeded;
     }
 
+    public async Task ReinstallAllReposAsync()
+    {
+        if (DownloadStatusViewModel.IsUpdating) return;
+        Repo[] repositories = UpdateManager.Repos.ToArray();
+        if (repositories.Length == 0) return;
+
+        Logger.LogI("Reinstall all repositories confirmed");
+        try
+        {
+            await RunDownloadsAsync(async () =>
+            {
+                if (!await UpdateManager.SearchForUpdates(repositories, DownloadStatusViewModel.LogStatus))
+                    return false;
+
+                return await UpdateManager.UpdateReposAsync(repositories,
+                    DownloadStatusViewModel.LogStatus, DownloadStatusViewModel.LogProgress,
+                    downloadAnyways: true, respectExclusions: false,
+                    transferProgress: DownloadStatusViewModel.ReportTransfer);
+            }, repositories);
+        }
+        finally
+        {
+            FileManager.SaveRepos();
+            UpdateIcon();
+        }
+    }
+
     public async Task UninstallRepoAsync(Repo repo)
     {
         Logger.LogI("Repository uninstall requested");

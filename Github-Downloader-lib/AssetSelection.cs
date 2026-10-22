@@ -60,10 +60,39 @@ public static class AssetSelection
         return $"*{aliases}{(architecture == Architecture.X86 ? "" : "*")}.{extension}";
     }
 
-    // Case-sensitive filename globs, with literal alternatives such as {x64,amd64}.
-    public static bool Matches(string name, string pattern)
+    // Whitespace separates globs; every inclusion must match, and exclusions always win.
+    public static bool Matches(string name, string rule) => CreateRuleMatcher(rule)(name);
+
+    public static List<string> FindMatches(IEnumerable<string> names, string rule)
+        => names.Where(CreateRuleMatcher(rule)).ToList();
+
+    private static Func<string, bool> CreateRuleMatcher(string rule)
     {
-        if (pattern.Contains('{')) return CreateGlobRegex(pattern).IsMatch(name);
+        List<Func<string, bool>> inclusions = [];
+        List<Func<string, bool>> exclusions = [];
+        bool excludeNext = false;
+        foreach (string token in rule.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (token == "!")
+            {
+                excludeNext = true;
+                continue;
+            }
+            bool exclude = excludeNext || token.StartsWith('!');
+            string pattern = token.StartsWith('!') ? token[1..] : token;
+            excludeNext = false;
+            Func<string, bool> matcher = pattern.Contains('{')
+                ? CreateGlobRegex(pattern).IsMatch
+                : name => MatchesGlob(name, pattern);
+            (exclude ? exclusions : inclusions).Add(matcher);
+        }
+        return name => inclusions.Count > 0 && inclusions.All(matches => matches(name))
+            && !exclusions.Any(matches => matches(name));
+    }
+
+    // Case-sensitive filename globs, with literal alternatives such as {x64,amd64}.
+    private static bool MatchesGlob(string name, string pattern)
+    {
         int nameIndex = 0;
         int patternIndex = 0;
         int star = -1;
@@ -89,13 +118,6 @@ public static class AssetSelection
         }
         while (patternIndex < pattern.Length && pattern[patternIndex] == '*') patternIndex++;
         return patternIndex == pattern.Length;
-    }
-
-    public static List<string> FindMatches(IEnumerable<string> names, string rule)
-    {
-        if (!rule.Contains('{')) return names.Where(name => Matches(name, rule)).ToList();
-        Regex regex = CreateGlobRegex(rule);
-        return names.Where(name => regex.IsMatch(name)).ToList();
     }
 
     private static Regex CreateGlobRegex(string pattern)

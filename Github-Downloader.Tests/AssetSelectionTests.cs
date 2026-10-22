@@ -45,6 +45,58 @@ public sealed class AssetSelectionTests
         => Assert.Equal(expected, AssetSelection.Matches(name, rule));
 
     [Theory]
+    [InlineData("app-x64.zip", "*.zip\n! *arm64*", true)]
+    [InlineData("app-arm64.zip", "*.zip\n!*arm64*", false)]
+    [InlineData("app-arm64.zip", "!*arm64*\n*.zip", false)]
+    [InlineData("app.exe", "*.zip\n*.exe", false)]
+    [InlineData("app-x64.zip", "*.zip\n*x64*", true)]
+    [InlineData("app-arm64.zip", "*.zip\n*x64*", false)]
+    [InlineData("app-x64.zip", "*.zip *x64*", true)]
+    [InlineData("app-x64.exe", "*.zip *x64*", false)]
+    [InlineData("app-arm64.zip", "*.zip *x64*", false)]
+    [InlineData("app-x64.zip", "*.zip *x64* ! *arm64*", true)]
+    [InlineData("app-x64.zip", "*.zip *x64* !*x64*", false)]
+    [InlineData("app-x64.zip", "! *x64* *.zip *x64*", false)]
+    [InlineData("app-x64.zip", "\t*.zip  \n*x64*\r\n! \t *arm64* ", true)]
+    [InlineData("app.tar.gz", "*.zip\n*.exe", false)]
+    [InlineData("app-x64.zip", "\r\n *.zip \r\n\r\n ! *arm64* \r\n", true)]
+    [InlineData("app-amd64.zip", "*{x64,amd64}.zip\n!*{arm64,amd64}.zip", false)]
+    [InlineData("app-x64.zip", "*.zip\n!*arm64*\n!app-?64.zip", false)]
+    [InlineData("app.zip", "*.zip\n!APP.zip", true)]
+    [InlineData("app.zip", "!*.exe", false)]
+    [InlineData("app.zip", "\n \r\n", false)]
+    [InlineData("app.zip", "*.zip\n!", true)]
+    [InlineData("app.zip", "*.zip\n!*", false)]
+    public void RulesRequireEveryInclusionAndRejectEveryExclusion(string name, string rule, bool expected)
+    {
+        Assert.Equal(expected, AssetSelection.Matches(name, rule));
+        Assert.Equal(expected, AssetSelection.FindMatches([name], rule).Count == 1);
+    }
+
+    [Fact]
+    public void ExclusionsResolveVersionedVariantsAndSurviveExportImport()
+    {
+        Repo repo = NewRepo();
+        repo.AssetRule = "*_x64_setup.exe\n! *_lt12_x64_setup.exe";
+        repo.ReplaceAssets(["qbittorrent_5.3.0_x64_setup.exe", "qbittorrent_5.3.0_lt12_x64_setup.exe"],
+            ["standard-url", "lt12-url"]);
+        Assert.Equal(["qbittorrent_5.3.0_x64_setup.exe"], repo.AssetRuleMatches);
+        Assert.Equal(0, repo.DownloadAssetIndex);
+        Assert.Equal("standard-url", repo.SelectedAssetUrl);
+
+        Repo restored = JsonSerializer.Deserialize<Repo>(JsonSerializer.Serialize(repo))!;
+        Assert.Equal(repo.AssetRule, restored.AssetRule);
+        restored.ReplaceAssets(["qbittorrent_5.4.0_lt12_x64_setup.exe", "qbittorrent_5.4.0_x64_setup.exe"],
+            ["new-lt12-url", "new-standard-url"]);
+        Assert.Equal(1, restored.DownloadAssetIndex);
+        Assert.Equal("new-standard-url", restored.SelectedAssetUrl);
+        restored.ReplaceAssets(["qbittorrent_5.4.0_lt12_x64_setup.exe"], ["new-lt12-url"]);
+        Assert.Empty(restored.AssetRuleMatches);
+        Assert.Empty(restored.SelectedAssetUrl);
+        Assert.Equal(-1, restored.DownloadAssetIndex);
+    }
+
+    [Theory]
     [InlineData(Architecture.X64, "app-x64-v2.deb", true)]
     [InlineData(Architecture.X64, "app-amd64.deb", true)]
     [InlineData(Architecture.X64, "app-x86_64.deb", true)]
@@ -318,8 +370,10 @@ public sealed class AssetSelectionTests
                 Assert.Equal("*linux*", repo.AssetRule);
                 Assert.False(selection.IsEnabled);
                 Assert.Contains("2 assets match", status.Text);
-                rule.Text = "*x64*";
+                Assert.True(rule.AcceptsReturn);
+                rule.Text = "*linux*\n*.zip ! *arm64*";
                 window.UpdateLayout();
+                Assert.Equal("*linux*\n*.zip ! *arm64*", repo.AssetRule);
                 Assert.Equal("linux-x64.zip", repo.SelectedAssetName);
                 Assert.Contains("linux-x64.zip", status.Text);
                 rule.Text = "";

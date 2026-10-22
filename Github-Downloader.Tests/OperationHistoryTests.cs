@@ -250,6 +250,84 @@ public sealed class OperationHistoryTests : IDisposable
         Assert.Equal("v2", repo.CurrentInstallTag);
     }
 
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    public async Task DebianBatchInstallsAllPackagesWithOneAuthorization(bool reinstall, bool installSucceeds)
+    {
+        if (!OperatingSystem.IsLinux()) return;
+        Repo first = NewRepo("owner/first");
+        Repo second = NewRepo("owner/second");
+        Repo excluded = NewRepo("owner/excluded");
+        excluded.ExcludedFromDownloadAll = true;
+        Repo[] repositories = [first, second, excluded];
+        foreach (Repo repo in repositories)
+        {
+            // Matching filenames must still have distinct download paths.
+            repo.ReplaceAssets(["release.deb"], [repo.Name]);
+            repo.DownloadAssetIndex = 0;
+            if (reinstall) repo.CurrentInstallTag = "v2";
+        }
+        int installerCalls = 0;
+        string[] paths = [];
+        bool result = await UpdateManager.RunBatchAsync(repositories, _ => { }, _ => { },
+            reinstall, false, downloadFile: (url, path, _) => File.WriteAllTextAsync(path, url),
+            cachePath: _root, respectExclusions: !reinstall, installDebianAssets: async assets =>
+            {
+                installerCalls++;
+                Assert.Equal(reinstall ? 3 : 2, assets.Count);
+                paths = assets.Select(asset => asset.TempAssetPath).ToArray();
+                Assert.Equal(assets.Count, paths.Distinct().Count());
+                foreach (UpdateManager.Asset asset in assets)
+                    Assert.Equal(asset.Repo.Name, await File.ReadAllTextAsync(asset.TempAssetPath));
+                return installSucceeds;
+            });
+
+        Assert.Equal(1, installerCalls);
+        Assert.Equal(installSucceeds, result);
+        HistoryEntry batch = Assert.Single(Store.Query().Entries, entry => entry.IsBatch);
+        int processed = reinstall ? 3 : 2;
+        Assert.Equal(installSucceeds ? processed : 0, batch.SucceededCount);
+        Assert.Equal(installSucceeds ? 0 : processed, batch.FailedCount);
+        Assert.Equal(reinstall ? 0 : 1, batch.SkippedCount);
+        Assert.Equal(reinstall || installSucceeds ? "v2" : "v1", first.CurrentInstallTag);
+        Assert.True(excluded.ExcludedFromDownloadAll);
+        Assert.All(paths, path => Assert.False(File.Exists(path)));
+    }
+
+    [Fact]
+    public async Task DebianBatchInstallsSuccessfulDownloadsEvenWhenAnotherDownloadFails()
+    {
+        if (!OperatingSystem.IsLinux()) return;
+        Repo failed = NewRepo("owner/failed");
+        Repo successful = NewRepo("owner/successful");
+        foreach (Repo repo in new[] { failed, successful })
+        {
+            repo.ReplaceAssets(["release.deb"], [repo.Name]);
+            repo.DownloadAssetIndex = 0;
+        }
+        int installerCalls = 0;
+        bool result = await UpdateManager.RunBatchAsync([failed, successful], _ => { }, _ => { },
+            false, false, downloadFile: (url, path, _) => url == failed.Name
+                ? Task.FromException(new IOException("download failed")) : File.WriteAllTextAsync(path, url),
+            cachePath: _root, installDebianAssets: assets =>
+            {
+                installerCalls++;
+                Assert.Same(successful, Assert.Single(assets).Repo);
+                return Task.FromResult(true);
+            });
+        Assert.False(result);
+        Assert.Equal(1, installerCalls);
+        Assert.Equal("v1", failed.CurrentInstallTag);
+        Assert.Equal("v2", successful.CurrentInstallTag);
+        HistoryEntry batch = Assert.Single(Store.Query().Entries, entry => entry.IsBatch);
+        Assert.Equal(HistoryStatus.PartialFailure, batch.Status);
+        Assert.Equal(1, batch.FailedCount);
+        Assert.Equal(1, batch.SucceededCount);
+    }
+
     [Fact]
     public async Task HistoryNeverCopiesPrivateUrlsPasswordsOrInstallerExceptionText()
     {

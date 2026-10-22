@@ -16,6 +16,8 @@ public sealed class LocalAppStore
     private readonly string _mutexName;
     private static readonly JsonSerializerOptions Options = new() { WriteIndented = true };
 
+    internal string InstallersPath => Path.Combine(Path.GetDirectoryName(_path)!, "local-installers");
+
     public LocalAppStore(string path)
     {
         _path = Path.GetFullPath(path);
@@ -47,7 +49,7 @@ public sealed class LocalAppStore
                     ?? throw new JsonException() : [];
                 if (apps.Any(app => app is null || string.IsNullOrWhiteSpace(app.Id) || string.IsNullOrWhiteSpace(app.FileName)
                     || string.IsNullOrWhiteSpace(app.InstallationName) || !Enum.IsDefined(app.Kind)
-                    || app.DebianPackage is null || app.AppImageId is null || app.ExtractionDirectory is null || app.OwnedFiles is null
+                    || app.DebianPackage is null || app.AppImageId is null || app.ExtractionDirectory is null || app.InstallerPath is null || app.OwnedFiles is null
                     || app.OwnedFiles.Any(file => string.IsNullOrWhiteSpace(file.Key) || string.IsNullOrWhiteSpace(file.Value))))
                     throw new JsonException();
             }

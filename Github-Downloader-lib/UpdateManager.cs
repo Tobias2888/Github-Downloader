@@ -349,7 +349,8 @@ public static class UpdateManager
         Func<string, string, IProgress<double>, Task>? downloadFile = null,
         Func<Asset, Task<bool>>? installAsset = null, string? cachePath = null,
         Action<Repo, HistoryStatus>? completed = null, bool respectExclusions = true,
-        Action<DownloadProgress>? transferProgress = null)
+        Action<DownloadProgress>? transferProgress = null,
+        Func<IReadOnlyList<Asset>, Task<bool>>? installDebianAssets = null)
     {
         Repo[] snapshot = repos.ToArray();
         using HistoryScope batch = OperationHistory.Store.Begin(downloadOnly ? HistoryAction.Download
@@ -358,9 +359,18 @@ public static class UpdateManager
         int failed = 0;
         int skipped = 0;
         statusText("Downloading updates...");
+        Repo[] debianRepos = !downloadOnly && OperatingSystem.IsLinux() && installAsset is null
+            ? snapshot.Where(repo => (!respectExclusions || !repo.ExcludedFromDownloadAll)
+                && (force || !repo.IsUpToDate)
+                && repo.SelectedAssetName.EndsWith(".deb", StringComparison.OrdinalIgnoreCase)).ToArray()
+            : [];
+        Dictionary<Repo, HistoryStatus> debianResults = await RunDebianBatchAsync(debianRepos,
+            statusText, progressText, force, batch.Id, downloadFile, cachePath, transferProgress,
+            installDebianAssets);
         foreach (Repo repo in snapshot)
         {
-            HistoryStatus result = await RunRepositoryAsync(repo, statusText, progressText, force,
+            HistoryStatus result = debianResults.TryGetValue(repo, out HistoryStatus debianResult)
+                ? debianResult : await RunRepositoryAsync(repo, statusText, progressText, force,
                 downloadOnly, batch.Id, respectExclusion: !downloadOnly && respectExclusions,
                 downloadFile: downloadFile, installAsset: installAsset, cachePath: cachePath, transferProgress: transferProgress);
             completed?.Invoke(repo, result);
@@ -371,6 +381,88 @@ public static class UpdateManager
         batch.Finish(failed == 0 ? HistoryStatus.Succeeded : succeeded > 0 ? HistoryStatus.PartialFailure
             : HistoryStatus.Failed, HistoryOutcome.BatchCompleted, succeeded, failed, skipped);
         return failed == 0;
+    }
+
+    private static async Task<Dictionary<Repo, HistoryStatus>> RunDebianBatchAsync(Repo[] repositories,
+        Action<string> statusText, Action<string> progressText, bool force, Guid batchId,
+        Func<string, string, IProgress<double>, Task>? downloadFile, string? cachePath,
+        Action<DownloadProgress>? transferProgress, Func<IReadOnlyList<Asset>, Task<bool>>? installDebianAssets)
+    {
+        Dictionary<Repo, HistoryStatus> results = [];
+        List<(Asset Asset, HistoryScope Operation)> prepared = [];
+        try
+        {
+            foreach (Repo repo in repositories)
+            {
+                HistoryScope operation = OperationHistory.Store.Begin(force ? HistoryAction.Reinstall
+                    : HistoryAction.Update, repo, batchId, batchId: batchId);
+                try
+                {
+                    Asset? asset = await DownloadAsset(repo, statusText, progressText, operation.Id,
+                        batchId, downloadFile, cachePath, transferProgress);
+                    if (asset.HasValue)
+                    {
+                        prepared.Add((asset.Value, operation));
+                        continue;
+                    }
+                    operation.Finish(HistoryStatus.Failed, HistoryOutcome.SelectionUnresolved);
+                }
+                catch (Exception exception)
+                {
+                    Logger.LogE($"Repository download failed ({exception.GetType().Name})");
+                    progressText("Repository download failed. Check connectivity and permissions.");
+                    operation.Finish(HistoryStatus.Failed, HistoryOutcome.DownloadFailed);
+                }
+                operation.Dispose();
+                results[repo] = HistoryStatus.Failed;
+            }
+
+            Asset[] assets = prepared.Select(item => item.Asset).ToArray();
+            bool installed = false;
+            if (assets.Length > 0)
+            {
+                try
+                {
+                    // All packages share one apt-get process and one authorization request.
+                    installed = await (installDebianAssets is null
+                        ? InstallDebianAssetsAsync(assets, progressText) : installDebianAssets(assets));
+                }
+                catch (Exception exception)
+                {
+                    Logger.LogE($"Debian batch installation failed ({exception.GetType().Name})");
+                    progressText("Debian package installation failed. Check permissions and installation requirements.");
+                }
+            }
+            foreach ((Asset asset, HistoryScope operation) in prepared)
+            {
+                bool success = await ApplyAssetAsync(asset, statusText, progressText, false,
+                    _ => Task.FromResult(installed));
+                HistoryStatus result = success ? HistoryStatus.Succeeded : HistoryStatus.Failed;
+                operation.Finish(result, success ? HistoryOutcome.Installed : HistoryOutcome.InstallFailed);
+                results[asset.Repo] = result;
+            }
+            return results;
+        }
+        finally
+        {
+            foreach ((Asset asset, HistoryScope operation) in prepared)
+            {
+                operation.Dispose();
+                if (asset.TemporaryDirectory is string directory && Directory.Exists(directory))
+                    Directory.Delete(directory, recursive: true);
+            }
+        }
+    }
+
+    private static async Task<bool> InstallDebianAssetsAsync(IReadOnlyList<Asset> assets, Action<string> progressText)
+    {
+        InstallationManager installations = new();
+        Dictionary<Repo, string> packages = [];
+        foreach (Asset asset in assets)
+            packages[asset.Repo] = await installations.ReadDebianPackageNameAsync(asset.TempAssetPath);
+        if (!await InstallDebsAsync(assets.Select(asset => asset.TempAssetPath).ToList(), progressText)) return false;
+        foreach (Asset asset in assets) asset.Repo.InstalledDebianPackage = packages[asset.Repo];
+        return true;
     }
 
     internal static async Task<HistoryStatus> RunRepositoryAsync(Repo repo, Action<string> statusText,
@@ -626,6 +718,7 @@ public static class UpdateManager
         string downloadTag = repo.Tag;
         cachePath ??= FileManager.CachePath;
         string? temporaryDirectory = repo.AutoExtract && ArchiveExtractor.IsSupportedArchive(downloadAssetName)
+            || downloadAssetName.EndsWith(".deb", StringComparison.OrdinalIgnoreCase)
             ? Path.Combine(cachePath, $"archive-{Guid.NewGuid():N}")
             : null;
         string temporaryPath = Path.Combine(temporaryDirectory ?? cachePath, downloadAssetName);

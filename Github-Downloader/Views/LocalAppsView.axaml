@@ -19,6 +19,7 @@
                                 <TextBlock Grid.Row="1" Text="{Binding Type}" Foreground="#AAA"/>
                                 <TextBlock Grid.Row="2" Text="{Binding FileName}" Foreground="#AAA" TextWrapping="Wrap"/>
                                 <StackPanel Grid.Column="1" Grid.RowSpan="3" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center" Margin="16,0,0,0">
+                                    <Button Content="Reinstall" IsVisible="{Binding CanReinstall}" Click="Reinstall_OnClick"/>
                                     <Button Content="Uninstall" IsVisible="{Binding CanUninstall}" Click="Uninstall_OnClick" Background="#963B3B"/>
                                     <Button Content="System uninstaller…" IsVisible="{Binding UseSystemUninstaller}" Click="SystemUninstaller_OnClick"/>
                                     <Button Content="Remove from list" IsVisible="{Binding NeedsManualRemoval}" Click="Forget_OnClick"/>

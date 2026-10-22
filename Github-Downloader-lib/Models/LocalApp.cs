@@ -15,8 +15,10 @@ public sealed record LocalApp
     public string DebianPackage { get; init; } = "";
     public string AppImageId { get; init; } = "";
     public string ExtractionDirectory { get; init; } = "";
+    public string InstallerPath { get; init; } = "";
     public Dictionary<string, string> OwnedFiles { get; init; } = new();
     [JsonIgnore] public string Name => Path.GetFileNameWithoutExtension(FileName);
+    [JsonIgnore] public bool CanReinstall => File.Exists(InstallerPath);
     [JsonIgnore] public string Type => Kind switch
     {
         LocalAppKind.Debian => "Debian package",

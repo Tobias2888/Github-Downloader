@@ -20,6 +20,32 @@ public sealed class LocalAppTests : IDisposable
     }
 
     [Fact]
+    public async Task ArchiveCanBeReinstalledAfterOriginalAndCacheAreDeleted()
+    {
+        string source = Path.Combine(_root, "archive.zip");
+        using (ZipArchive archive = ZipFile.Open(source, ZipArchiveMode.Create))
+        {
+            using StreamWriter writer = new(archive.CreateEntry("app.txt").Open());
+            writer.Write("original content");
+        }
+        string destination = Path.Combine(_root, "app");
+        string cache = Path.Combine(_root, "cache");
+        Assert.True(await LocalFileInstaller.InstallAsync(source, _ => { }, _ => { }, destination, null, cache));
+        LocalApp app = Assert.Single(new LocalAppStore(AppsPath).Read());
+        File.Delete(source);
+        Directory.Delete(cache, true);
+        File.Delete(Path.Combine(destination, "app.txt"));
+        // Use the test cache while exercising the same saved source and extraction destination as the UI.
+        Assert.True(await LocalFileInstaller.InstallAsync(app.InstallerPath, _ => { }, _ => { }, app.ExtractionDirectory, null, cache));
+        Assert.Equal("original content", await File.ReadAllTextAsync(Path.Combine(destination, "app.txt")));
+        LocalApp reinstalled = Assert.Single(LocalApps.Store.Read());
+        Assert.Equal(app.Id, reinstalled.Id);
+        Assert.Equal(app.InstallerPath, reinstalled.InstallerPath);
+        Assert.True(await new LocalAppManager().UninstallAsync(reinstalled, _ => { }, _ => { }));
+        Assert.True(File.Exists(app.InstallerPath));
+    }
+
+    [Fact]
     public async Task DebianInstallationPersistsExactPackageAcrossRestartAndReinstall()
     {
         if (!OperatingSystem.IsLinux()) return;

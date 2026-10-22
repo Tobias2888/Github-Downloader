@@ -124,6 +124,15 @@ New repositories start with an editable asset rule for the architecture and oper
 
 In **More → Download Settings → Asset rule**, enter an exact filename or a case-sensitive glob such as `*linux*x64*.AppImage` to follow filenames that change between releases. `*` matches any text (including no characters); `?` matches one character; `{x64,amd64}` matches either literal alternative. Other characters are literal. The details view previews matching filenames. A rule takes precedence over the saved manual selection and must match **exactly one** asset. No matches or multiple matches block that repository's download and report the reason; other repositories in a bulk update continue.
 
+Separate patterns with spaces or newlines, prefixing exclusion patterns with `!` (an optional space after `!` is allowed). For example, to select the standard qBittorrent Windows x64 installer while excluding the lt12 variant:
+
+```text
+*_x64_setup.exe
+! *_lt12_x64_setup.exe
+```
+
+An asset must match **every inclusion pattern** and no exclusion patterns. For example, `*.exe *x64* !*lt12*` requires an `.exe` filename containing `x64` and excludes filenames containing `lt12`. Spaces, tabs, and line breaks all separate patterns. Exclusions take precedence regardless of line order. Blank lines and surrounding whitespace are ignored; exclusion-only rules match nothing (use `*` as the inclusion to consider all assets). Both desktop and web editors support multiple lines. CLI and API rules use the same syntax; send line breaks as `\n` in JSON, or use Bash quoting such as `ghd repo 0 set-asset-rule $'*_x64_setup.exe\n! *_lt12_x64_setup.exe'`.
+
 Clear the rule to restore the saved manual filename or choose another file. If that filename is missing from a later release, no replacement is selected automatically. Existing configurations migrate the selected index to its filename using the cached asset list; an invalid or unavailable old selection requires choosing a file again. Rules and manual filenames are included in configuration exports.
 
 | Asset | Behavior |
@@ -193,11 +202,11 @@ Replace the example repository, paths, IDs, and tag with your own values. `set-d
 
 Choose **Install local file…** on the desktop to install a file already on your computer. Local `.deb` and `.AppImage` files use the same Linux package installation and application-menu integration as repository assets; `.exe` and `.msi` files use the existing executable installer handler. Supported archives can be extracted into a folder you choose. Windows executables require an operating system configured to run them.
 
-The original file is kept. Results appear in **History** as **Local: filename**, without adding a tracked repository or contacting GitHub. Local files do not receive automatic update checks.
+The original file is kept. A separate copy is saved in `local-installers` in the application data directory beside `repos.json`. Use **Reinstall** in the **Local apps** tab to install from this copy, even after deleting the original file or clearing the cache. Archives reuse their selected extraction folder. Copies are kept after uninstalling as well. Older entries need to be installed from the original file once to save a copy and enable Reinstall. Results appear in **History** as **Local: filename**, without adding a tracked repository or contacting GitHub. Local files do not receive automatic update checks.
 
 Successful local installations also appear in the separate **Local apps** tab and survive restarts. **Uninstall** removes Debian packages or AppImages through the same handlers as tracked repositories. For archives, it removes only newly created app files whose contents have not changed; pre-existing files, your edits, and the original archive are kept. Use a separate extraction folder for each app; another archive installed into the same folder updates that app's entry. Windows executable installers open the system uninstaller; remove their list entry after uninstalling there. Failed removals keep the app in the list.
 
-The list and uninstall details are saved separately in `local-apps.json`, including extraction locations and file hashes. Clearing history or importing repository settings does not remove this list. CLI local installs appear here too.
+The list and uninstall details are saved separately in `local-apps.json`, including extraction locations and file hashes. Saved installers use folders named after the original filename without its extension, for example `local-installers/example_1.0_amd64/example_1.0_amd64.deb`. A numeric suffix avoids overwriting an existing copy with the same name. Clearing history or importing repository settings does not remove this list. CLI local installs appear here too.
 
 ```bash
 ghd install-local "/path/to/package.deb"

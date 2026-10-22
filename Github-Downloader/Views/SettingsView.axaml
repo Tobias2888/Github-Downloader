@@ -401,6 +401,23 @@
                                 HorizontalAlignment="Stretch"
                                 Command="{Binding ExportConfig}"
                                 CommandParameter="{Binding $parent[UserControl]}"/>
+
+                        <TextBlock Text="Re-download and reinstall every tracked repository, including those excluded from bulk updates."
+                                   TextWrapping="Wrap"/>
+                        <Button Name="ReinstallAll" Content="Reinstall All Repositories"
+                                HorizontalAlignment="Stretch" Click="ReinstallAll_OnClick"/>
+                        <Border Name="ReinstallConfirmation" IsVisible="False" Background="#222226"
+                                CornerRadius="6" Padding="12">
+                            <StackPanel Spacing="10">
+                                <TextBlock Name="ReinstallQuestion" TextWrapping="Wrap"/>
+                                <WrapPanel>
+                                    <Button Name="CancelReinstall" Content="Cancel" Margin="0,0,10,6"
+                                            Click="CancelReinstall_OnClick"/>
+                                    <Button Name="ConfirmReinstall" Content="Reinstall All" Margin="0,0,0,6"
+                                            Click="ConfirmReinstall_OnClick"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </Border>
             </StackPanel>

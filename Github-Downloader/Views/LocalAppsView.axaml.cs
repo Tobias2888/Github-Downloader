@@ -35,6 +35,16 @@ public partial class LocalAppsView : UserControl
     private void Refresh_OnClick(object? sender, RoutedEventArgs e) => Refresh();
     private void Install_OnClick(object? sender, RoutedEventArgs e) => InstallRequested?.Invoke(this, e);
 
+    private async void Reinstall_OnClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { DataContext: LocalApp app }) return;
+        App application = (App)Application.Current!;
+        if (application.DownloadStatusViewModel.IsUpdating) { application.DownloadStatusViewModel.Show(); return; }
+        await application.DownloadStatusViewModel.RunAsync(() => new LocalAppManager().ReinstallAsync(app,
+            application.DownloadStatusViewModel.LogStatus, application.DownloadStatusViewModel.LogProgress), "Reinstall local app");
+        Refresh();
+    }
+
     private async void Uninstall_OnClick(object? sender, RoutedEventArgs e)
     {
         if (sender is not Button { DataContext: LocalApp app } || TopLevel.GetTopLevel(this) is not Window owner) return;

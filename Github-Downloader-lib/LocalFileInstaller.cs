@@ -52,16 +52,41 @@ public static class LocalFileInstaller
         UpdateManager.Asset asset = new(local, Path.Combine(temporary, filename), "",
             TemporaryDirectory: temporary, LocalSourcePath: source, ExtractionDirectory: destination,
             ExtractionFileWritten: archive ? FileWritten : null);
-        bool success = await UpdateManager.ApplyAssetAsync(asset, status, progress, false, installer);
-        if (!success) return false;
-        // Package identity stays stable when a Debian installer filename changes between versions.
-        if (kind == LocalAppKind.Debian && local.InstalledDebianPackage.Length > 0) id = "deb:" + local.InstalledDebianPackage;
-        LocalApps.Store.Save(new()
+        // Keep the original outside the disposable cache, including for installers that move their input.
+        // Reinstalling an already saved file can reuse that copy.
+        LocalAppStore store = LocalApps.Store;
+        bool reuse = store.Read().Any(app => app.InstallerPath == source);
+        string folderName = Path.GetFileNameWithoutExtension(filename);
+        if (folderName is "" or "." or "..") folderName = filename + "-installer";
+        string savedDirectory = Path.Combine(store.InstallersPath, folderName);
+        for (int copy = 2; Directory.Exists(savedDirectory) || File.Exists(savedDirectory); copy++)
+            savedDirectory = Path.Combine(store.InstallersPath, $"{folderName}-{copy}");
+        string savedPath = reuse ? source : Path.Combine(savedDirectory, filename);
+        bool saved = false;
+        try
         {
-            Id = id, FileName = filename, InstallationName = local.Name, Kind = kind,
-            InstalledAt = DateTimeOffset.UtcNow, DebianPackage = local.InstalledDebianPackage,
-            AppImageId = local.InstalledAppImageId, ExtractionDirectory = destination ?? "", OwnedFiles = owned
-        });
-        return true;
+            if (!reuse)
+            {
+                Directory.CreateDirectory(savedDirectory);
+                await Task.Run(() => File.Copy(source, savedPath));
+            }
+            bool success = await UpdateManager.ApplyAssetAsync(asset, status, progress, false, installer);
+            if (!success) return false;
+            // Package identity stays stable when a Debian installer filename changes between versions.
+            if (kind == LocalAppKind.Debian && local.InstalledDebianPackage.Length > 0) id = "deb:" + local.InstalledDebianPackage;
+            store.Save(new()
+            {
+                Id = id, FileName = filename, InstallationName = local.Name, Kind = kind,
+                InstalledAt = DateTimeOffset.UtcNow, DebianPackage = local.InstalledDebianPackage,
+                AppImageId = local.InstalledAppImageId, ExtractionDirectory = destination ?? "", OwnedFiles = owned,
+                InstallerPath = savedPath
+            });
+            saved = true;
+            return true;
+        }
+        finally
+        {
+            if (!reuse && !saved && Directory.Exists(savedDirectory)) Directory.Delete(savedDirectory, recursive: true);
+        }
     }
 }

@@ -15,6 +15,10 @@ public sealed class LocalAppManager
         _installations = installations;
     }
 
+    public Task<bool> ReinstallAsync(LocalApp app, Action<string> status, Action<string> progress) =>
+        LocalFileInstaller.InstallAsync(app.InstallerPath, status, progress,
+            app.Kind == LocalAppKind.Archive ? app.ExtractionDirectory : null);
+
     public string GetUninstallDescription(LocalApp app) => app.Kind switch
     {
         LocalAppKind.Archive => "Removes extracted app files. Changed files and your original archive are kept.",

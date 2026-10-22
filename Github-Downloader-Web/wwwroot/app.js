@@ -612,8 +612,8 @@
                 </div>
                 <div class="form-group" style="margin-top:12px">
                     <label for="detailAssetRule">Asset rule</label>
-                    <input type="text" id="detailAssetRule" placeholder="*linux*x64*.AppImage" value="${escapeHtml(repo.assetRule || '')}">
-                    <p class="hint">Case-sensitive glob: * matches any text, ? one character, {x64,amd64} either alias. Clear to select a file manually.</p>
+                    <textarea id="detailAssetRule" rows="3" placeholder="*linux*x64*.AppImage">${escapeHtml(repo.assetRule || '')}</textarea>
+                    <p class="hint">Separate case-sensitive globs with spaces or newlines: * matches any text, ? one character, {x64,amd64} either alias. Prefix a pattern with ! to exclude assets. Every inclusion must match; exclusions always win. At least one inclusion is required. Clear to select a file manually.</p>
                     <p id="detailAssetRuleStatus" class="repo-desc" role="status" aria-live="polite">${escapeHtml(repo.assetSelectionStatus)}</p>
                     <ul id="detailAssetRuleMatches"></ul>
                 </div>

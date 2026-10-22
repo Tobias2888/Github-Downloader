@@ -44,14 +44,35 @@ public sealed class LocalFileInstallerTests : IDisposable
             return success;
         }, Cache);
         Assert.Equal(success, result);
-        if (success) Assert.Single(LocalApps.Store.Read());
-        else Assert.Empty(LocalApps.Store.Read());
+        if (success)
+        {
+            LocalApp app = Assert.Single(new LocalAppStore(Path.Combine(_root, "local-apps.json")).Read());
+            Assert.Equal("original installer", await File.ReadAllTextAsync(app.InstallerPath));
+            Assert.StartsWith(Path.Combine(_root, "local-installers") + Path.DirectorySeparatorChar, app.InstallerPath);
+            Assert.Equal(Path.GetFileNameWithoutExtension(source), Path.GetFileName(Path.GetDirectoryName(app.InstallerPath)));
+            Assert.Equal(Path.GetFileName(source), Path.GetFileName(app.InstallerPath));
+            File.Delete(source);
+            Assert.True(app.CanReinstall);
+            Assert.True(await LocalFileInstaller.InstallAsync(app.InstallerPath, _ => { }, _ => { }, null, async asset =>
+            {
+                Assert.Equal("original installer", await File.ReadAllTextAsync(asset.TempAssetPath));
+                File.Delete(asset.TempAssetPath);
+                return true;
+            }, Cache));
+            Assert.Equal(app.InstallerPath, Assert.Single(LocalApps.Store.Read()).InstallerPath);
+            await File.WriteAllTextAsync(source, "original installer");
+        }
+        else
+        {
+            Assert.Empty(LocalApps.Store.Read());
+            Assert.Empty(Directory.EnumerateFiles(Path.Combine(_root, "local-installers"), "*", SearchOption.AllDirectories));
+        }
         Assert.NotNull(installed);
         Assert.StartsWith("local/", installed.Name);
         Assert.Equal("original installer", await File.ReadAllTextAsync(source));
         Assert.False(File.Exists(staged));
         Assert.Empty(Directory.EnumerateFileSystemEntries(Cache));
-        HistoryEntry entry = Assert.Single(new HistoryStore(HistoryPath).Query().Entries);
+        HistoryEntry entry = new HistoryStore(HistoryPath).Query().Entries.Last();
         Assert.Equal(HistoryAction.Install, entry.Action);
         Assert.Equal(success ? HistoryStatus.Succeeded : HistoryStatus.Failed, entry.Status);
         Assert.Equal(success ? HistoryOutcome.Installed : HistoryOutcome.InstallFailed, entry.Outcome);
@@ -60,7 +81,26 @@ public sealed class LocalFileInstallerTests : IDisposable
         Assert.Empty(entry.RepositoryKey);
         Assert.Empty(entry.RepositoryName);
         Assert.DoesNotContain(_root, File.ReadAllText(HistoryPath));
-        Assert.Single(OperationHistory.Store.Query(new(Repository: "quoted")).Entries);
+        Assert.Equal(success ? 2 : 1, OperationHistory.Store.Query(new(Repository: "quoted")).Entries.Count);
+    }
+
+    [Fact]
+    public async Task SameNamedInstallersKeepSeparateReadableCopies()
+    {
+        string source = Path.Combine(_root, "example.deb");
+        if (!OperatingSystem.IsLinux()) source = Path.Combine(_root, "example.exe");
+        await File.WriteAllTextAsync(source, "first version");
+        Assert.True(await LocalFileInstaller.InstallAsync(source, _ => { }, _ => { }, null,
+            _ => Task.FromResult(true), Cache));
+        string firstCopy = Assert.Single(LocalApps.Store.Read()).InstallerPath;
+        await File.WriteAllTextAsync(source, "second version");
+        Assert.True(await LocalFileInstaller.InstallAsync(source, _ => { }, _ => { }, null,
+            _ => Task.FromResult(true), Cache));
+        string secondCopy = Assert.Single(LocalApps.Store.Read()).InstallerPath;
+        Assert.Equal("example", Path.GetFileName(Path.GetDirectoryName(firstCopy)));
+        Assert.Equal("example-2", Path.GetFileName(Path.GetDirectoryName(secondCopy)));
+        Assert.Equal("first version", await File.ReadAllTextAsync(firstCopy));
+        Assert.Equal("second version", await File.ReadAllTextAsync(secondCopy));
     }
 
     [Fact]
