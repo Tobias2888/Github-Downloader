@@ -7,6 +7,23 @@ namespace Github_Downloader.Tests;
 public sealed class DownloadProgressTests
 {
     [Fact]
+    public async Task CopyCancelsDuringTransferWithoutReportingCompletion()
+    {
+        using CancellationTokenSource cancellation = new();
+        using MemoryStream source = new(new byte[250_000]);
+        using MemoryStream destination = new();
+        List<DownloadProgress> updates = [];
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Api.CopyDownloadAsync(source, destination,
+            source.Length, transferProgress: snapshot =>
+            {
+                updates.Add(snapshot);
+                cancellation.Cancel();
+            }, cancellationToken: cancellation.Token));
+        Assert.Equal(0, destination.Length);
+        Assert.DoesNotContain(updates, snapshot => snapshot.Percent == 100);
+    }
+
+    [Fact]
     public void SamplesAreThrottledAndSpeedAndEtaUseElapsedTime()
     {
         List<DownloadProgress> updates = [];

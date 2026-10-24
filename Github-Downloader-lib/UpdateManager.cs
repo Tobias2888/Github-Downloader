@@ -332,20 +332,20 @@ public static class UpdateManager
     }
 
     public static async Task<bool> UpdateRepo(Repo repo, Action<string> statusText,
-        Action<string> progressText, bool downloadAnyways = false, Action<DownloadProgress>? transferProgress = null)
-        => await RunRepositoryAsync(repo, statusText, progressText, downloadAnyways, transferProgress: transferProgress) is not HistoryStatus.Failed;
+        Action<string> progressText, bool downloadAnyways = false, Action<DownloadProgress>? transferProgress = null, CancellationToken cancellationToken = default)
+        => await RunRepositoryAsync(repo, statusText, progressText, downloadAnyways, transferProgress: transferProgress, cancellationToken: cancellationToken) is not HistoryStatus.Failed;
 
     public static Task<bool> UpdateReposAsync(IEnumerable<Repo> repos, Action<string> statusText,
         Action<string> progressText, bool downloadAnyways = false,
         Action<Repo, HistoryStatus>? completed = null, bool respectExclusions = true,
-        Action<DownloadProgress>? transferProgress = null) =>
+        Action<DownloadProgress>? transferProgress = null, CancellationToken cancellationToken = default) =>
         RunBatchAsync(repos, statusText, progressText, downloadAnyways, downloadOnly: false,
-            completed: completed, respectExclusions: respectExclusions, transferProgress: transferProgress);
+            completed: completed, respectExclusions: respectExclusions, transferProgress: transferProgress, cancellationToken: cancellationToken);
 
     public static Task<bool> DownloadReposAsync(IEnumerable<Repo> repos, Action<string> statusText,
         Action<string> progressText, bool downloadAnyways = false, Action<Repo, HistoryStatus>? completed = null,
-        Action<DownloadProgress>? transferProgress = null) =>
-        RunBatchAsync(repos, statusText, progressText, downloadAnyways, downloadOnly: true, completed: completed, transferProgress: transferProgress);
+        Action<DownloadProgress>? transferProgress = null, CancellationToken cancellationToken = default) =>
+        RunBatchAsync(repos, statusText, progressText, downloadAnyways, downloadOnly: true, completed: completed, transferProgress: transferProgress, cancellationToken: cancellationToken);
 
     internal static async Task<bool> RunBatchAsync(IEnumerable<Repo> repos, Action<string> statusText,
         Action<string> progressText, bool force, bool downloadOnly,
@@ -353,7 +353,7 @@ public static class UpdateManager
         Func<Asset, Task<bool>>? installAsset = null, string? cachePath = null,
         Action<Repo, HistoryStatus>? completed = null, bool respectExclusions = true,
         Action<DownloadProgress>? transferProgress = null,
-        Func<IReadOnlyList<Asset>, Task<bool>>? installDebianAssets = null)
+        Func<IReadOnlyList<Asset>, Task<bool>>? installDebianAssets = null, CancellationToken cancellationToken = default)
     {
         Repo[] snapshot = WindowsSelfUpdate.OrderRepositories(repos, downloadOnly);
         using HistoryScope batch = OperationHistory.Store.Begin(downloadOnly ? HistoryAction.Download
@@ -367,29 +367,39 @@ public static class UpdateManager
                 && (force || !repo.IsUpToDate)
                 && repo.SelectedAssetName.EndsWith(".deb", StringComparison.OrdinalIgnoreCase)).ToArray()
             : [];
-        Dictionary<Repo, HistoryStatus> debianResults = await RunDebianBatchAsync(debianRepos,
-            statusText, progressText, force, batch.Id, downloadFile, cachePath, transferProgress,
-            installDebianAssets);
-        foreach (Repo repo in snapshot)
+        try
         {
-            HistoryStatus result = debianResults.TryGetValue(repo, out HistoryStatus debianResult)
-                ? debianResult : await RunRepositoryAsync(repo, statusText, progressText, force,
-                downloadOnly, batch.Id, respectExclusion: !downloadOnly && respectExclusions,
-                downloadFile: downloadFile, installAsset: installAsset, cachePath: cachePath, transferProgress: transferProgress);
-            completed?.Invoke(repo, result);
-            if (result == HistoryStatus.Skipped) skipped++;
-            else if (result == HistoryStatus.Succeeded) succeeded++;
-            else failed++;
+            Dictionary<Repo, HistoryStatus> debianResults = await RunDebianBatchAsync(debianRepos,
+                statusText, progressText, force, batch.Id, downloadFile, cachePath, transferProgress,
+                installDebianAssets, cancellationToken);
+            foreach (Repo repo in snapshot)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                HistoryStatus result = debianResults.TryGetValue(repo, out HistoryStatus debianResult)
+                    ? debianResult : await RunRepositoryAsync(repo, statusText, progressText, force,
+                    downloadOnly, batch.Id, respectExclusion: !downloadOnly && respectExclusions,
+                    downloadFile: downloadFile, installAsset: installAsset, cachePath: cachePath, transferProgress: transferProgress, cancellationToken: cancellationToken);
+                completed?.Invoke(repo, result);
+                if (result == HistoryStatus.Skipped) skipped++;
+                else if (result == HistoryStatus.Succeeded) succeeded++;
+                else failed++;
+            }
+            batch.Finish(failed == 0 ? HistoryStatus.Succeeded : succeeded > 0 ? HistoryStatus.PartialFailure
+                : HistoryStatus.Failed, HistoryOutcome.BatchCompleted, succeeded, failed, skipped);
+            return failed == 0;
         }
-        batch.Finish(failed == 0 ? HistoryStatus.Succeeded : succeeded > 0 ? HistoryStatus.PartialFailure
-            : HistoryStatus.Failed, HistoryOutcome.BatchCompleted, succeeded, failed, skipped);
-        return failed == 0;
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            batch.Finish(HistoryStatus.Interrupted, HistoryOutcome.Interrupted, succeeded, failed, skipped);
+            throw;
+        }
     }
 
     private static async Task<Dictionary<Repo, HistoryStatus>> RunDebianBatchAsync(Repo[] repositories,
         Action<string> statusText, Action<string> progressText, bool force, Guid batchId,
         Func<string, string, IProgress<double>, Task>? downloadFile, string? cachePath,
-        Action<DownloadProgress>? transferProgress, Func<IReadOnlyList<Asset>, Task<bool>>? installDebianAssets)
+        Action<DownloadProgress>? transferProgress, Func<IReadOnlyList<Asset>, Task<bool>>? installDebianAssets,
+        CancellationToken cancellationToken)
     {
         Dictionary<Repo, HistoryStatus> results = [];
         List<(Asset Asset, HistoryScope Operation)> prepared = [];
@@ -397,18 +407,25 @@ public static class UpdateManager
         {
             foreach (Repo repo in repositories)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 HistoryScope operation = OperationHistory.Store.Begin(force ? HistoryAction.Reinstall
                     : HistoryAction.Update, repo, batchId, batchId: batchId);
                 try
                 {
                     Asset? asset = await DownloadAsset(repo, statusText, progressText, operation.Id,
-                        batchId, downloadFile, cachePath, transferProgress);
+                        batchId, downloadFile, cachePath, transferProgress, cancellationToken);
                     if (asset.HasValue)
                     {
                         prepared.Add((asset.Value, operation));
                         continue;
                     }
                     operation.Finish(HistoryStatus.Failed, HistoryOutcome.SelectionUnresolved);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    operation.Finish(HistoryStatus.Interrupted, HistoryOutcome.Interrupted);
+                    operation.Dispose();
+                    throw;
                 }
                 catch (Exception exception)
                 {
@@ -420,6 +437,7 @@ public static class UpdateManager
                 results[repo] = HistoryStatus.Failed;
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
             Asset[] assets = prepared.Select(item => item.Asset).ToArray();
             bool installed = false;
             if (assets.Length > 0)
@@ -445,6 +463,12 @@ public static class UpdateManager
                 results[asset.Repo] = result;
             }
             return results;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            foreach ((Asset asset, HistoryScope operation) in prepared)
+                operation.Finish(HistoryStatus.Interrupted, HistoryOutcome.Interrupted);
+            throw;
         }
         finally
         {
@@ -473,7 +497,7 @@ public static class UpdateManager
         Guid? batchId = null, bool respectExclusion = false,
         Func<string, string, IProgress<double>, Task>? downloadFile = null,
         Func<Asset, Task<bool>>? installAsset = null, string? cachePath = null,
-        Action<DownloadProgress>? transferProgress = null)
+        Action<DownloadProgress>? transferProgress = null, CancellationToken cancellationToken = default)
     {
         using HistoryScope operation = OperationHistory.Store.Begin(downloadOnly ? HistoryAction.Download
             : force ? HistoryAction.Reinstall : HistoryAction.Update, repo, batchId, batchId: batchId);
@@ -487,8 +511,9 @@ public static class UpdateManager
         bool downloaded = false;
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             Asset? asset = await DownloadAsset(repo, statusText, progressText,
-                operation.Id, batchId, downloadFile, cachePath, transferProgress);
+                operation.Id, batchId, downloadFile, cachePath, transferProgress, cancellationToken);
             if (asset is null)
             {
                 operation.Finish(HistoryStatus.Failed, HistoryOutcome.SelectionUnresolved);
@@ -504,6 +529,11 @@ public static class UpdateManager
                     : extract ? HistoryOutcome.Extracted : install ? HistoryOutcome.Installed : HistoryOutcome.Saved
                 : extract ? HistoryOutcome.ExtractionFailed : install ? HistoryOutcome.InstallFailed : HistoryOutcome.SaveFailed);
             return success ? HistoryStatus.Succeeded : HistoryStatus.Failed;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            operation.Finish(HistoryStatus.Interrupted, HistoryOutcome.Interrupted);
+            throw;
         }
         catch (Exception exception)
         {
@@ -703,8 +733,9 @@ public static class UpdateManager
     private static async Task<Asset?> DownloadAsset(Repo repo, Action<string> statusText, Action<string> progressText,
         Guid? parentId = null, Guid? batchId = null,
         Func<string, string, IProgress<double>, Task>? downloadFile = null, string? cachePath = null,
-        Action<DownloadProgress>? transferProgress = null)
+        Action<DownloadProgress>? transferProgress = null, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         Logger.LogI("Preparing asset download");
         
         using HistoryScope history = OperationHistory.Store.Begin(HistoryAction.Download, repo, parentId, batchId: batchId);
@@ -742,14 +773,17 @@ public static class UpdateManager
                 {
                     if (transferProgress is null) progressText(snapshot.DisplayText);
                     else transferProgress(snapshot);
-                });
+                }, cancellationToken: cancellationToken);
             else await downloadFile(downloadAssetUrl, temporaryPath, progress);
+            cancellationToken.ThrowIfCancellationRequested();
             history.Complete(HistoryOutcome.Downloaded);
         }
         catch
         {
-            history.Finish(HistoryStatus.Failed, HistoryOutcome.DownloadFailed);
+            history.Finish(cancellationToken.IsCancellationRequested ? HistoryStatus.Interrupted : HistoryStatus.Failed,
+                cancellationToken.IsCancellationRequested ? HistoryOutcome.Interrupted : HistoryOutcome.DownloadFailed);
             if (temporaryDirectory != null) Directory.Delete(temporaryDirectory, recursive: true);
+            else if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
             throw;
         }
 

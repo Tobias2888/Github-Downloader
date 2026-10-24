@@ -20,6 +20,51 @@ public sealed class OperationHistoryTests : IDisposable
         OperationHistory.Store = new(HistoryPath);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CancellingDownloadCleansPartialFileStopsBatchAndRecordsInterruption(bool debian)
+    {
+        if (debian && !OperatingSystem.IsLinux()) return;
+        Repo first = NewRepo("owner/first");
+        Repo second = NewRepo("owner/second");
+        if (debian)
+        {
+            first.ReplaceAssets(["release.deb"], ["https://example.invalid/first"]);
+            second.ReplaceAssets(["release.deb"], ["https://example.invalid/second"]);
+            first.DownloadAssetIndex = 0;
+            second.DownloadAssetIndex = 0;
+        }
+        using CancellationTokenSource cancellation = new();
+        int downloads = 0;
+        bool installed = false;
+        string? partialPath = null;
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => UpdateManager.RunBatchAsync(
+            [first, second], _ => { }, _ => { }, true, !debian,
+            downloadFile: async (_, path, _) =>
+            {
+                downloads++;
+                partialPath = path;
+                await File.WriteAllTextAsync(path, "partial");
+                cancellation.Cancel();
+                cancellation.Token.ThrowIfCancellationRequested();
+            }, cachePath: _root, installDebianAssets: _ =>
+            {
+                installed = true;
+                return Task.FromResult(true);
+            }, cancellationToken: cancellation.Token));
+        Assert.Equal(1, downloads);
+        Assert.False(installed);
+        Assert.False(File.Exists(partialPath));
+        Assert.Equal("v1", first.CurrentInstallTag);
+        Assert.Equal("", first.LastDownloadTag);
+        Assert.All(Store.Query(new HistoryQuery(IncludeSkipped: true)).Entries, entry =>
+        {
+            Assert.Equal(HistoryStatus.Interrupted, entry.Status);
+            Assert.Equal(HistoryOutcome.Interrupted, entry.Outcome);
+        });
+    }
+
     [Fact]
     public void CompletedHistorySurvivesReopeningAndRepositoryRemoval()
     {
@@ -403,6 +448,7 @@ public sealed class OperationHistoryTests : IDisposable
         start.ArgumentList.Add("history");
         start.ArgumentList.Add("--json");
         start.Environment["XDG_DATA_HOME"] = data;
+        start.Environment.Remove("GITHUB_DOWNLOADER_DATA_DIR");
         start.Environment["XDG_CONFIG_HOME"] = config;
         start.Environment["XDG_CACHE_HOME"] = cache;
         using Process process = new() { StartInfo = start };

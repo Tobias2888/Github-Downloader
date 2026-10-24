@@ -133,6 +133,8 @@ public partial class HomeView : UserControl
             return;
         }
         
+        repo.AssetRule = _mainViewModel.AppSettings.DefaultAssetRule;
+
         await _downloadStatusViewModel.RunAsync(() =>
             UpdateManager.SearchForUpdates(repo, _downloadStatusViewModel.LogStatus));
         
@@ -157,9 +159,9 @@ public partial class HomeView : UserControl
     
     public async void BtnUpdateAll_OnClick(object? sender, RoutedEventArgs e)
     {
-        await ((App)Application.Current!).RunDownloadsAsync(() => UpdateManager.UpdateReposAsync(UpdateManager.Repos,
+        await ((App)Application.Current!).RunDownloadsAsync(cancellationToken => UpdateManager.UpdateReposAsync(UpdateManager.Repos,
             _downloadStatusViewModel.LogStatus, _downloadStatusViewModel.LogProgress,
-            transferProgress: _downloadStatusViewModel.ReportTransfer),
+            transferProgress: _downloadStatusViewModel.ReportTransfer, cancellationToken: cancellationToken),
             UpdateManager.Repos.Where(repo => !repo.ExcludedFromDownloadAll && !repo.IsUpToDate));
         
         CheckForGlobalUpdates();

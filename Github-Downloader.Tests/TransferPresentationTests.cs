@@ -43,25 +43,53 @@ public sealed class WebTransferProgressTests
 public sealed class DesktopTransferProgressTests(RepositoryDragApplication application)
 {
     [Fact]
+    public async Task CancelStopsOperationWithoutFailureAndAllowsAnotherDownload()
+    {
+        await application.Dispatch(async () =>
+        {
+            DownloadStatusViewModel model = new();
+            Task<bool> running = model.RunAsync(async cancellationToken =>
+            {
+                await Task.Delay(Timeout.Infinite, cancellationToken);
+                return true;
+            });
+            Assert.True(model.CanCancel);
+            Assert.True(model.IsIndeterminate);
+            model.Cancel();
+            Assert.False(model.CanCancel);
+            Assert.False(await running);
+            Assert.False(model.IsUpdating);
+            Assert.False(model.IsIndeterminate);
+            Assert.Equal("Downloads cancelled.", model.StatusText);
+            Assert.DoesNotContain(model.Logs, entry => entry.Level == "error");
+            Assert.True(await model.RunAsync(_ => Task.FromResult(true)));
+            Assert.False(model.CanCancel);
+        }, CancellationToken.None);
+    }
+
+    [Fact]
     public async Task DesktopDisplaysMeasurementsWithoutAddingLogsAndClearsBetweenFiles()
     {
         await application.Dispatch(() =>
         {
             DownloadStatusViewModel model = new();
-            model.LogStatus("Downloading first file");
-            TransferProgress transfer = new(125_000_000, 500_000_000, 8_200_000, TimeSpan.FromSeconds(46));
-            model.ReportTransfer(transfer);
-            Assert.Equal(25, model.Percent);
-            Assert.Equal(transfer.DisplayText, model.ProgressText);
-            Assert.Single(model.Logs);
-            model.LogStatus("Extracting first file");
-            Assert.Equal("", model.ProgressText);
-            Assert.True(model.IsIndeterminate);
-            model.LogStatus("Downloading second file");
-            model.ReportTransfer(new TransferProgress(1000, null, 500, null));
-            Assert.True(model.IsIndeterminate);
-            Assert.Contains("unknown size", model.ProgressText);
-            return Task.CompletedTask;
+            return model.RunAsync(() =>
+            {
+                model.LogStatus("Downloading first file");
+                TransferProgress transfer = new(125_000_000, 500_000_000, 8_200_000, TimeSpan.FromSeconds(46));
+                model.ReportTransfer(transfer);
+                Assert.Equal(25, model.Percent);
+                Assert.Equal(transfer.DisplayText, model.ProgressText);
+                Assert.Single(model.Logs);
+                model.LogStatus("Extracting first file");
+                Assert.Equal("", model.ProgressText);
+                Assert.True(model.IsIndeterminate);
+                model.LogStatus("Downloading second file");
+                model.ReportTransfer(new TransferProgress(1000, null, 500, null));
+                Assert.True(model.IsIndeterminate);
+                Assert.Contains("unknown size", model.ProgressText);
+                return Task.FromResult(true);
+            });
         }, CancellationToken.None);
     }
 }

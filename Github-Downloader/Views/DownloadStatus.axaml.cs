@@ -43,6 +43,11 @@ public partial class DownloadStatus : Window
         SubscribeToViewModel(null);
     }
 
+    private void BtnCancel_OnClick(object? sender, RoutedEventArgs e)
+    {
+        _viewModel?.Cancel();
+    }
+
     private void BtnClose_OnClick(object? sender, RoutedEventArgs e)
     {
         Close();

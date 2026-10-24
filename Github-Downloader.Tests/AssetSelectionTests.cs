@@ -349,6 +349,73 @@ public sealed class AssetSelectionTests
     }
 
     [Fact]
+    public async Task DesktopDownloadSettingsFollowAssetSelectionAndSaveAnyway()
+    {
+        await _application.Dispatch(async () =>
+        {
+            Repo repo = NewRepo();
+            repo.ReplaceAssets(["app.deb", "app.zip", "app.msi", "app.AppImage"], ["deb", "zip", "msi", "appimage"]);
+            repo.DownloadAssetIndex = 0;
+            repo.AutoExtract = true;
+            repo.NewFileName = "custom-name";
+            ((App)Application.Current!).RepoDetailsViewModel.Repo = repo;
+            RepoDetailsView details = new();
+            Window window = new() { Width = 1100, Height = 850, Content = details };
+            window.Show();
+            try
+            {
+                window.UpdateLayout();
+                Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                await Task.Delay(50);
+                Grid saveRow = details.FindControl<Grid>("StpSaveFileAnyway")!;
+                ToggleSwitch save = details.FindControl<ToggleSwitch>("TglSaveFileAnyway")!;
+                ToggleSwitch extract = details.FindControl<ToggleSwitch>("TglAutoExtract")!;
+                StackPanel downloadPath = details.FindControl<StackPanel>("StpDownloadPath")!;
+                TextBox rename = details.FindControl<TextBox>("TbxRenameFile")!;
+                ComboBox selection = details.FindControl<ComboBox>("CobAsset")!;
+                Assert.True(saveRow.IsVisible);
+                Assert.False(extract.IsEffectivelyVisible);
+                Assert.Equal(!RuntimeInformation.IsOSPlatform(OSPlatform.Linux), downloadPath.IsVisible);
+
+                save.IsChecked = true;
+                Assert.True(repo.SaveFileAnyway);
+                Assert.True(extract.IsEffectivelyVisible);
+                Assert.True(downloadPath.IsVisible);
+                Assert.True(rename.IsEffectivelyVisible);
+                save.IsChecked = false;
+                Assert.False(extract.IsEffectivelyVisible);
+
+                selection.SelectedIndex = 1;
+                Assert.False(saveRow.IsVisible);
+                Assert.True(extract.IsEffectivelyVisible);
+                Assert.True(downloadPath.IsVisible);
+                Assert.True(rename.IsEffectivelyVisible);
+
+                selection.SelectedIndex = 2;
+                Assert.True(saveRow.IsVisible);
+                Assert.False(extract.IsEffectivelyVisible);
+                selection.SelectedIndex = 3;
+                Assert.Equal(!RuntimeInformation.IsOSPlatform(OSPlatform.Linux), downloadPath.IsVisible);
+
+                repo.AssetRule = "*.zip";
+                Assert.False(saveRow.IsVisible);
+                Assert.True(extract.IsEffectivelyVisible);
+                Assert.True(downloadPath.IsVisible);
+                repo.AssetRule = "*.deb";
+                Assert.True(saveRow.IsVisible);
+                Assert.False(extract.IsEffectivelyVisible);
+                repo.SaveFileAnyway = true;
+                Assert.True(save.IsChecked);
+                Assert.True(extract.IsEffectivelyVisible);
+                Assert.True(downloadPath.IsVisible);
+                Assert.True(repo.AutoExtract);
+                Assert.Equal("custom-name", repo.NewFileName);
+            }
+            finally { window.Close(); }
+        }, CancellationToken.None);
+    }
+
+    [Fact]
     public async Task DesktopDetailsEditsRulesAndPreviewsMatches()
     {
         await _application.Dispatch(async () =>

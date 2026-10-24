@@ -94,11 +94,19 @@
             </ScrollViewer>
         </Border>
 
-        <Button Grid.Row="4"
-                Content="Close"
-                Margin="0,12,0,0"
-                HorizontalAlignment="Right"
-                Padding="20,4"
-                Click="BtnClose_OnClick"/>
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button Content="Cancel downloads"
+                    IsVisible="{Binding IsUpdating}"
+                    IsEnabled="{Binding CanCancel}"
+                    Margin="0,12,0,0"
+                    Padding="20,4"
+                    Click="BtnCancel_OnClick"/>
+            <Button
+                    Content="Close"
+                    Margin="0,12,0,0"
+                    HorizontalAlignment="Right"
+                    Padding="20,4"
+                    Click="BtnClose_OnClick"/>
+        </StackPanel>
     </Grid>
 </Window>

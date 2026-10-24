@@ -273,6 +273,24 @@
                         </StackPanel>
                     </StackPanel>
                 </Border>
+                <Border CornerRadius="12" Padding="16">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="50%,100%" EndPoint="50%,0%">
+                            <GradientStop Color="#2B2B35" Offset="0"/>
+                            <GradientStop Color="#313131" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <StackPanel Spacing="15">
+                        <TextBlock Text="Default Asset Rule" Classes="SubTitle"/>
+                        <TextBlock Text="Applied to new repositories. Existing repositories keep their own rules. Clear this rule to select files manually."
+                                   TextWrapping="Wrap"/>
+                        <TextBox Name="TbxDefaultAssetRule" Text="{Binding DefaultAssetRule, Mode=TwoWay}"
+                                 Watermark="e.g. *linux*x64*.AppImage" AcceptsReturn="True"
+                                 MinLines="3" TextWrapping="Wrap"/>
+                        <TextBlock Text="Separate case-sensitive globs with spaces or newlines: * matches any text, ? one character, {x64,amd64} either alias. Prefix a pattern with ! to exclude assets. Every inclusion must match; exclusions always win. At least one inclusion is required."
+                                   TextWrapping="Wrap" Opacity="0.7" FontSize="12"/>
+                    </StackPanel>
+                </Border>
             </StackPanel>
 
             <StackPanel Grid.Column="2"

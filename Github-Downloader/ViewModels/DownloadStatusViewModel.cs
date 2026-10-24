@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -15,6 +16,17 @@ namespace Github_Downloader.ViewModels;
 public class DownloadStatusViewModel : ViewModelBase
 {
     private const int MaxLogs = 1000;
+    private CancellationTokenSource? _cancellation;
+
+    public bool CanCancel => IsUpdating && _cancellation is { IsCancellationRequested: false };
+
+    public void Cancel()
+    {
+        if (!CanCancel) return;
+        _cancellation!.Cancel();
+        OnPropertyChanged(nameof(CanCancel));
+        Log("Cancelling downloads. Any installation already in progress will finish first.");
+    }
 
     private DownloadStatus? _downloadStatus;
     private string _operationTitle = "Download Status";
@@ -57,7 +69,7 @@ public class DownloadStatusViewModel : ViewModelBase
         }
     }
 
-    public bool IsIndeterminate => _percent is null;
+    public bool IsIndeterminate => IsUpdating && _percent is null;
 
     public ObservableCollection<DownloadLogEntry> Logs { get; } = [];
 
@@ -76,10 +88,18 @@ public class DownloadStatusViewModel : ViewModelBase
                 Show();
             }
             OnPropertyChanged();
+            OnPropertyChanged(nameof(CanCancel));
+            OnPropertyChanged(nameof(IsIndeterminate));
         }
     }
 
-    public async Task<bool> RunAsync(Func<Task<bool>> operation, string title = "Download Status")
+    public Task<bool> RunAsync(Func<CancellationToken, Task<bool>> operation, string title = "Download Status")
+        => RunCoreAsync(operation, title, cancellable: true);
+
+    public Task<bool> RunAsync(Func<Task<bool>> operation, string title = "Download Status")
+        => RunCoreAsync(_ => operation(), title, cancellable: false);
+
+    private async Task<bool> RunCoreAsync(Func<CancellationToken, Task<bool>> operation, string title, bool cancellable)
     {
         if (IsUpdating)
         {
@@ -90,11 +110,20 @@ public class DownloadStatusViewModel : ViewModelBase
         Logger.LogD("Operation started");
 
         _operationTitle = title;
+        using CancellationTokenSource cancellation = new();
+        _cancellation = cancellable ? cancellation : null;
         IsUpdating = true;
         bool succeeded = false;
+        bool cancelled = false;
         try
         {
-            succeeded = await operation();
+            succeeded = await operation(cancellation.Token);
+            cancellation.Token.ThrowIfCancellationRequested();
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+            cancelled = true;
+            Log("Downloads cancelled.");
         }
         catch (Exception exception)
         {
@@ -105,6 +134,7 @@ public class DownloadStatusViewModel : ViewModelBase
         {
             if (Dispatcher.UIThread.CheckAccess()) ProgressText = "";
             else Dispatcher.UIThread.Post(() => ProgressText = "");
+            _cancellation = null;
             IsUpdating = false;
         }
 
@@ -115,6 +145,8 @@ public class DownloadStatusViewModel : ViewModelBase
             await Dispatcher.UIThread.InvokeAsync(() => ((App)Application.Current!).ShutdownForSelfUpdate());
             return succeeded;
         }
+
+        if (cancelled) return false;
 
         if (succeeded)
         {

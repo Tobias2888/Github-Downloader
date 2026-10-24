@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -71,7 +72,7 @@ public partial class App : Application
         MainWindow.Activate();
     }
 
-    public async Task<bool> RunDownloadsAsync(Func<Task<bool>> operation, IEnumerable<Repo> repositories)
+    public async Task<bool> RunDownloadsAsync(Func<CancellationToken, Task<bool>> operation, IEnumerable<Repo> repositories)
     {
         Repo[] downloads = repositories.ToArray();
         bool succeeded = await DownloadStatusViewModel.RunAsync(operation);
@@ -87,14 +88,14 @@ public partial class App : Application
     {
         Logger.LogI(reinstall ? "Repository reinstall requested" : "Repository update requested");
         bool performedUpdate = false;
-        bool succeeded = await DownloadStatusViewModel.RunAsync(async () =>
+        bool succeeded = await DownloadStatusViewModel.RunAsync(async cancellationToken =>
         {
             if (checkForUpdates && !await UpdateManager.SearchForUpdates(repo, DownloadStatusViewModel.LogStatus))
                 return false;
 
             performedUpdate = reinstall || !repo.IsUpToDate;
             return await UpdateManager.UpdateRepo(repo, DownloadStatusViewModel.LogStatus,
-                DownloadStatusViewModel.LogProgress, reinstall, DownloadStatusViewModel.ReportTransfer);
+                DownloadStatusViewModel.LogProgress, reinstall, DownloadStatusViewModel.ReportTransfer, cancellationToken);
         });
         if (succeeded && performedUpdate)
             await Notifications.NotifyDownloadsCompletedAsync(1, repo.Name);
@@ -110,7 +111,7 @@ public partial class App : Application
         Logger.LogI("Reinstall all repositories confirmed");
         try
         {
-            await RunDownloadsAsync(async () =>
+            await RunDownloadsAsync(async cancellationToken =>
             {
                 if (!await UpdateManager.SearchForUpdates(repositories, DownloadStatusViewModel.LogStatus))
                     return false;
@@ -118,7 +119,7 @@ public partial class App : Application
                 return await UpdateManager.UpdateReposAsync(repositories,
                     DownloadStatusViewModel.LogStatus, DownloadStatusViewModel.LogProgress,
                     downloadAnyways: true, respectExclusions: false,
-                    transferProgress: DownloadStatusViewModel.ReportTransfer);
+                    transferProgress: DownloadStatusViewModel.ReportTransfer, cancellationToken: cancellationToken);
             }, repositories);
         }
         finally
@@ -309,9 +310,9 @@ public partial class App : Application
         NativeMenuItem updateAllItem = new("Update All");
         updateAllItem.Click += async (_, _) =>
         {
-            await RunDownloadsAsync(() => UpdateManager.UpdateReposAsync(UpdateManager.Repos,
+            await RunDownloadsAsync(cancellationToken => UpdateManager.UpdateReposAsync(UpdateManager.Repos,
                 DownloadStatusViewModel.LogStatus, DownloadStatusViewModel.LogProgress,
-                transferProgress: DownloadStatusViewModel.ReportTransfer),
+                transferProgress: DownloadStatusViewModel.ReportTransfer, cancellationToken: cancellationToken),
                 UpdateManager.Repos.Where(repo => !repo.ExcludedFromDownloadAll && !repo.IsUpToDate));
             FileManager.SaveRepos();
         };

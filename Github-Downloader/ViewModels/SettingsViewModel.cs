@@ -161,6 +161,20 @@ public class SettingsViewModel : ViewModelBase
         }
     }
 
+    public string DefaultAssetRule
+    {
+        get => _settings.DefaultAssetRule;
+        set
+        {
+            string rule = value ?? "";
+            if (_settings.DefaultAssetRule == rule) return;
+            Logger.LogI("Setting changed: DefaultAssetRule");
+            _settings.DefaultAssetRule = rule;
+            OnPropertyChanged();
+            _settings.Save();
+        }
+    }
+
     public void SetWindowState(WindowState state)
     {
         WindowState = state;

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -31,6 +32,7 @@ public partial class RepoDetailsView : UserControl
     private readonly MainViewModel _mainViewModel;
     private readonly RepoDetailsViewModel _repoDetailsViewModel;
     private readonly DownloadStatusViewModel _downloadStatusViewModel;
+    private Repo? _observedRepo;
 
     public RepoDetailsView()
     {
@@ -45,15 +47,10 @@ public partial class RepoDetailsView : UserControl
     {
         if (Design.IsDesignMode) return;
         
-        string selectedAssetExtension = Path.GetExtension(_repoDetailsViewModel.Repo.SelectedAssetName).ToLowerInvariant();
-        bool isLinuxPackage = selectedAssetExtension is ".deb" or ".appimage";
-
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && 
-            !_repoDetailsViewModel.Repo.SaveFileAnyway &&
-            isLinuxPackage)
-        {
-            StpDownloadPath.IsVisible = false;
-        }
+        if (_observedRepo is not null) _observedRepo.PropertyChanged -= Repo_OnPropertyChanged;
+        _observedRepo = _repoDetailsViewModel.Repo;
+        if (_observedRepo is not null) _observedRepo.PropertyChanged += Repo_OnPropertyChanged;
+        UpdateDownloadSettingsVisibility();
         
         TbxDownloadPath.DataContext = _repoDetailsViewModel.Repo;
         TbxDownloadPath.Bind(
@@ -111,13 +108,6 @@ public partial class RepoDetailsView : UserControl
         TbxGithubLink.DataContext = _repoDetailsViewModel.Repo;
         TbxGithubLink.Bind(TextBlock.TextProperty, new Binding(nameof(_repoDetailsViewModel.Repo.GitHubLink)));
         
-        _repoDetailsViewModel.Repo.PropertyChanged += (o, args) =>
-        {
-            if (args.PropertyName == nameof(Repo.LatestChangelog))
-            {
-                PopulateChangelog(_repoDetailsViewModel.Repo.LatestChangelog);
-            }
-        };
         PopulateChangelog(_repoDetailsViewModel.Repo.LatestChangelog);
         
         TbxReleaseDate.DataContext = _repoDetailsViewModel.Repo;
@@ -128,15 +118,35 @@ public partial class RepoDetailsView : UserControl
                 Converter = new ReleaseDateStringToFormattedConverter()
             });
 
-        TglSaveFileAnyway.IsChecked = _repoDetailsViewModel.Repo.SaveFileAnyway;
-        if (selectedAssetExtension is not (".deb" or ".appimage" or ".exe" or ".msi"))
-        {
-            StpSaveFileAnyway.IsVisible = false;
-        }
-
         TglRenameFile.IsChecked = _repoDetailsViewModel.Repo.NewFileName != ""; 
         TbxRenameFile.IsVisible = TglRenameFile.IsChecked == true;
         TbxRenameFile.Text = _repoDetailsViewModel.Repo.NewFileName;
+    }
+
+    private void Control_OnUnloaded(object? sender, RoutedEventArgs e)
+    {
+        if (_observedRepo is not null) _observedRepo.PropertyChanged -= Repo_OnPropertyChanged;
+        _observedRepo = null;
+    }
+
+    private void Repo_OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(Repo.SelectedAssetName) or nameof(Repo.SaveFileAnyway))
+            UpdateDownloadSettingsVisibility();
+        if (e.PropertyName == nameof(Repo.LatestChangelog))
+            PopulateChangelog(_repoDetailsViewModel.Repo.LatestChangelog);
+    }
+
+    private void UpdateDownloadSettingsVisibility()
+    {
+        Repo? repo = _repoDetailsViewModel.Repo;
+        if (repo is null) return;
+
+        string extension = Path.GetExtension(repo.SelectedAssetName).ToLowerInvariant();
+        StpSaveFileAnyway.IsVisible = extension is ".deb" or ".appimage" or ".exe" or ".msi";
+        bool installsLinuxPackage = RuntimeInformation.IsOSPlatform(OSPlatform.Linux)
+            && extension is ".deb" or ".appimage";
+        StpDownloadPath.IsVisible = !installsLinuxPackage || repo.SaveFileAnyway;
     }
     private async Task RefreshReleaseAsync()
     {
@@ -261,12 +271,6 @@ public partial class RepoDetailsView : UserControl
     {
         if (_repoDetailsViewModel.Repo is Repo repo)
             await ((App)Application.Current!).UninstallRepoAsync(repo);
-    }
-
-    private void TglSaveFileAnyway_OnClick(object? sender, RoutedEventArgs e)
-    {
-        _repoDetailsViewModel.Repo.SaveFileAnyway = TglSaveFileAnyway.IsChecked == true;
-        StpDownloadPath.IsVisible = _repoDetailsViewModel.Repo.SaveFileAnyway;
     }
 
     private void TglRenameFile_OnClick(object? sender, RoutedEventArgs e)

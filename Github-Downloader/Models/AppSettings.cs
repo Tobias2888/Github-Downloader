@@ -16,6 +16,7 @@ public class AppSettings
     public bool AutoCheckForUpdates { get; set; } = true;
     public int CheckForUpdatesInterval { get; set; } = 5;
     public string GlobalDownloadPath { get; set; } = DirectoryHelper.GetUserDirPath();
+    public string DefaultAssetRule { get; set; } = AssetSelection.GetDefaultRule();
     public NotificationSettings Notifications { get; set; } = new();
     
     public static AppSettings Load()
@@ -27,6 +28,7 @@ public class AppSettings
             {
                 string jsonString = File.ReadAllText(_appSettingsFilePath);
                 AppSettings settings = JsonSerializer.Deserialize<AppSettings>(jsonString) ?? new();
+                settings.DefaultAssetRule ??= AssetSelection.GetDefaultRule();
                 settings.Notifications ??= new();
                 Logger.LogI("Application settings loaded");
                 return settings;

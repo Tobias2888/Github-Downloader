@@ -129,6 +129,7 @@ public sealed class DesktopLauncherTests : IDisposable
         startInfo.ArgumentList.Add("--gui");
         if (extraArgument) startInfo.ArgumentList.Add("extra");
         startInfo.Environment["XDG_DATA_HOME"] = dataDirectory;
+        startInfo.Environment.Remove("GITHUB_DOWNLOADER_DATA_DIR");
         startInfo.Environment["XDG_CONFIG_HOME"] = configDirectory;
         startInfo.Environment["XDG_CACHE_HOME"] = cacheDirectory;
         using Process cli = new() { StartInfo = startInfo };

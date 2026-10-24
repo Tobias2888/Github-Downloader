@@ -68,7 +68,7 @@ public static class Api
     }
 
     public static async Task DownloadFileAsync(string url, string outputPath, string token = "", IProgress<double>? progress = null,
-        Action<DownloadProgress>? transferProgress = null)
+        Action<DownloadProgress>? transferProgress = null, CancellationToken cancellationToken = default)
     {
         Logger.LogI("Asset download started");
         try
@@ -88,7 +88,7 @@ public static class Api
 
             using HttpResponseMessage response = await client.GetAsync(
                 url,
-                HttpCompletionOption.ResponseHeadersRead
+                HttpCompletionOption.ResponseHeadersRead, cancellationToken
             );
             response.EnsureSuccessStatusCode();
         
@@ -96,10 +96,15 @@ public static class Api
         
             FileHelper.Create(outputPath);
             await using FileStream fs = File.OpenWrite(outputPath);
-            Stream stream = await response.Content.ReadAsStreamAsync();
+            Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         
-            await CopyDownloadAsync(stream, fs, totalBytes, progress, transferProgress);
+            await CopyDownloadAsync(stream, fs, totalBytes, progress, transferProgress, cancellationToken);
             Logger.LogI("Asset download completed");
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            Logger.LogI("Asset download cancelled");
+            throw;
         }
         catch (Exception exception)
         {
@@ -109,7 +114,7 @@ public static class Api
     }
 
     internal static async Task CopyDownloadAsync(Stream source, Stream destination, long? totalBytes,
-        IProgress<double>? progress = null, Action<DownloadProgress>? transferProgress = null)
+        IProgress<double>? progress = null, Action<DownloadProgress>? transferProgress = null, CancellationToken cancellationToken = default)
     {
         DownloadProgressSampler sampler = new(totalBytes, snapshot =>
         {
@@ -121,12 +126,13 @@ public static class Api
         byte[] buffer = new byte[81920];
         long totalRead = 0;
         int bytesRead;
-        while ((bytesRead = await source.ReadAsync(buffer)) > 0)
+        while ((bytesRead = await source.ReadAsync(buffer.AsMemory(), cancellationToken)) > 0)
         {
-            await destination.WriteAsync(buffer.AsMemory(0, bytesRead));
+            await destination.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
             totalRead += bytesRead;
             sampler.Report(totalRead, stopwatch.Elapsed);
         }
+        cancellationToken.ThrowIfCancellationRequested();
         sampler.Report(totalRead, stopwatch.Elapsed, completed: true);
     }
 }

@@ -11,6 +11,7 @@ internal static class LoggingSetup
     [ModuleInitializer]
     internal static void Initialize()
     {
+        TestStorage.Initialize();
         // Match production startup before any tests can invoke the global LoggerLib stream.
         Logger.LogFirstChance = false;
         Logger.LogDebug = false;
