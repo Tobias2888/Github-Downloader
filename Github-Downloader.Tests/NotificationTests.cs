@@ -50,12 +50,17 @@ public class NotificationTests
         AppSettings oldSettings = JsonSerializer.Deserialize<AppSettings>("{\"AutoCheckForUpdates\":false}")!;
         Assert.True(oldSettings.Notifications.Enabled);
         Assert.False(oldSettings.Notifications.LimitToTimeWindow);
+        Assert.False(oldSettings.Notifications.RepeatUpdateNotifications);
+        Assert.Equal(15, oldSettings.Notifications.UpdateReminderIntervalMinutes);
         oldSettings.Notifications = new()
         {
             Enabled = false, UpdatesAvailable = false, DownloadsCompleted = false,
+            RepeatUpdateNotifications = true, UpdateReminderIntervalMinutes = 15,
             LimitToTimeWindow = true, StartTime = TimeSpan.FromHours(23), EndTime = TimeSpan.FromHours(6)
         };
         AppSettings reloaded = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(oldSettings))!;
+        Assert.True(reloaded.Notifications.RepeatUpdateNotifications);
+        Assert.Equal(15, reloaded.Notifications.UpdateReminderIntervalMinutes);
         Assert.False(reloaded.Notifications.Enabled);
         Assert.False(reloaded.Notifications.UpdatesAvailable);
         Assert.False(reloaded.Notifications.DownloadsCompleted);
@@ -183,6 +188,89 @@ public class NotificationTests
         settings.Enabled = true;
         await service.NotifyUpdatesAvailableAsync([repo]);
         Assert.Empty(messages);
+    }
+
+    [Fact]
+    public async Task IntervalRemindersWaitUntilDueAndUseTheLatestPendingUpdates()
+    {
+        NotificationSettings settings = new() { RepeatUpdateNotifications = true, UpdateReminderIntervalMinutes = 15 };
+        DateTime now = new(2026, 10, 24, 12, 0, 0);
+        List<string> messages = [];
+        NotificationService service = CreateService(settings, messages, () => now);
+        Repo first = NewRepo("owner/first");
+        Repo second = NewRepo("owner/second");
+        await service.NotifyUpdatesAvailableAsync([first]);
+        now = now.AddMinutes(14);
+        await service.NotifyUpdatesAvailableAsync([first, second]);
+        Assert.Single(messages);
+        now = now.AddMinutes(1);
+        await service.NotifyUpdatesAvailableAsync([first, second]);
+        Assert.Equal("2 updates are available", messages[1]);
+        settings.UpdateReminderIntervalMinutes = 5;
+        now = now.AddMinutes(5);
+        await service.NotifyUpdatesAvailableAsync([first]);
+        Assert.Equal(3, messages.Count);
+        first.CurrentInstallTag = first.Tag;
+        await service.NotifyUpdatesAvailableAsync([first]);
+        now = now.AddHours(1);
+        await service.NotifyUpdatesAvailableAsync([first]);
+        Assert.Equal(3, messages.Count);
+        first.Tag = "v3";
+        await service.NotifyUpdatesAvailableAsync([first]);
+        Assert.Equal(4, messages.Count);
+    }
+
+    [Fact]
+    public async Task IntervalRemindersRespectQuietHoursAndSwitchingBackToOnce()
+    {
+        NotificationSettings settings = new()
+        {
+            RepeatUpdateNotifications = true, UpdateReminderIntervalMinutes = 15, LimitToTimeWindow = true
+        };
+        DateTime now = new(2026, 10, 24, 21, 55, 0);
+        List<string> messages = [];
+        NotificationService service = CreateService(settings, messages, () => now);
+        Repo repo = NewRepo("owner/repo");
+        await service.NotifyUpdatesAvailableAsync([repo]);
+        now = now.AddMinutes(15);
+        await service.NotifyUpdatesAvailableAsync([repo]);
+        Assert.Single(messages);
+        now = new(2026, 10, 25, 8, 0, 0);
+        await service.NotifyUpdatesAvailableAsync([repo]);
+        Assert.Equal(2, messages.Count);
+        settings.RepeatUpdateNotifications = false;
+        now = now.AddHours(1);
+        await service.NotifyUpdatesAvailableAsync([repo]);
+        Assert.Equal(2, messages.Count);
+        repo.Tag = "v3";
+        await service.NotifyUpdatesAvailableAsync([repo]);
+        Assert.Equal(3, messages.Count);
+    }
+
+    [Fact]
+    public async Task FailedIntervalNotificationRetriesWithoutWaitingForTheInterval()
+    {
+        NotificationSettings settings = new() { RepeatUpdateNotifications = true };
+        DateTime now = new(2026, 10, 24, 12, 0, 0);
+        int attempts = 0;
+        NotificationService service = new(() => settings, _ => Task.FromResult(++attempts != 2), () => now);
+        Repo repo = NewRepo("owner/repo");
+        await service.NotifyUpdatesAvailableAsync([repo]);
+        now = now.AddHours(1);
+        await service.NotifyUpdatesAvailableAsync([repo]);
+        await service.NotifyUpdatesAvailableAsync([repo]);
+        await service.NotifyUpdatesAvailableAsync([repo]);
+        Assert.Equal(3, attempts);
+    }
+
+    [Theory]
+    [InlineData(0, 1)]
+    [InlineData(-5, 1)]
+    [InlineData(10081, 10080)]
+    public void ReminderIntervalsStayWithinSupportedBounds(int value, int expected)
+    {
+        NotificationSettings settings = new() { UpdateReminderIntervalMinutes = value };
+        Assert.Equal(expected, settings.UpdateReminderIntervalMinutes);
     }
 
     [Fact]

@@ -62,6 +62,35 @@ public class SettingsViewModel : ViewModelBase
         }
     }
 
+    public int UpdateNotificationMode
+    {
+        get => _settings.Notifications.RepeatUpdateNotifications ? 1 : 0;
+        set
+        {
+            if (value is < 0 or > 1 || UpdateNotificationMode == value) return;
+            _settings.Notifications.RepeatUpdateNotifications = value == 1;
+            Logger.LogI("Setting changed: UpdateNotificationMode");
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(RepeatUpdateNotifications));
+            _settings.Save();
+        }
+    }
+
+    public bool RepeatUpdateNotifications => _settings.Notifications.RepeatUpdateNotifications;
+
+    public int UpdateReminderIntervalMinutes
+    {
+        get => _settings.Notifications.UpdateReminderIntervalMinutes;
+        set
+        {
+            if (UpdateReminderIntervalMinutes == value) return;
+            _settings.Notifications.UpdateReminderIntervalMinutes = value;
+            Logger.LogI("Setting changed: UpdateReminderIntervalMinutes");
+            OnPropertyChanged();
+            _settings.Save();
+        }
+    }
+
     public bool NotifyDownloadsCompleted
     {
         get => _settings.Notifications.DownloadsCompleted;

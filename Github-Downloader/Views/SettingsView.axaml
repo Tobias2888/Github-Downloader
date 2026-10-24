@@ -273,6 +273,42 @@
                         </StackPanel>
                     </StackPanel>
                 </Border>
+                <Border CornerRadius="12"
+                        Padding="16">
+
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="50%,100%"
+                                             EndPoint="50%,0%">
+
+                            <GradientStop Color="#2B2B35"
+                                          Offset="0"/>
+
+                            <GradientStop Color="#313131"
+                                          Offset="1"/>
+                        </LinearGradientBrush>
+                    </Border.Background>
+
+                    <StackPanel Spacing="15">
+                        <TextBlock Text="Download Path"
+                                   Classes="SubTitle"/>
+
+                        <Grid ColumnDefinitions="*, Auto">
+                            <TextBox Text="{Binding GlobalDownloadPath}"
+                                     IsReadOnly="True"
+                                     Watermark="Select download directory..."
+                                     IsEnabled="False"/>
+
+                            <Button Grid.Column="1"
+                                    Content="..."
+                                    Margin="10,0,0,0"
+                                    Padding="15,0"
+                                    Height="30"
+                                    Command="{Binding BrowseDownloadPath}"
+                                    CommandParameter="{Binding $parent[UserControl]}"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
                 <Border CornerRadius="12" Padding="16">
                     <Border.Background>
                         <LinearGradientBrush StartPoint="50%,100%" EndPoint="50%,0%">
@@ -321,6 +357,22 @@
                                 <ToggleSwitch Grid.Column="1" IsChecked="{Binding NotifyUpdatesAvailable, Mode=TwoWay}"
                                               OnContent="" OffContent=""/>
                             </Grid>
+                            <StackPanel Spacing="8" IsEnabled="{Binding NotifyUpdatesAvailable}">
+                                <TextBlock Text="Update notification frequency"/>
+                                <ComboBox Name="UpdateNotificationModeSelector" HorizontalAlignment="Stretch"
+                                          SelectedIndex="{Binding UpdateNotificationMode, Mode=TwoWay}">
+                                    <ComboBoxItem Content="Once per new release"/>
+                                    <ComboBoxItem Content="Repeat at a fixed interval"/>
+                                </ComboBox>
+                                <StackPanel Spacing="5" IsEnabled="{Binding RepeatUpdateNotifications}">
+                                    <TextBlock Text="Reminder interval (minutes)"/>
+                                    <NumericUpDown Name="UpdateReminderInterval" Minimum="1" Maximum="10080"
+                                                   Increment="1" FormatString="F0" AllowSpin="True"
+                                                   Value="{Binding UpdateReminderIntervalMinutes, Mode=TwoWay}"/>
+                                </StackPanel>
+                                <TextBlock Text="The first alert is immediate. Repeated alerts continue while updates are pending, within your allowed hours. The app must remain running."
+                                           TextWrapping="Wrap" Opacity="0.7" FontSize="12"/>
+                            </StackPanel>
                             <Grid ColumnDefinitions="*,Auto">
                                 <TextBlock Text="Downloads completed" VerticalAlignment="Center"/>
                                 <ToggleSwitch Grid.Column="1" IsChecked="{Binding NotifyDownloadsCompleted, Mode=TwoWay}"
@@ -355,41 +407,7 @@
                     </StackPanel>
                 </Border>
                 
-                <Border CornerRadius="12"
-                        Padding="16">
-                    
-                    <Border.Background>
-                        <LinearGradientBrush StartPoint="50%,100%"
-                                             EndPoint="50%,0%">
-                            
-                            <GradientStop Color="#2B2B35"
-                                          Offset="0"/>
-                            
-                            <GradientStop Color="#313131"
-                                          Offset="1"/>
-                        </LinearGradientBrush>
-                    </Border.Background>
-                    
-                    <StackPanel Spacing="15">
-                        <TextBlock Text="Download Path"
-                                   Classes="SubTitle"/>
-                        
-                        <Grid ColumnDefinitions="*, Auto">
-                            <TextBox Text="{Binding GlobalDownloadPath}"
-                                     IsReadOnly="True"
-                                     Watermark="Select download directory..."
-                                     IsEnabled="False"/>
-                            
-                            <Button Grid.Column="1" 
-                                    Content="..." 
-                                    Margin="10,0,0,0" 
-                                    Padding="15,0"
-                                    Height="30"
-                                    Command="{Binding BrowseDownloadPath}"
-                                    CommandParameter="{Binding $parent[UserControl]}"/>
-                        </Grid>
-                    </StackPanel>
-                </Border>
+
 
                 <Border CornerRadius="12"
                         Padding="16">

@@ -6,6 +6,13 @@ public class NotificationSettings
 {
     public bool Enabled { get; set; } = true;
     public bool UpdatesAvailable { get; set; } = true;
+    public bool RepeatUpdateNotifications { get; set; }
+    private int _updateReminderIntervalMinutes = 15;
+    public int UpdateReminderIntervalMinutes
+    {
+        get => _updateReminderIntervalMinutes;
+        set => _updateReminderIntervalMinutes = Math.Clamp(value, 1, 10080);
+    }
     public bool DownloadsCompleted { get; set; } = true;
     public bool LimitToTimeWindow { get; set; }
     public TimeSpan StartTime { get; set; } = TimeSpan.FromHours(8);

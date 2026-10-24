@@ -65,6 +65,47 @@ public sealed class SettingsViewTests
     }
 
     [Fact]
+    public async Task NotificationFrequencyEditorPersistsModeAndInterval()
+    {
+        await _application.Dispatch(() =>
+        {
+            App app = (App)Application.Current!;
+            AppSettings previousSettings = app.MainViewModel.AppSettings;
+            FieldInfo settingsPath = typeof(AppSettings).GetField("_appSettingsFilePath", BindingFlags.NonPublic | BindingFlags.Static)!;
+            string previousPath = (string)settingsPath.GetValue(null)!;
+            string temporaryPath = Path.Combine(Path.GetTempPath(), $"notification-settings-{Guid.NewGuid()}.json");
+            try
+            {
+                settingsPath.SetValue(null, temporaryPath);
+                app.MainViewModel.AppSettings = new();
+                SettingsView view = new();
+                ComboBox mode = view.FindControl<ComboBox>("UpdateNotificationModeSelector")!;
+                NumericUpDown interval = view.FindControl<NumericUpDown>("UpdateReminderInterval")!;
+                Assert.Equal(0, mode.SelectedIndex);
+                Assert.False(interval.IsEffectivelyEnabled);
+                mode.SelectedIndex = 1;
+                interval.Value = 30;
+                Assert.True(interval.IsEffectivelyEnabled);
+                Assert.True(AppSettings.Load().Notifications.RepeatUpdateNotifications);
+                Assert.Equal(30, AppSettings.Load().Notifications.UpdateReminderIntervalMinutes);
+                SettingsView restored = new();
+                Assert.Equal(1, restored.FindControl<ComboBox>("UpdateNotificationModeSelector")!.SelectedIndex);
+                Assert.Equal(30m, restored.FindControl<NumericUpDown>("UpdateReminderInterval")!.Value);
+                mode.SelectedIndex = 0;
+                Assert.False(AppSettings.Load().Notifications.RepeatUpdateNotifications);
+                Assert.False(interval.IsEffectivelyEnabled);
+            }
+            finally
+            {
+                app.MainViewModel.AppSettings = previousSettings;
+                settingsPath.SetValue(null, previousPath);
+                File.Delete(temporaryPath);
+            }
+            return Task.CompletedTask;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
     public async Task ReinstallAllRequiresConfirmationAndIncludesExcludedRepositories()
     {
         await _application.Dispatch(() =>

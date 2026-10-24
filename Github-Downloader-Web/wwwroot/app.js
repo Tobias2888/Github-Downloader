@@ -410,7 +410,7 @@
             });
             updates = result?.updates ?? [];
             renderUpdatesTable();
-            toast(`Checked ${result?.totalChecked ?? 0} repositories`, updates.some(u => u.hasUpdate) ? 'info' : 'success');
+            createToast(`Checked ${result?.totalChecked ?? 0} repositories`, updates.some(u => u.hasUpdate) ? 'info' : 'success');
             await loadRepos();
         } catch (err) {
             createToast(`Check failed: ${err.message}`, 'error');

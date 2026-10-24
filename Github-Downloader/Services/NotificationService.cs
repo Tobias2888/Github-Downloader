@@ -15,6 +15,7 @@ public class NotificationService
     private readonly Func<string, Task<bool>> _send;
     private readonly Func<DateTime> _now;
     private readonly HashSet<(string Name, string Tag)> _announced = [];
+    private DateTime? _lastUpdateNotification;
     private readonly SemaphoreSlim _gate = new(1, 1);
 
     public NotificationService(Func<NotificationSettings> settings, Func<string, Task<bool>> send,
@@ -34,16 +35,28 @@ public class NotificationService
                 .Where(repo => !repo.ExcludedFromDownloadAll && !repo.IsUpToDate && !string.IsNullOrEmpty(repo.Tag))
                 .Select(repo => (repo.Name, repo.Tag)).ToHashSet();
             _announced.IntersectWith(available);
+            if (available.Count == 0)
+            {
+                _lastUpdateNotification = null;
+                return;
+            }
 
             NotificationSettings settings = _settings();
-            if (!settings.UpdatesAvailable || !settings.AllowsNotifications(_now())
-                || !available.Except(_announced).Any()) return;
+            DateTime now = _now();
+            if (!settings.UpdatesAvailable || !settings.AllowsNotifications(now)) return;
+            if (settings.RepeatUpdateNotifications)
+            {
+                if (_lastUpdateNotification.HasValue
+                    && now - _lastUpdateNotification.Value < TimeSpan.FromMinutes(settings.UpdateReminderIntervalMinutes)) return;
+            }
+            else if (!available.Except(_announced).Any()) return;
 
             string message = available.Count == 1 ? "1 update is available" : $"{available.Count} updates are available";
             Logger.LogD($"Requesting update-available notification (count {available.Count})");
             if (await _send(message))
             {
                 _announced.UnionWith(available);
+                _lastUpdateNotification = _now();
                 Logger.LogI("Update-available notification accepted by sender");
             }
             else Logger.LogW("Update-available notification was not delivered");
