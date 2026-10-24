@@ -668,8 +668,8 @@
             clearTimeout(previewTimer);
             assetSelect.disabled = ruleInput.value.length > 0;
             if (!assetSelect.disabled) {
-                // Restore the saved manual filename, never silently keep a rule-selected index.
-                assetSelect.value = String((repo.assetNames || []).indexOf(repo.assetName));
+                // Restore the saved manual index when the rule is cleared.
+                assetSelect.value = String(repo.savedDownloadAssetIndex);
                 status.textContent = 'Select a file manually, or enter an asset rule.';
                 showMatches([]);
                 return;

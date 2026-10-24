@@ -41,7 +41,8 @@ public record RepoResponse(
     string CurrentVersion = "",
     bool IncludePrereleases = false,
     bool HasRelease = true,
-    string ReleaseStatus = ""
+    string ReleaseStatus = "",
+    int SavedDownloadAssetIndex = -1
 );
 
 public record UpdateRepoRequest(

@@ -522,7 +522,8 @@ public class GithubDownloaderService : IGithubDownloaderService
             repo.CurrentVersion,
             repo.IncludePrereleases,
             repo.HasRelease,
-            repo.ReleaseStatus
+            repo.ReleaseStatus,
+            repo.SavedDownloadAssetIndex
         );
     }
 }

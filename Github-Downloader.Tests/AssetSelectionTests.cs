@@ -162,22 +162,27 @@ public sealed class AssetSelectionTests
     }
 
     [Fact]
-    public void ManualSelectionSurvivesReorderingAndDoesNotFallBackWhenMissing()
+    public void ManualSelectionKeepsIndexAcrossRenamesReorderingAndMissingAssets()
     {
         Repo repo = NewRepo();
         repo.AssetNames = ["windows.zip", "linux.zip"];
         repo.DownloadAssetIndex = 1;
-        repo.ReplaceAssets(["linux.zip", "windows.zip"], ["linux-url", "windows-url"]);
-        Assert.Equal(0, repo.DownloadAssetIndex);
-        Assert.Equal("linux-url", repo.SelectedAssetUrl);
-        repo.ReplaceAssets(["windows.zip"], ["windows-url"]);
-        Assert.Equal(-1, repo.DownloadAssetIndex);
-        Assert.Empty(repo.SelectedAssetName);
-        Assert.Empty(repo.SelectedAssetUrl);
-        Assert.Equal("linux.zip", repo.AssetName);
-        Assert.Contains("missing", repo.AssetSelectionStatus);
-        repo.ReplaceAssets(["linux.zip"], ["returned-url"]);
-        Assert.Equal("linux.zip", repo.SelectedAssetName);
+        string json = JsonSerializer.Serialize(repo);
+        using JsonDocument document = JsonDocument.Parse(json);
+        Assert.False(document.RootElement.TryGetProperty("AssetName", out JsonElement _));
+        Assert.Equal(1, document.RootElement.GetProperty("DownloadAssetIndex").GetInt32());
+        Repo restored = JsonSerializer.Deserialize<Repo>(json)!;
+        restored.ReplaceAssets(["v2-linux.zip", "v2-windows.zip"], ["linux-url", "windows-url"]);
+        Assert.Equal(1, restored.DownloadAssetIndex);
+        Assert.Equal("windows-url", restored.SelectedAssetUrl);
+        restored.ReplaceAssets(["windows.zip"], ["windows-url"]);
+        Assert.Equal(-1, restored.DownloadAssetIndex);
+        Assert.Empty(restored.SelectedAssetUrl);
+        Assert.Contains("out of range", restored.AssetSelectionStatus);
+        restored = JsonSerializer.Deserialize<Repo>(JsonSerializer.Serialize(restored))!;
+        restored.ReplaceAssets(["first.zip", "second.zip"], ["first-url", "second-url"]);
+        Assert.Equal(1, restored.DownloadAssetIndex);
+        Assert.Equal("second.zip", restored.SelectedAssetName);
     }
 
     [Fact]
@@ -208,7 +213,7 @@ public sealed class AssetSelectionTests
         repo.DownloadAssetIndex = 0;
         repo.AssetRule = "*linux*";
         Assert.Equal(1, repo.DownloadAssetIndex);
-        // A binding echoes the computed index; that must not turn a glob into an exact filename.
+        // A binding echoes the computed index; that must preserve the rule and manual index.
         repo.DownloadAssetIndex = 1;
         Assert.Equal("*linux*", repo.AssetRule);
         repo.AssetRule = "";
@@ -222,7 +227,7 @@ public sealed class AssetSelectionTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public void LegacyMigrationUsesCachedNameRegardlessOfJsonPropertyOrder(bool indexFirst)
+    public void SavedIndexIsIndependentOfJsonPropertyOrder(bool indexFirst)
     {
         string index = "\"DownloadAssetIndex\":1";
         string names = "\"AssetNames\":[\"windows.zip\",\"linux.zip\"]";
@@ -231,24 +236,24 @@ public sealed class AssetSelectionTests
         Repo repo = JsonSerializer.Deserialize<Repo>(json)!;
         Assert.Equal("linux.zip", repo.AssetName);
         repo.ReplaceAssets(["linux.zip", "windows.zip"], ["linux-url", "windows-url"]);
-        Assert.Equal("linux.zip", repo.SelectedAssetName);
-        Assert.Equal(0, repo.DownloadAssetIndex);
+        Assert.Equal("windows.zip", repo.SelectedAssetName);
+        Assert.Equal(1, repo.DownloadAssetIndex);
     }
 
     [Theory]
-    [InlineData("{\"DownloadAssetIndex\":8,\"AssetNames\":[\"other.zip\"]}")]
-    [InlineData("{\"DownloadAssetIndex\":0,\"AssetNames\":[]}")]
-    public void InvalidLegacySelectionNeverSelectsANewReleaseByIndex(string legacy)
+    [InlineData("{\"DownloadAssetIndex\":8,\"AssetNames\":[\"other.zip\"]}", -1, "")]
+    [InlineData("{\"DownloadAssetIndex\":0,\"AssetNames\":[]}", 0, "new-url")]
+    public void SavedIndexResolvesWhenItIsInRangeAgain(string legacy, int expectedIndex, string expectedUrl)
     {
         string json = legacy.Insert(1, "\"Name\":\"owner/repo\",\"Url\":\"url\",");
         Repo repo = JsonSerializer.Deserialize<Repo>(json)!;
         repo.ReplaceAssets(["new.zip"], ["new-url"]);
-        Assert.Equal(-1, repo.DownloadAssetIndex);
-        Assert.Empty(repo.SelectedAssetUrl);
+        Assert.Equal(expectedIndex, repo.DownloadAssetIndex);
+        Assert.Equal(expectedUrl, repo.SelectedAssetUrl);
     }
 
     [Fact]
-    public void RuleAndSavedManualNameSurviveExportImportAndMissingReleases()
+    public void RuleAndSavedManualIndexSurviveExportImportAndMissingReleases()
     {
         Repo repo = NewRepo();
         repo.AssetNames = ["manual.zip", "v1-linux.zip"];
@@ -257,11 +262,11 @@ public sealed class AssetSelectionTests
         repo.ReplaceAssets([], []);
         Repo restored = JsonSerializer.Deserialize<Repo>(JsonSerializer.Serialize(repo))!;
         Assert.Equal("*linux*.zip", restored.AssetRule);
-        Assert.Equal("manual.zip", restored.AssetName);
+        Assert.Equal(0, restored.SavedDownloadAssetIndex);
         restored.ReplaceAssets(["v2-linux.zip", "manual.zip"], ["linux-url", "manual-url"]);
         Assert.Equal("v2-linux.zip", restored.SelectedAssetName);
         restored.AssetRule = "";
-        Assert.Equal("manual.zip", restored.SelectedAssetName);
+        Assert.Equal("v2-linux.zip", restored.SelectedAssetName);
     }
 
     [Fact]
@@ -280,14 +285,14 @@ public sealed class AssetSelectionTests
     }
 
     [Fact]
-    public void SavedExactFilenameHasPriorityOverSerializedIndex()
+    public void SavedIndexHasPriorityOverLegacyFilename()
     {
         Repo repo = JsonSerializer.Deserialize<Repo>("""
             {"Name":"owner/repo","Url":"url","AssetName":"linux.zip","DownloadAssetIndex":0,
              "AssetNames":["windows.zip","linux.zip"],"AssetRule":""}
             """)!;
-        Assert.Equal(1, repo.DownloadAssetIndex);
-        Assert.Equal("linux.zip", repo.SelectedAssetName);
+        Assert.Equal(0, repo.DownloadAssetIndex);
+        Assert.Equal("windows.zip", repo.SelectedAssetName);
     }
 
     [Fact]
@@ -311,7 +316,7 @@ public sealed class AssetSelectionTests
                 ? JsonResponse("[]") : new HttpResponseMessage(HttpStatusCode.NotFound))));
         Assert.False(repo.HasAssets);
         Assert.Equal("*linux*.zip", repo.AssetRule);
-        Assert.Equal("v1-linux.zip", repo.AssetName);
+        Assert.Equal(1, repo.SavedDownloadAssetIndex);
     }
 
     [Theory]
@@ -469,8 +474,8 @@ public sealed class AssetSelectionTests
                 repo.ReplaceAssets(["linux.zip", "windows.zip"], ["linux-url", "windows-url"]);
                 window.UpdateLayout();
                 await Task.Delay(50);
-                Assert.Equal("linux.zip", repo.AssetName);
-                Assert.Equal(0, repo.DownloadAssetIndex);
+                Assert.Equal("windows.zip", repo.AssetName);
+                Assert.Equal(1, repo.DownloadAssetIndex);
                 repo.AssetRule = "*windows*";
                 window.UpdateLayout();
                 await Task.Delay(50);
@@ -483,7 +488,7 @@ public sealed class AssetSelectionTests
                 repo.AssetRule = "";
                 window.UpdateLayout();
                 await Task.Delay(50);
-                Assert.Equal("linux.zip", repo.AssetName);
+                Assert.Equal(1, repo.SavedDownloadAssetIndex);
                 Assert.Empty(repo.SelectedAssetName);
             }
             finally { window.Close(); }

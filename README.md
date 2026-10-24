@@ -90,7 +90,7 @@ On macOS, extract the archive matching your architecture and launch the `Github-
 ## Desktop quick start
 
 1. Add a repository using its GitHub URL or the separate owner and repository fields.
-2. Review the default asset rule for your operating system and CPU architecture in **More → Download Settings**. Edit it if needed, or clear it to select a release asset manually. Manual selections are saved by filename, so reordering assets in a release does not change the selected file.
+2. Review the default asset rule for your operating system and CPU architecture in **More → Download Settings**. Edit it if needed, or clear it to select a release asset manually. Manual selections are saved by asset index, so the same position is used even when filenames change between releases.
 3. Open **More** to read the changelog, choose a release version, and adjust download settings.
 4. Click **Update** for one repository, or select repositories and click **Update Selected**.
 5. Use **Search for updates** to refresh release information. Background checks and their interval can be configured in **Settings**.
@@ -243,7 +243,7 @@ The same data is available through `GET /api/history`, with `repository`, `from`
 
 The web UI provides **Repositories**, **Updates**, **Configuration**, and **Settings** tabs. Add repositories, adjust their assets and download settings, review changelogs, and follow operations in the activity panel.
 
-Repository details include the asset rule and a live match preview. The repository API exposes `assetName` (saved manual filename), `assetRule`, `assetRuleMatches`, `assetSelectionStatus`, and the resolved `downloadAssetIndex` (`-1` when unresolved). Update a rule with `PUT /api/repositories/{repoUrl}` using `assetRule`; an empty string clears it. An explicit `downloadAssetIndex` selects a manual file when no nonempty rule is supplied. `POST /api/repositories/{repoUrl}/asset-rule-preview` with `{ "assetRule": "*linux*.zip" }` previews matches without saving. URL-encode `repoUrl` in these paths.
+Repository details include the asset rule and a live match preview. The repository API exposes `assetName` (current filename at the saved manual index), `assetRule`, `assetRuleMatches`, `assetSelectionStatus`, `savedDownloadAssetIndex` (manual selection), and the resolved `downloadAssetIndex` (`-1` when unresolved). Update a rule with `PUT /api/repositories/{repoUrl}` using `assetRule`; an empty string clears it. An explicit `downloadAssetIndex` selects a manual file when no nonempty rule is supplied. `POST /api/repositories/{repoUrl}/asset-rule-preview` with `{ "assetRule": "*linux*.zip" }` previews matches without saving. URL-encode `repoUrl` in these paths.
 
 The packaged Linux service uses port **2008**. When running from source with the `http` launch profile, the default is **5033**.
 

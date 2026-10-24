@@ -57,21 +57,32 @@ public class Repo : INotifyPropertyChanged, IJsonOnDeserializing, IJsonOnDeseria
     private bool _selectionInitialized;
     private bool _deserializing;
     private bool _updatingAssets;
-    // Null means an old configuration has no saved filename yet; empty means deliberately unselected.
-    private string? _assetName;
     private string _assetRule = string.Empty;
 
-    // Saved separately from the index so releases may safely reorder their assets.
+    // Compatibility accessor for callers that display or select a manual filename.
+    [JsonIgnore]
     public string AssetName
     {
-        get => _assetName ?? string.Empty;
+        get => _downloadAssetIndex >= 0 && _downloadAssetIndex < AssetNames.Count
+            ? AssetNames[_downloadAssetIndex] : string.Empty;
         set
         {
-            _assetName = value ?? string.Empty;
-            if (_deserializing) return;
+            _downloadAssetIndex = AssetNames.IndexOf(value ?? string.Empty);
             _selectionInitialized = true;
             OnSelectedAssetChanged();
             OnPropertyChanged(nameof(AssetName));
+        }
+    }
+
+    // Persist the manual index even while a rule resolves to a different asset.
+    [JsonPropertyName("DownloadAssetIndex")]
+    public int SavedDownloadAssetIndex
+    {
+        get => _downloadAssetIndex;
+        set
+        {
+            _downloadAssetIndex = value;
+            _selectionInitialized = true;
         }
     }
 
@@ -90,14 +101,16 @@ public class Repo : INotifyPropertyChanged, IJsonOnDeserializing, IJsonOnDeseria
         }
     }
 
+    [JsonIgnore]
     public int DownloadAssetIndex 
     { 
         get
         {
-            if (!_selectionInitialized) return _downloadAssetIndex;
+            if (!HasAssetRule)
+                return _downloadAssetIndex >= 0 && _downloadAssetIndex < AssetNames.Count
+                    ? _downloadAssetIndex : -1;
             int[] matches = Enumerable.Range(0, AssetNames.Count)
-                .Where(index => HasAssetRule ? AssetSelection.Matches(AssetNames[index], AssetRule)
-                    : AssetName.Length > 0 && AssetNames[index] == AssetName).Take(2).ToArray();
+                .Where(index => AssetSelection.Matches(AssetNames[index], AssetRule)).Take(2).ToArray();
             return matches.Length == 1 ? matches[0] : -1;
         }
         set
@@ -107,7 +120,6 @@ public class Repo : INotifyPropertyChanged, IJsonOnDeserializing, IJsonOnDeseria
             if (_updatingAssets || value < 0 || value >= AssetNames.Count) return;
             if (_selectionInitialized && DownloadAssetIndex == value) return;
             _downloadAssetIndex = value;
-            _assetName = AssetNames[value];
             _assetRule = string.Empty;
             _selectionInitialized = true;
             OnSelectedAssetChanged();
@@ -119,9 +131,8 @@ public class Repo : INotifyPropertyChanged, IJsonOnDeserializing, IJsonOnDeseria
     public void InitializeAssetSelection()
     {
         if (_selectionInitialized) return;
-        if (_assetName == null && _downloadAssetIndex >= 0 && _downloadAssetIndex < AssetNames.Count)
-            _assetName = AssetNames[_downloadAssetIndex];
-        _assetName ??= string.Empty;
+        if (_downloadAssetIndex < 0 || _downloadAssetIndex >= AssetNames.Count)
+            _downloadAssetIndex = -1;
         _selectionInitialized = true;
     }
 
@@ -138,6 +149,7 @@ public class Repo : INotifyPropertyChanged, IJsonOnDeserializing, IJsonOnDeseria
             OnPropertyChanged(nameof(AssetNames));
             OnPropertyChanged(nameof(DownloadUrls));
             OnPropertyChanged(nameof(HasAssets));
+            OnPropertyChanged(nameof(AssetName));
             OnSelectedAssetChanged();
         }
         finally { _updatingAssets = false; }
@@ -173,7 +185,7 @@ public class Repo : INotifyPropertyChanged, IJsonOnDeserializing, IJsonOnDeseria
             int count => $"{count} assets match this rule. Download blocked; make the rule more specific."
         }
         : SelectedAssetName.Length > 0 ? $"Selected: {SelectedAssetName}"
-        : AssetName.Length > 0 ? $"Saved asset '{AssetName}' is missing. Select a file or set a rule."
+        : _downloadAssetIndex >= 0 ? $"Saved asset index {_downloadAssetIndex} is out of range. Select a file or set a rule."
         : "Select a file or set an asset rule before downloading.";
 
     private ObservableCollection<string> _assetNames = [];
@@ -188,6 +200,7 @@ public class Repo : INotifyPropertyChanged, IJsonOnDeserializing, IJsonOnDeseria
             _assetNames.CollectionChanged += AssetNamesOnCollectionChanged;
             OnPropertyChanged(nameof(AssetNames));
             OnPropertyChanged(nameof(HasAssets));
+            OnPropertyChanged(nameof(AssetName));
             OnSelectedAssetChanged();
         }
     }
