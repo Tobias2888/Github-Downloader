@@ -1,0 +1,14 @@
+pkgname = github-downloader-cli
+pkgbase = github-downloader-cli
+pkgver = 3.4.1-1
+pkgdesc = GitHub Downloader CLI
+url = https://github.com/Tobias2888/Github-Downloader
+builddate = 1792954139
+packager = Tobias Hofinger <github.flashy834@passmail.net>
+size = 69533607
+arch = x86_64
+license = MIT
+depend = glibc
+depend = libsecret
+depend = gnome-keyring
+

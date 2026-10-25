@@ -56,26 +56,58 @@ CodeCoverage/
 TestResult.xml
 nunit-*.xml
 
+
+# Windows
 builds/win-x64/*
 !builds/win-x64/.gitkeep
 builds/win-arm64/*
 !builds/win-arm64/.gitkeep
+
+# Mac
 builds/github-downloader-osx-x64/*
 !builds/github-downloader-osx-x64/.gitkeep
 builds/github-downloader-osx-arm64/*
 !builds/github-downloader-osx-arm64/.gitkeep
+
+# Linux Debian - Desktop
 builds/github-downloader-linux-x64/opt/Github-Downloader/*
 !builds/github-downloader-linux-x64/opt/Github-Downloader/.gitkeep
 builds/github-downloader-linux-arm64/opt/Github-Downloader/*
 !builds/github-downloader-linux-arm64/opt/Github-Downloader/.gitkeep
+
+# Linux Aarch - Desktop
 builds/github-downloader-linux-x64-arch/opt/Github-Downloader/*
 !builds/github-downloader-linux-x64-arch/opt/Github-Downloader/.gitkeep
+builds/github-downloader-linux-arm64-arch/opt/Github-Downloader/*
+!builds/github-downloader-linux-arm64-arch/opt/Github-Downloader/.gitkeep
+
+# Linux Debian - Cli
+!builds/github-downloader-cli-linux-x64/usr/local/bin/
+builds/github-downloader-cli-linux-x64/usr/local/bin/*
+!builds/github-downloader-cli-linux-x64/usr/local/bin/.gitkeep
+!builds/github-downloader-cli-linux-arm64/usr/local/bin/
+builds/github-downloader-cli-linux-arm64/usr/local/bin/*
+!builds/github-downloader-cli-linux-arm64/usr/local/bin/.gitkeep
+
+# Linux Arch - CLI
+!builds/github-downloader-cli-linux-x64-arch/usr/bin/
+builds/github-downloader-cli-linux-x64-arch/usr/bin/*
+!builds/github-downloader-cli-linux-x64-arch/usr/bin/.gitkeep
+!builds/github-downloader-cli-linux-arm64-arch/usr/bin/
+builds/github-downloader-cli-linux-arm64-arch/usr/bin/*
+!builds/github-downloader-cli-linux-arm64-arch/usr/bin/.gitkeep
+
+# AppImage
+!builds/github-downloader-linux-x64-appimage/usr/bin/
 builds/github-downloader-linux-x64-appimage/usr/bin/*
 !builds/github-downloader-linux-x64-appimage/usr/bin/.gitkeep
+
+# Linux Debian - Web
 builds/github-downloader-web-linux-arm64/opt/Github-Downloader-Web/*
 !builds/github-downloader-web-linux-arm64/opt/Github-Downloader-Web/.gitkeep
 builds/github-downloader-web-linux-x64/opt/Github-Downloader-Web/*
 !builds/github-downloader-web-linux-x64/opt/Github-Downloader-Web/.gitkeep
 
+# Other
 builds/release-assets/*
 !builds/release-assets/.gitkeep
