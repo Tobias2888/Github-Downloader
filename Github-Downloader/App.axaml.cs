@@ -274,7 +274,7 @@ public partial class App : Application
         MainViewModel.HasUpdates = hasUpdates;
     }
     
-    private void InitializeTrayIcon()
+    internal void InitializeTrayIcon()
     {
         _trayIcon = new()
         {
@@ -329,5 +329,8 @@ public partial class App : Application
         _trayIcon.Menu.Add(updateAllItem);
         _trayIcon.Menu.Add(separatorItem);
         _trayIcon.Menu.Add(quitItem);
+
+        // Avalonia creates the native tray icon only when it is attached to the application.
+        TrayIcon.SetIcons(this, new TrayIcons { _trayIcon });
     }
 }

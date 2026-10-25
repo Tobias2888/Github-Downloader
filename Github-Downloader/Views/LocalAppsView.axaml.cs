@@ -32,7 +32,6 @@ public partial class LocalAppsView : UserControl
     }
 
     private void OnLoaded(object? sender, RoutedEventArgs e) => Refresh();
-    private void Refresh_OnClick(object? sender, RoutedEventArgs e) => Refresh();
     private void Install_OnClick(object? sender, RoutedEventArgs e) => InstallRequested?.Invoke(this, e);
 
     private async void Reinstall_OnClick(object? sender, RoutedEventArgs e)
@@ -58,12 +57,26 @@ public partial class LocalAppsView : UserControl
         Refresh();
     }
 
+    private async void InstallVersion_OnClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { DataContext: LocalApp app } || TopLevel.GetTopLevel(this) is not Window owner) return;
+        App application = (App)Application.Current!;
+        if (application.DownloadStatusViewModel.IsUpdating) { application.DownloadStatusViewModel.Show(); return; }
+        LocalInstallerVersionDialog dialog = new(app);
+        LocalInstallerVersion? version = await dialog.ShowDialog<LocalInstallerVersion?>(owner);
+        if (version is null) return;
+        if (application.DownloadStatusViewModel.IsUpdating) { application.DownloadStatusViewModel.Show(); return; }
+        await application.DownloadStatusViewModel.RunAsync(() => new LocalAppManager().InstallVersionAsync(app, version,
+            application.DownloadStatusViewModel.LogStatus, application.DownloadStatusViewModel.LogProgress), "Install saved version");
+        Refresh();
+    }
+
     private void SystemUninstaller_OnClick(object? sender, RoutedEventArgs e)
     {
         try
         {
             Process.Start(new ProcessStartInfo("ms-settings:appsfeatures") { UseShellExecute = true });
-            ListStatus.Text = "Uninstall the app in system settings, then remove it from this list.";
+            ListStatus.Text = "Uninstall the app in system settings. Its GHD entry and saved installer are kept for reinstalling.";
         }
         catch (Exception exception) when (exception is System.ComponentModel.Win32Exception or InvalidOperationException)
         {
@@ -71,15 +84,18 @@ public partial class LocalAppsView : UserControl
         }
     }
 
-    private async void Forget_OnClick(object? sender, RoutedEventArgs e)
+    private async void Remove_OnClick(object? sender, RoutedEventArgs e)
     {
         if (sender is not Button { DataContext: LocalApp app } || TopLevel.GetTopLevel(this) is not Window owner) return;
-        UninstallRepoDialog dialog = new(app, forgetOnly: true);
+        App application = (App)Application.Current!;
+        if (application.DownloadStatusViewModel.IsUpdating) { application.DownloadStatusViewModel.Show(); return; }
+        UninstallRepoDialog dialog = new(app, removeOnly: true);
         if (await dialog.ShowDialog<string?>(owner) is null) return;
+        if (application.DownloadStatusViewModel.IsUpdating) { application.DownloadStatusViewModel.Show(); return; }
         try { LocalApps.Store.Remove(app.Id); Refresh(); }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            ListStatus.Text = "The local app list could not be saved. Check file access.";
+            ListStatus.Text = "The entry or saved installer could not be removed. Check file access.";
         }
     }
 }

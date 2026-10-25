@@ -21,54 +21,152 @@ namespace Github_Downloader.Views;
 
 public partial class HomeView : UserControl
 {
+    private bool _installingLocalFiles;
+
     private async void InstallLocal_OnClick(object? sender, RoutedEventArgs e)
     {
-        if (_downloadStatusViewModel.IsUpdating)
-        {
-            _downloadStatusViewModel.Show();
-            return;
-        }
-        TopLevel? topLevel = TopLevel.GetTopLevel(this);
-        if (topLevel is null) return;
+        if (_downloadStatusViewModel.IsUpdating) { _downloadStatusViewModel.Show(); return; }
+        if (_installingLocalFiles || TopLevel.GetTopLevel(this) is not TopLevel topLevel) return;
+        string[] paths;
+        _installingLocalFiles = true;
         try
         {
             IReadOnlyList<IStorageFile> files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
-                Title = "Install local file",
-                AllowMultiple = false,
+                Title = "Install local files",
+                AllowMultiple = true,
                 FileTypeFilter = [new FilePickerFileType("Installers and archives")
                 {
                     Patterns = LocalFileInstaller.SupportedExtensions
                         .SelectMany(extension => new[] { "*" + extension, "*" + extension.ToUpperInvariant() })
                         .Append("*.AppImage").Distinct().ToArray()
-                }, FilePickerFileTypes.All]
+                }]
             });
             if (files.Count == 0) return;
-            string? path = files[0].TryGetLocalPath();
-            if (path is null) throw new IOException("Choose a file stored on this computer.");
-            string? destination = null;
-            if (ArchiveExtractor.IsSupportedArchive(path))
-            {
-                IReadOnlyList<IStorageFolder> folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
-                {
-                    Title = "Extract archive to",
-                    AllowMultiple = false
-                });
-                if (folders.Count == 0) return;
-                destination = folders[0].TryGetLocalPath();
-                if (destination is null) throw new IOException("Choose a folder on this computer.");
-            }
-            bool installed = await _downloadStatusViewModel.RunAsync(() => LocalFileInstaller.InstallAsync(path,
-                _downloadStatusViewModel.LogStatus, _downloadStatusViewModel.LogProgress, destination), "Install local file");
-            LocalAppsPanel.Refresh();
-            if (installed) AppTabs.SelectedIndex = 1;
+            paths = files.Select(file => file.TryGetLocalPath()
+                ?? throw new IOException("Choose files stored on this computer."))
+                .Distinct(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal).ToArray();
+            if (paths.Any(path => !LocalFileInstaller.SupportedExtensions.Any(extension => path.EndsWith(extension, StringComparison.OrdinalIgnoreCase))))
+                throw new ArgumentException("Choose supported installers or archives.");
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
-            ToastText.Text = "Could not open the local file. Choose a supported installer or archive.";
-            ToastPopup.IsOpen = true;
-            await Task.Delay(2500);
-            ToastPopup.IsOpen = false;
+            await ShowLocalFileErrorAsync();
+            return;
+        }
+        finally
+        {
+            _installingLocalFiles = false;
+        }
+        await InstallLocalFilesAsync(paths);
+    }
+
+    private async Task ShowLocalFileErrorAsync()
+    {
+        ToastText.Text = "Could not open the local files. Choose supported installers or archives stored on this computer.";
+        ToastPopup.IsOpen = true;
+        await Task.Delay(2500);
+        ToastPopup.IsOpen = false;
+    }
+
+    private void LocalFiles_OnDragOver(object? sender, DragEventArgs e)
+    {
+        if (!e.DataTransfer.Contains(DataFormat.File)) return;
+        bool accepted = !_installingLocalFiles && !_downloadStatusViewModel.IsUpdating
+            && (e.DragEffects & DragDropEffects.Copy) != 0
+            && TryGetLocalInstallPaths(e.DataTransfer, out _);
+        e.DragEffects = accepted ? DragDropEffects.Copy : DragDropEffects.None;
+        LocalFileDropOverlay.IsVisible = accepted;
+        e.Handled = true;
+    }
+
+    private void LocalFiles_OnDragLeave(object? sender, DragEventArgs e)
+    {
+        LocalFileDropOverlay.IsVisible = false;
+    }
+
+    private async void LocalFiles_OnDrop(object? sender, DragEventArgs e)
+    {
+        LocalFileDropOverlay.IsVisible = false;
+        if (!e.DataTransfer.Contains(DataFormat.File)) return;
+        string[] paths = [];
+        bool accepted = !_installingLocalFiles && !_downloadStatusViewModel.IsUpdating
+            && (e.DragEffects & DragDropEffects.Copy) != 0
+            && TryGetLocalInstallPaths(e.DataTransfer, out paths);
+        e.DragEffects = accepted ? DragDropEffects.Copy : DragDropEffects.None;
+        e.Handled = true;
+        if (!accepted) return;
+        await InstallLocalFilesAsync(paths);
+    }
+
+    internal static bool TryGetLocalInstallPaths(IDataTransfer data, out string[] paths)
+    {
+        paths = [];
+        IStorageItem[] items = data.TryGetFiles()?.ToArray() ?? [];
+        if (items.Length == 0) return false;
+        List<string> localPaths = [];
+        foreach (IStorageItem item in items)
+        {
+            string? path = item.TryGetLocalPath();
+            if (item is not IStorageFile || path is null
+                || !LocalFileInstaller.SupportedExtensions.Any(extension => path.EndsWith(extension, StringComparison.OrdinalIgnoreCase)))
+                return false;
+            localPaths.Add(path);
+        }
+        paths = localPaths.Distinct(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal).ToArray();
+        return true;
+    }
+
+    internal async Task InstallLocalFilesAsync(IReadOnlyList<string> paths)
+    {
+        if (_installingLocalFiles || _downloadStatusViewModel.IsUpdating || paths.Count == 0) return;
+        TopLevel? topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel is null) return;
+        _installingLocalFiles = true;
+        try
+        {
+            List<(string Path, string? Destination)> installations = [];
+            foreach (string path in paths)
+            {
+                if (!File.Exists(path)) throw new FileNotFoundException("The local file no longer exists.");
+                string? destination = null;
+                if (ArchiveExtractor.IsSupportedArchive(path))
+                {
+                    IReadOnlyList<IStorageFolder> folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+                    {
+                        Title = $"Extract {Path.GetFileName(path)} to",
+                        AllowMultiple = false
+                    });
+                    if (folders.Count == 0) return;
+                    destination = folders[0].TryGetLocalPath();
+                    if (destination is null) throw new IOException("Choose a folder on this computer.");
+                }
+                installations.Add((path, destination));
+            }
+
+            // Recheck after folder selection, since another operation may have started while the dialog was open.
+            if (_downloadStatusViewModel.IsUpdating) return;
+            await _downloadStatusViewModel.RunAsync(async () =>
+            {
+                bool allInstalled = true;
+                foreach ((string path, string? destination) in installations)
+                {
+                    bool succeeded = await LocalFileInstaller.InstallAsync(path,
+                        _downloadStatusViewModel.LogStatus, _downloadStatusViewModel.LogProgress, destination);
+                    allInstalled &= succeeded;
+                }
+                return allInstalled;
+            }, paths.Count == 1 ? "Install local file" : "Install local files");
+            LocalAppsPanel.Refresh();
+            AppTabs.SelectedIndex = 1;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            await ShowLocalFileErrorAsync();
+        }
+        finally
+        {
+            _installingLocalFiles = false;
         }
     }
 
@@ -100,6 +198,12 @@ public partial class HomeView : UserControl
         _downloadStatusViewModel = ((App)Application.Current!).DownloadStatusViewModel;
         DataContext = _homeViewModel;
         _repoReordering = new(this, RepoList, RepoScroll, RepoDragOverlay);
+        DragDrop.SetAllowDrop(this, true);
+        AddHandler(DragDrop.DragEnterEvent, LocalFiles_OnDragOver, RoutingStrategies.Bubble, handledEventsToo: true);
+        AddHandler(DragDrop.DragOverEvent, LocalFiles_OnDragOver, RoutingStrategies.Bubble, handledEventsToo: true);
+        AddHandler(DragDrop.DragLeaveEvent, LocalFiles_OnDragLeave, RoutingStrategies.Bubble, handledEventsToo: true);
+        AddHandler(DragDrop.DropEvent, LocalFiles_OnDrop, RoutingStrategies.Bubble, handledEventsToo: true);
+        DetachedFromVisualTree += (_, _) => LocalFileDropOverlay.IsVisible = false;
     }
 
     internal void BeginRepoDrag(RepoEntryControl row, PointerPressedEventArgs e) => _repoReordering.Begin(row, e);

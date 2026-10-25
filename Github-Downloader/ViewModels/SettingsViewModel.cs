@@ -16,11 +16,101 @@ public class SettingsViewModel : ViewModelBase
 {
     private readonly MainViewModel _mainViewModel;
     private AppSettings _settings;
+    private int _localInstallerRetentionMode;
+    private int _localInstallerVersionsToKeep;
+    private string _localInstallerRetentionStatus = "";
+    private bool _showLocalInstallerRetentionConfirmation;
 
     public SettingsViewModel()
     {
         _mainViewModel = ((App)Application.Current!).MainViewModel;
         _settings = _mainViewModel.AppSettings;
+        _localInstallerRetentionMode = _settings.LocalInstallerVersionsToKeep.HasValue ? 0 : 1;
+        _localInstallerVersionsToKeep = _settings.LocalInstallerVersionsToKeep ?? LocalInstallerRetention.DefaultVersionsToKeep;
+    }
+
+    public int LocalInstallerRetentionMode
+    {
+        get => _localInstallerRetentionMode;
+        set
+        {
+            if (value is < 0 or > 1 || value == _localInstallerRetentionMode) return;
+            _localInstallerRetentionMode = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(LimitLocalInstallerVersions));
+            OnPropertyChanged(nameof(IsReducingLocalInstallerRetention));
+            ShowLocalInstallerRetentionConfirmation = false;
+            LocalInstallerRetentionStatus = "";
+        }
+    }
+
+    public bool LimitLocalInstallerVersions => LocalInstallerRetentionMode == 0;
+
+    public int LocalInstallerVersionsToKeep
+    {
+        get => _localInstallerVersionsToKeep;
+        set
+        {
+            if (value < 0 || value == _localInstallerVersionsToKeep) return;
+            _localInstallerVersionsToKeep = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsReducingLocalInstallerRetention));
+            ShowLocalInstallerRetentionConfirmation = false;
+            LocalInstallerRetentionStatus = "";
+        }
+    }
+
+    public string LocalInstallerRetentionStatus
+    {
+        get => _localInstallerRetentionStatus;
+        private set { _localInstallerRetentionStatus = value; OnPropertyChanged(); }
+    }
+
+    public bool IsReducingLocalInstallerRetention => LimitLocalInstallerVersions
+        && (!_settings.LocalInstallerVersionsToKeep.HasValue || LocalInstallerVersionsToKeep < _settings.LocalInstallerVersionsToKeep.Value);
+
+    public bool ShowLocalInstallerRetentionConfirmation
+    {
+        get => _showLocalInstallerRetentionConfirmation;
+        private set { _showLocalInstallerRetentionConfirmation = value; OnPropertyChanged(); }
+    }
+
+    public void CancelLocalInstallerRetention() => ShowLocalInstallerRetentionConfirmation = false;
+
+    public void ConfirmLocalInstallerRetention()
+    {
+        if (ShowLocalInstallerRetentionConfirmation) SaveLocalInstallerRetention(confirmed: true);
+    }
+
+    public void SaveLocalInstallerRetention() => SaveLocalInstallerRetention(confirmed: false);
+
+    private void SaveLocalInstallerRetention(bool confirmed)
+    {
+        if (((App)Application.Current!).DownloadStatusViewModel.IsUpdating)
+        {
+            LocalInstallerRetentionStatus = "Wait for the current operation to finish, then save the limit.";
+            return;
+        }
+        if (IsReducingLocalInstallerRetention && !confirmed)
+        {
+            ShowLocalInstallerRetentionConfirmation = true;
+            return;
+        }
+        ShowLocalInstallerRetentionConfirmation = false;
+        try
+        {
+            _settings.LocalInstallerVersionsToKeep = LimitLocalInstallerVersions ? LocalInstallerVersionsToKeep : null;
+            _settings.Save();
+            OnPropertyChanged(nameof(IsReducingLocalInstallerRetention));
+            LocalApps.Store.ApplyInstallerRetention(_settings.LocalInstallerVersionsToKeep);
+            LocalInstallerRetentionStatus = "Saved. The limit applies to existing and future installers.";
+            Logger.LogI("Setting changed: LocalInstallerVersionsToKeep");
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            LocalInstallerRetentionStatus = "Could not apply the limit to all saved installers. Check file access and try again.";
+            Logger.LogE($"Local installer retention failed ({exception.GetType().Name})");
+        }
     }
 
     public WindowState WindowState

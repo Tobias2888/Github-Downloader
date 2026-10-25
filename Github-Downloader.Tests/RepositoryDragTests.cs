@@ -23,7 +23,8 @@ public sealed class RepositoryDragApplication : IDisposable
     private readonly HeadlessUnitTestSession _session = HeadlessUnitTestSession.StartNew(typeof(RepositoryDragApplication));
 
     public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<HeadlessTestApp>()
-        .WithInterFont().UseSkia().UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false });
+        .WithInterFont().UseSkia().UseHarfBuzz()
+        .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false });
 
     public async Task Dispatch(Func<Task> action, CancellationToken cancellationToken)
     {

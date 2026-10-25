@@ -43,6 +43,14 @@ public sealed class LocalAppTests : IDisposable
         Assert.Equal(app.InstallerPath, reinstalled.InstallerPath);
         Assert.True(await new LocalAppManager().UninstallAsync(reinstalled, _ => { }, _ => { }));
         Assert.True(File.Exists(app.InstallerPath));
+        LocalApp uninstalled = Assert.Single(new LocalAppStore(AppsPath).Read());
+        Assert.False(uninstalled.IsInstalled);
+        Assert.False(uninstalled.CanUninstall);
+        Assert.True(uninstalled.CanReinstall);
+        Assert.True(await LocalFileInstaller.InstallAsync(uninstalled.InstallerPath, _ => { }, _ => { },
+            uninstalled.ExtractionDirectory, null, cache));
+        Assert.True(Assert.Single(LocalApps.Store.Read()).IsInstalled);
+        Assert.Equal("original content", await File.ReadAllTextAsync(Path.Combine(destination, "app.txt")));
     }
 
     [Fact]
@@ -73,7 +81,10 @@ public sealed class LocalAppTests : IDisposable
     public async Task DebianRemovalUsesSavedIdentityAndRetainsFailedEntries(int exitCode)
     {
         if (!OperatingSystem.IsLinux()) return;
-        LocalApp app = DebianApp();
+        string saved = Path.Combine(LocalApps.Store.InstallersPath, "example", "example.deb");
+        Directory.CreateDirectory(Path.GetDirectoryName(saved)!);
+        await File.WriteAllTextAsync(saved, "saved installer");
+        LocalApp app = DebianApp() with { InstallerPath = saved };
         LocalApps.Store.Save(app);
         InstallationManager installations = new(Path.Combine(_root, "images"), Path.Combine(_root, "desktop"), (start, progress) =>
         {
@@ -83,7 +94,8 @@ public sealed class LocalAppTests : IDisposable
         });
         bool success = await new LocalAppManager(LocalApps.Store, installations).UninstallAsync(app, _ => { }, _ => { });
         Assert.Equal(exitCode == 0, success);
-        Assert.Equal(exitCode == 0 ? 0 : 1, new LocalAppStore(AppsPath).Read().Count);
+        Assert.Equal(exitCode != 0, Assert.Single(new LocalAppStore(AppsPath).Read()).IsInstalled);
+        Assert.Equal("saved installer", await File.ReadAllTextAsync(saved));
         HistoryEntry history = Assert.Single(OperationHistory.Store.Query().Entries);
         Assert.Equal(app.FileName, history.LocalFileName);
         Assert.Equal(exitCode == 0 ? HistoryStatus.Succeeded : HistoryStatus.Failed, history.Status);
@@ -112,7 +124,7 @@ public sealed class LocalAppTests : IDisposable
         Assert.False(Directory.Exists(Path.Combine(images, id)));
         Assert.False(File.Exists(Path.Combine(desktop, id + ".desktop")));
         Assert.Equal("original", await File.ReadAllTextAsync(original));
-        Assert.Empty(LocalApps.Store.Read());
+        Assert.False(Assert.Single(LocalApps.Store.Read()).IsInstalled);
     }
 
     [Fact]
@@ -139,7 +151,7 @@ public sealed class LocalAppTests : IDisposable
         Assert.Equal("user settings", await File.ReadAllTextAsync(Path.Combine(destination, "settings.json")));
         Assert.True(File.Exists(Path.Combine(destination, "existing.txt")));
         Assert.True(File.Exists(source));
-        Assert.Empty(LocalApps.Store.Read());
+        Assert.False(Assert.Single(LocalApps.Store.Read()).IsInstalled);
         Assert.Contains(OperationHistory.Store.Query().Entries, entry => entry.Action == HistoryAction.Uninstall && entry.Status == HistoryStatus.Succeeded);
     }
 
@@ -188,6 +200,87 @@ public sealed class LocalAppTests : IDisposable
         app = app with { OwnedFiles = new() { ["app.txt"] = LocalAppManager.FileHash(outside) } };
         await Assert.ThrowsAsync<IOException>(() => new LocalAppManager().UninstallAsync(app, _ => { }, _ => { }));
         Assert.Equal("outside", await File.ReadAllTextAsync(outside));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void RemoveDeletesTheEntryAndSavedInstallerWhileKeepingInstalledAndImportedFiles(bool installed)
+    {
+        string original = Path.Combine(_root, "example.deb");
+        string installedFile = Path.Combine(_root, "installed-app.txt");
+        string saved = Path.Combine(LocalApps.Store.InstallersPath, "example", "example.deb");
+        Directory.CreateDirectory(Path.GetDirectoryName(saved)!);
+        File.WriteAllText(original, "imported");
+        File.WriteAllText(installedFile, "installed");
+        File.WriteAllText(saved, "saved installer");
+        LocalApp app = DebianApp() with { InstallerPath = saved, IsInstalled = installed };
+        LocalApps.Store.Save(app);
+
+        LocalApps.Store.Remove(app.Id);
+
+        Assert.Empty(new LocalAppStore(AppsPath).Read());
+        Assert.False(File.Exists(saved));
+        Assert.False(Directory.Exists(Path.GetDirectoryName(saved)));
+        Assert.Equal("imported", File.ReadAllText(original));
+        Assert.Equal("installed", File.ReadAllText(installedFile));
+    }
+
+    [Fact]
+    public void RemoveKeepsInstallersUsedByAnotherEntryAndUnrelatedSavedFiles()
+    {
+        string saved = Path.Combine(LocalApps.Store.InstallersPath, "example", "example.deb");
+        Directory.CreateDirectory(Path.GetDirectoryName(saved)!);
+        File.WriteAllText(saved, "shared installer");
+        string unrelated = Path.Combine(Path.GetDirectoryName(saved)!, "other.deb");
+        File.WriteAllText(unrelated, "other installer");
+        LocalApp first = DebianApp() with { InstallerPath = saved };
+        LocalApp second = first with { Id = "another-entry" };
+        LocalApps.Store.Save(first);
+        LocalApps.Store.Save(second);
+
+        LocalApps.Store.Remove(first.Id);
+        Assert.Equal(second.Id, Assert.Single(LocalApps.Store.Read()).Id);
+        Assert.True(File.Exists(saved));
+        LocalApps.Store.Remove(second.Id);
+        Assert.Empty(LocalApps.Store.Read());
+        Assert.False(File.Exists(saved));
+        Assert.Equal("other installer", File.ReadAllText(unrelated));
+    }
+
+    [Fact]
+    public void RemoveAllowsMissingInstallersButRejectsOutsidePathsAndLinks()
+    {
+        LocalApp app = DebianApp() with { InstallerPath = Path.Combine(LocalApps.Store.InstallersPath, "missing.deb") };
+        LocalApps.Store.Save(app);
+        LocalApps.Store.Remove(app.Id);
+        Assert.Empty(LocalApps.Store.Read());
+
+        string outside = Path.Combine(_root, "original.deb");
+        File.WriteAllText(outside, "keep");
+        LocalApps.Store.Save(app with { InstallerPath = outside });
+        Assert.Throws<IOException>(() => LocalApps.Store.Remove(app.Id));
+        Assert.Single(LocalApps.Store.Read());
+        Assert.Equal("keep", File.ReadAllText(outside));
+        if (OperatingSystem.IsWindows()) return;
+        Directory.CreateDirectory(LocalApps.Store.InstallersPath);
+        string link = Path.Combine(LocalApps.Store.InstallersPath, "linked.deb");
+        File.CreateSymbolicLink(link, outside);
+        LocalApps.Store.Save(app with { InstallerPath = link });
+        Assert.Throws<IOException>(() => LocalApps.Store.Remove(app.Id));
+        Assert.Single(LocalApps.Store.Read());
+        Assert.Equal("keep", File.ReadAllText(outside));
+    }
+
+    [Fact]
+    public void ExistingEntriesDefaultToInstalled()
+    {
+        File.WriteAllText(AppsPath, """
+            [{"Id":"example","FileName":"example.zip","InstallationName":"local/example","Kind":"Archive"}]
+            """);
+        LocalApp app = Assert.Single(LocalApps.Store.Read());
+        Assert.True(app.IsInstalled);
+        Assert.True(app.CanUninstall);
     }
 
     [Theory]

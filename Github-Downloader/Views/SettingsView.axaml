@@ -295,7 +295,7 @@
                         <Grid ColumnDefinitions="*, Auto">
                             <TextBox Text="{Binding GlobalDownloadPath}"
                                      IsReadOnly="True"
-                                     Watermark="Select download directory..."
+                                     PlaceholderText="Select download directory..."
                                      IsEnabled="False"/>
 
                             <Button Grid.Column="1"
@@ -321,10 +321,42 @@
                         <TextBlock Text="Applied to new repositories. Existing repositories keep their own rules. Clear this rule to select files manually."
                                    TextWrapping="Wrap"/>
                         <TextBox Name="TbxDefaultAssetRule" Text="{Binding DefaultAssetRule, Mode=TwoWay}"
-                                 Watermark="e.g. *linux*x64*.AppImage" AcceptsReturn="True"
+                                 PlaceholderText="e.g. *linux*x64*.AppImage" AcceptsReturn="True"
                                  MinLines="3" TextWrapping="Wrap"/>
                         <TextBlock Text="Separate case-sensitive globs with spaces or newlines: * matches any text, ? one character, {x64,amd64} either alias. Prefix a pattern with ! to exclude assets. Every inclusion must match; exclusions always win. At least one inclusion is required."
                                    TextWrapping="Wrap" Opacity="0.7" FontSize="12"/>
+                    </StackPanel>
+                </Border>
+                <Border CornerRadius="12" Padding="16" Background="#2B2B35">
+                    <StackPanel Spacing="15">
+                        <TextBlock Text="Saved local installers" Classes="SubTitle"/>
+                        <TextBlock Text="How many installer versions to keep per local app, including the newest."
+                                   TextWrapping="Wrap"/>
+                        <ComboBox Name="LocalInstallerRetentionModeSelector" SelectedIndex="{Binding LocalInstallerRetentionMode, Mode=TwoWay}">
+                            <ComboBoxItem Content="Keep a limited number"/>
+                            <ComboBoxItem Content="Unlimited (∞)"/>
+                        </ComboBox>
+                        <NumericUpDown Name="LocalInstallerVersionLimit" Value="{Binding LocalInstallerVersionsToKeep, Mode=TwoWay}"
+                                       Minimum="0" Maximum="2147483647" Increment="1" FormatString="0"
+                                       IsEnabled="{Binding LimitLocalInstallerVersions}"/>
+                        <TextBlock Text="0 keeps no saved installers. Unlimited keeps every version. Saving deletes older saved copies beyond the limit; imported source files and installed apps are kept. Without a saved copy, reinstall by dropping the file again."
+                                   TextWrapping="Wrap" FontSize="12" Opacity="0.7"/>
+                        <Button Name="SaveLocalInstallerRetention" Content="Save and apply" Click="SaveLocalInstallerRetention_OnClick"/>
+                        <TextBlock Name="LocalInstallerRetentionWarning" IsVisible="{Binding IsReducingLocalInstallerRetention}"
+                                   Text="Lowering this limit may permanently delete previously saved installer versions."
+                                   Foreground="#FFCF80" TextWrapping="Wrap"/>
+                        <Border Name="LocalInstallerRetentionConfirmation" IsVisible="{Binding ShowLocalInstallerRetentionConfirmation}"
+                                BorderBrush="#B98240" BorderThickness="1" CornerRadius="8" Padding="12">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="Apply the lower limit and delete saved versions beyond it? This cannot be undone."
+                                           TextWrapping="Wrap"/>
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <Button Name="ConfirmLocalInstallerRetention" Content="Apply lower limit" Click="ConfirmLocalInstallerRetention_OnClick"/>
+                                    <Button Name="CancelLocalInstallerRetention" Content="Cancel" Click="CancelLocalInstallerRetention_OnClick"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                        <TextBlock Name="LocalInstallerRetentionStatus" Text="{Binding LocalInstallerRetentionStatus}" TextWrapping="Wrap"/>
                     </StackPanel>
                 </Border>
             </StackPanel>

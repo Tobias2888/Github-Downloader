@@ -17,6 +17,7 @@ public class AppSettings
     public int CheckForUpdatesInterval { get; set; } = 5;
     public string GlobalDownloadPath { get; set; } = DirectoryHelper.GetUserDirPath();
     public string DefaultAssetRule { get; set; } = AssetSelection.GetDefaultRule();
+    public int? LocalInstallerVersionsToKeep { get; set; } = LocalInstallerRetention.DefaultVersionsToKeep;
     public NotificationSettings Notifications { get; set; } = new();
     
     public static AppSettings Load()
@@ -30,6 +31,7 @@ public class AppSettings
                 AppSettings settings = JsonSerializer.Deserialize<AppSettings>(jsonString) ?? new();
                 settings.DefaultAssetRule ??= AssetSelection.GetDefaultRule();
                 settings.Notifications ??= new();
+                if (settings.LocalInstallerVersionsToKeep < 0) settings.LocalInstallerVersionsToKeep = LocalInstallerRetention.DefaultVersionsToKeep;
                 Logger.LogI("Application settings loaded");
                 return settings;
             }

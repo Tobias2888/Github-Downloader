@@ -9,7 +9,7 @@ public partial class UninstallRepoDialog : Window
 {
     private readonly Repo? _repo;
     private readonly LocalApp? _localApp;
-    private readonly bool _forgetOnly;
+    private readonly bool _removeOnly;
     private readonly InstallationManager _installations = new();
 
     public UninstallRepoDialog()
@@ -24,19 +24,19 @@ public partial class UninstallRepoDialog : Window
         UpdateConfirmation();
     }
 
-    public UninstallRepoDialog(LocalApp app, bool forgetOnly = false) : this()
+    public UninstallRepoDialog(LocalApp app, bool removeOnly = false) : this()
     {
         _localApp = app;
-        _forgetOnly = forgetOnly;
+        _removeOnly = removeOnly;
         _repo = app.ToRepo();
         DataContext = _repo;
         AppName.Text = app.Name;
         RepositoryNotice.IsVisible = false;
-        if (forgetOnly)
+        if (removeOnly)
         {
             Title = "Remove local app entry";
-            DialogQuestion.Text = "Remove from local apps?";
-            ConfirmUninstall.Content = "Remove from list";
+            DialogQuestion.Text = "Remove entry and saved installers?";
+            ConfirmUninstall.Content = "Remove";
             PackageFields.IsVisible = false;
         }
         UpdateConfirmation();
@@ -48,11 +48,11 @@ public partial class UninstallRepoDialog : Window
     {
         if (ConfirmUninstall is null) return;
         if (_localApp is not null)
-            UninstallDetails.Text = _forgetOnly ? "Removes this entry from the list. Installed files are kept."
+            UninstallDetails.Text = _removeOnly ? "Removes this entry from GHD and deletes its saved installer versions. Installed app files and the source file you originally imported are kept."
                 : new LocalAppManager().GetUninstallDescription(_localApp);
         else if (_repo is not null)
             UninstallDetails.Text = _installations.GetUninstallDescription(_repo, PackageName.Text);
-        ConfirmUninstall.IsEnabled = _forgetOnly || _repo is not null && (_localApp?.CanUninstall ?? _repo.CanUninstall)
+        ConfirmUninstall.IsEnabled = _removeOnly || _repo is not null && (_localApp?.CanUninstall ?? _repo.CanUninstall)
             && (!_repo.NeedsDebianPackageName || InstallationManager.IsValidDebianPackageName(PackageName.Text?.Trim()));
     }
 

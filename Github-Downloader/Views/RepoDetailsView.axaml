@@ -90,7 +90,7 @@
 
                             <TextBlock Text="Asset rule" FontWeight="SemiBold"/>
                             <TextBox Name="TbxAssetRule" Text="{Binding Repo.AssetRule, Mode=TwoWay}"
-                                     Watermark="e.g. *linux*x64*.AppImage" AcceptsReturn="True" MinLines="3" TextWrapping="Wrap"/>
+                                     PlaceholderText="e.g. *linux*x64*.AppImage" AcceptsReturn="True" MinLines="3" TextWrapping="Wrap"/>
                             <TextBlock Text="Separate case-sensitive globs with spaces or newlines: * matches any text, ? one character, {x64,amd64} either alias. Prefix a pattern with ! to exclude assets. Every inclusion must match; exclusions always win. At least one inclusion is required. Clear the rule to select a file manually."
                                        TextWrapping="Wrap" Opacity="0.7" FontSize="12"/>
                             <ComboBox Name="CobAsset" ItemsSource="{Binding Repo.AssetNames}"
@@ -132,7 +132,7 @@
                                     <TextBlock Text="Rename file" VerticalAlignment="Center"/>
                                     <ToggleSwitch Name="TglRenameFile" Grid.Column="1" OnContent="" OffContent="" Click="TglRenameFile_OnClick"/>
                                 </Grid>
-                                <TextBox Name="TbxRenameFile" Watermark="New filename" TextChanged="TbxRenameFile_OnTextChanged"/>
+                                <TextBox Name="TbxRenameFile" PlaceholderText="New filename" TextChanged="TbxRenameFile_OnTextChanged"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>

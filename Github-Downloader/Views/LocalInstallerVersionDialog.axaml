@@ -1,0 +1,26 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:models="clr-namespace:Github_Downloader_lib.Models;assembly=Github-Downloader-lib"
+        x:Class="Github_Downloader.Views.LocalInstallerVersionDialog"
+        Title="Install saved version" Width="560" Height="440" MinWidth="400" MinHeight="300"
+        WindowStartupLocation="CenterOwner" RequestedThemeVariant="Dark" Background="#222226">
+    <Grid Margin="24" RowDefinitions="Auto,Auto,*,Auto">
+        <TextBlock Name="AppName" FontSize="20" FontWeight="SemiBold" Foreground="White" TextWrapping="Wrap"/>
+        <TextBlock Grid.Row="1" Margin="0,12" TextWrapping="Wrap" Foreground="#DDD"
+                   Text="Choose a saved installer. Installing an older version may replace the currently installed version."/>
+        <ListBox Name="VersionsList" Grid.Row="2" SelectionChanged="Versions_OnSelectionChanged">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="models:LocalInstallerVersion">
+                    <StackPanel Margin="8" Spacing="6">
+                        <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                        <TextBlock Text="{Binding SavedAtLabel}" Opacity="0.7"/>
+                    </StackPanel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,16,0,0">
+            <Button Name="CancelInstall" Content="Cancel" Click="Cancel_OnClick" Padding="16,8"/>
+            <Button Name="ConfirmInstall" Content="Install selected version" IsEnabled="False" Click="Install_OnClick" Padding="16,8"/>
+        </StackPanel>
+    </Grid>
+</Window>

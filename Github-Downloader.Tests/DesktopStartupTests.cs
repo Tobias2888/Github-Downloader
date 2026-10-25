@@ -18,6 +18,35 @@ public sealed class DesktopStartupTests
 
     public DesktopStartupTests(RepositoryDragApplication application) => _application = application;
 
+    [Fact]
+    public async Task StartupAttachesTheConfiguredTrayIconToTheApplication()
+    {
+        await _application.Dispatch(() =>
+        {
+            App app = Assert.IsAssignableFrom<App>(Application.Current);
+            TrayIcons? previousIcons = TrayIcon.GetIcons(app);
+            try
+            {
+                app.InitializeTrayIcon();
+
+                TrayIcon icon = Assert.Single(TrayIcon.GetIcons(app)!);
+                Assert.True(icon.IsVisible);
+                Assert.NotNull(icon.Icon);
+                Assert.Equal("Github Downloader", icon.ToolTipText);
+                Assert.Collection(icon.Menu!.Items,
+                    item => Assert.Equal("Update All", Assert.IsType<NativeMenuItem>(item).Header),
+                    item => Assert.IsType<NativeMenuItemSeparator>(item),
+                    item => Assert.Equal("Quit", Assert.IsType<NativeMenuItem>(item).Header));
+            }
+            finally
+            {
+                TrayIcon.SetIcons(app, previousIcons);
+            }
+
+            return Task.CompletedTask;
+        }, CancellationToken.None);
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("--gui")]

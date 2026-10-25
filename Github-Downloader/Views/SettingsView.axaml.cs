@@ -39,6 +39,15 @@ public partial class SettingsView : UserControl
     private void CancelReinstall_OnClick(object? sender, RoutedEventArgs e) =>
         ReinstallConfirmation.IsVisible = false;
 
+    private void SaveLocalInstallerRetention_OnClick(object? sender, RoutedEventArgs e) =>
+        ((SettingsViewModel)DataContext!).SaveLocalInstallerRetention();
+
+    private void ConfirmLocalInstallerRetention_OnClick(object? sender, RoutedEventArgs e) =>
+        ((SettingsViewModel)DataContext!).ConfirmLocalInstallerRetention();
+
+    private void CancelLocalInstallerRetention_OnClick(object? sender, RoutedEventArgs e) =>
+        ((SettingsViewModel)DataContext!).CancelLocalInstallerRetention();
+
     private async void ConfirmReinstall_OnClick(object? sender, RoutedEventArgs e)
     {
         if (!ReinstallConfirmation.IsVisible || !ConfirmReinstall.IsEnabled) return;

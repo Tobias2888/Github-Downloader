@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Interactivity;
+using Avalonia.Media.Imaging;
 using Github_Downloader.Views;
 using Github_Downloader.ViewModels;
 using Github_Downloader_lib;
@@ -57,7 +58,7 @@ public sealed class HistoryWindowTests
                 window.FindControl<TextBox>("RepositoryFilter")!.Text = "";
                 window.FindControl<ComboBox>("ResultFilter")!.SelectedIndex = 0;
                 window.UpdateLayout();
-                window.CaptureRenderedFrame()?.Save("/tmp/github-downloader-history-desktop.png");
+                window.CaptureRenderedFrame()?.Save("/tmp/github-downloader-history-desktop.png", PngBitmapEncoderOptions.Default);
                 window.FindControl<Button>("ClearHistory")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 Assert.True(window.FindControl<Border>("ClearConfirmation")!.IsVisible);
                 Assert.Equal(3, store.Query().Total);

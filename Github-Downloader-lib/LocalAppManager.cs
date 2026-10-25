@@ -19,13 +19,28 @@ public sealed class LocalAppManager
         LocalFileInstaller.InstallAsync(app.InstallerPath, status, progress,
             app.Kind == LocalAppKind.Archive ? app.ExtractionDirectory : null);
 
-    public string GetUninstallDescription(LocalApp app) => app.Kind switch
+    public Task<bool> InstallVersionAsync(LocalApp app, LocalInstallerVersion version, Action<string> status, Action<string> progress)
+    {
+        LocalApp current = _store.Read().FirstOrDefault(entry => entry.Id == app.Id)
+            ?? throw new IOException("The local app entry no longer exists.");
+        StringComparison comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        LocalInstallerVersion selected = current.AvailableInstallerVersions.FirstOrDefault(saved => string.Equals(saved.Path, version.Path, comparison))
+            ?? throw new IOException("The selected installer version is no longer available.");
+        string root = Path.GetFullPath(_store.InstallersPath) + Path.DirectorySeparatorChar;
+        if (!Path.IsPathFullyQualified(selected.Path) || !Path.GetFullPath(selected.Path).StartsWith(root, comparison))
+            throw new IOException("The saved installer is outside GHD's installer folder.");
+        ArchiveExtractor.EnsureNoLinks(selected.Path);
+        return LocalFileInstaller.InstallAsync(selected.Path, status, progress,
+            current.Kind == LocalAppKind.Archive ? current.ExtractionDirectory : null);
+    }
+
+    public string GetUninstallDescription(LocalApp app) => (app.Kind switch
     {
         LocalAppKind.Archive => "Removes extracted app files. Changed files and your original archive are kept.",
         LocalAppKind.AppImage => "Removes the AppImage and its application-menu entry. Your original file is kept.",
         LocalAppKind.Debian => app.DebianPackage.Length > 0 ? $"Removes the Debian package '{app.DebianPackage}'." : "Removes the Debian package named below.",
         _ => "Use the application's system uninstaller."
-    };
+    }) + " The GHD entry and saved installer are kept for reinstalling.";
 
     public async Task<bool> UninstallAsync(LocalApp app, Action<string> status, Action<string> progress,
         string? packageName = null)
@@ -34,7 +49,7 @@ public sealed class LocalAppManager
         if (app.Kind != LocalAppKind.Archive)
         {
             bool removed = await _installations.UninstallAsync(app.ToRepo(), status, progress, packageName, app.FileName);
-            if (removed) _store.Remove(app.Id);
+            if (removed) _store.Save(app with { IsInstalled = false });
             return removed;
         }
         using HistoryScope history = OperationHistory.Store.Begin(HistoryAction.Uninstall, localFileName: app.FileName);
@@ -62,7 +77,7 @@ public sealed class LocalAppManager
                 if (FileHash(path) != hash) { changed = true; continue; }
                 File.Delete(path);
             }
-            _store.Remove(app.Id);
+            _store.Save(app with { IsInstalled = false });
             history.Complete(HistoryOutcome.Uninstalled);
             status(changed ? "Uninstalled. Changed files were kept." : "Uninstalled.");
             return true;

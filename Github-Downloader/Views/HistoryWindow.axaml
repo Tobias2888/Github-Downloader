@@ -16,15 +16,15 @@
         <WrapPanel Margin="0,0,0,8" Grid.Row="1" Orientation="Horizontal">
             <StackPanel Margin="0,0,12,8" Spacing="4">
                 <TextBlock Text="Repository or file" Foreground="#CCC"/>
-                <TextBox Name="RepositoryFilter" Width="210" Watermark="All repositories and files"/>
+                <TextBox Name="RepositoryFilter" Width="210" PlaceholderText="All repositories and files"/>
             </StackPanel>
             <StackPanel Margin="0,0,12,8" Spacing="4">
                 <TextBlock Text="From" Foreground="#CCC"/>
-                <CalendarDatePicker Name="FromDate" Width="160" Watermark="Any date"/>
+                <CalendarDatePicker Name="FromDate" Width="160" PlaceholderText="Any date"/>
             </StackPanel>
             <StackPanel Margin="0,0,12,8" Spacing="4">
                 <TextBlock Text="Through" Foreground="#CCC"/>
-                <CalendarDatePicker Name="ToDate" Width="160" Watermark="Any date"/>
+                <CalendarDatePicker Name="ToDate" Width="160" PlaceholderText="Any date"/>
             </StackPanel>
             <StackPanel Margin="0,0,12,8" Spacing="4">
                 <TextBlock Text="Result" Foreground="#CCC"/>

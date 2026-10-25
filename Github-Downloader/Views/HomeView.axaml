@@ -46,19 +46,22 @@
             <StackPanel Spacing="10">
               <TextBlock Text="Add Repository" Classes="SubTitle"/>
               
-              <TextBox Name="TbxUrl" Watermark="Repository-Url"/>
+              <TextBox Name="TbxUrl" PlaceholderText="Repository-Url"/>
               
               <Label Content="--- or ---" FontSize="14" Margin="0 2 0 2" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
               
-              <TextBox Name="TbxOwner" Watermark="Owner (e.g. torvalds)"/>
-              <TextBox Name="TbxRepo" Watermark="Repository name (e.g. linux)"/>
+              <TextBox Name="TbxOwner" PlaceholderText="Owner (e.g. torvalds)"/>
+              <TextBox Name="TbxRepo" PlaceholderText="Repository name (e.g. linux)"/>
               <Button Name="BtnAddRepo" Click="BtnAddRepo_OnClick" Content="Add Repository" Margin="0 0 0 40"/>
 
               <TextBlock Text="Local files" Classes="SubTitle"/>
-              <Button Name="BtnInstallLocal" Click="InstallLocal_OnClick" Content="Install local file…" Margin="0 0 0 30"/>
+              <Button Name="BtnInstallLocal" Content="Browse…" Click="InstallLocal_OnClick"/>
+              <Border BorderBrush="#537779" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0 0 0 30">
+                  <TextBlock Text="Drop installers or archives anywhere on this page to install them." TextWrapping="Wrap" Foreground="#C6DDDE"/>
+              </Border>
               
               <TextBlock Text="Manage Personal Access Token" Classes="SubTitle"/>
-              <TextBox Name="TbxPat" Watermark="Personal Access Token"/>
+              <TextBox Name="TbxPat" PlaceholderText="Personal Access Token"/>
               <Button Name="BtnSetPat" Click="BtnSetPat_OnClick" Content="Set personal Access Token"/>
               <Button Name="BtnRemovePat" Click="BtnRemovePat_OnClick" Content="Remove personal Access Token" Background="#EC4C4C"/>
             </StackPanel>
@@ -128,6 +131,13 @@
                 TextWrapping="Wrap"/>
         </Border>
     </Popup>
+    <Border Name="LocalFileDropOverlay" Grid.RowSpan="2" ZIndex="1100" IsVisible="False" IsHitTestVisible="False"
+            Background="#E6222226" BorderBrush="#18AFB5" BorderThickness="2" CornerRadius="12" Padding="24">
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12">
+            <TextBlock Text="Drop files to install" FontSize="26" FontWeight="SemiBold" Foreground="White" HorizontalAlignment="Center"/>
+            <TextBlock Text="Installers and archives · Your original files are kept" Foreground="#C6DDDE" TextWrapping="Wrap" TextAlignment="Center"/>
+        </StackPanel>
+    </Border>
     <Canvas Name="RepoDragOverlay" Grid.RowSpan="2" ZIndex="1000" IsHitTestVisible="False"/>
   </Grid>
 </UserControl>

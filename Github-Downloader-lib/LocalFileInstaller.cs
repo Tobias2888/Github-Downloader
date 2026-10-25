@@ -13,11 +13,12 @@ public static class LocalFileInstaller
 
     public static Task<bool> InstallAsync(string path, Action<string> status, Action<string> progress,
         string? extractionDirectory = null) =>
-        InstallAsync(path, status, progress, extractionDirectory, null, FileManager.CachePath);
+        InstallAsync(path, status, progress, extractionDirectory, null, FileManager.CachePath, LocalInstallerRetention.LoadLimit());
 
     internal static async Task<bool> InstallAsync(string path, Action<string> status, Action<string> progress,
-        string? extractionDirectory, Func<UpdateManager.Asset, Task<bool>>? installer, string cachePath)
+        string? extractionDirectory, Func<UpdateManager.Asset, Task<bool>>? installer, string cachePath, int? versionsToKeep = LocalInstallerRetention.DefaultVersionsToKeep)
     {
+        if (versionsToKeep < 0) throw new ArgumentOutOfRangeException(nameof(versionsToKeep));
         string source = Path.GetFullPath(path);
         if (!File.Exists(source)) throw new FileNotFoundException("The selected local file does not exist.");
         bool archive = ArchiveExtractor.IsSupportedArchive(source);
@@ -55,7 +56,9 @@ public static class LocalFileInstaller
         // Keep the original outside the disposable cache, including for installers that move their input.
         // Reinstalling an already saved file can reuse that copy.
         LocalAppStore store = LocalApps.Store;
-        bool reuse = store.Read().Any(app => app.InstallerPath == source);
+        bool keepInstaller = versionsToKeep != 0;
+        bool reuse = store.Read().Any(app => app.InstallerPath == source
+            || app.InstallerVersions.Any(version => version.Path == source));
         string folderName = Path.GetFileNameWithoutExtension(filename);
         if (folderName is "" or "." or "..") folderName = filename + "-installer";
         string savedDirectory = Path.Combine(store.InstallersPath, folderName);
@@ -65,7 +68,7 @@ public static class LocalFileInstaller
         bool saved = false;
         try
         {
-            if (!reuse)
+            if (!reuse && keepInstaller)
             {
                 Directory.CreateDirectory(savedDirectory);
                 await Task.Run(() => File.Copy(source, savedPath));
@@ -74,13 +77,13 @@ public static class LocalFileInstaller
             if (!success) return false;
             // Package identity stays stable when a Debian installer filename changes between versions.
             if (kind == LocalAppKind.Debian && local.InstalledDebianPackage.Length > 0) id = "deb:" + local.InstalledDebianPackage;
-            store.Save(new()
+            store.SaveInstallation(new()
             {
                 Id = id, FileName = filename, InstallationName = local.Name, Kind = kind,
                 InstalledAt = DateTimeOffset.UtcNow, DebianPackage = local.InstalledDebianPackage,
                 AppImageId = local.InstalledAppImageId, ExtractionDirectory = destination ?? "", OwnedFiles = owned,
-                InstallerPath = savedPath
-            });
+                InstallerPath = keepInstaller ? savedPath : ""
+            }, versionsToKeep);
             saved = true;
             return true;
         }

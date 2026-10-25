@@ -17,7 +17,7 @@
             <TextBlock Text="Installed Debian package name" Foreground="White"/>
             <TextBlock Text="Enter the package name shown in your package manager."
                        TextWrapping="Wrap" FontSize="12" Foreground="#AAA"/>
-            <TextBox Name="PackageName" Watermark="e.g. code or code:amd64" TextChanged="PackageName_OnTextChanged"/>
+            <TextBox Name="PackageName" PlaceholderText="e.g. code or code:amd64" TextChanged="PackageName_OnTextChanged"/>
         </StackPanel>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
             <Button Content="Cancel" Click="Cancel_OnClick" Padding="16,8"/>
