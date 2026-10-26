@@ -143,9 +143,10 @@ public partial class RepoDetailsView : UserControl
         if (repo is null) return;
 
         string extension = Path.GetExtension(repo.SelectedAssetName).ToLowerInvariant();
-        StpSaveFileAnyway.IsVisible = extension is ".deb" or ".appimage" or ".exe" or ".msi";
+        StpSaveFileAnyway.IsVisible = UpdateManager.IsInstallerAsset(repo.SelectedAssetName);
         bool installsLinuxPackage = RuntimeInformation.IsOSPlatform(OSPlatform.Linux)
-            && extension is ".deb" or ".appimage";
+            && UpdateManager.IsInstallerAsset(repo.SelectedAssetName)
+            && (extension is ".deb" or ".appimage" || InstallationManager.IsArchPackageFile(repo.SelectedAssetName));
         StpDownloadPath.IsVisible = !installsLinuxPackage || repo.SaveFileAnyway;
     }
     private async Task RefreshReleaseAsync()

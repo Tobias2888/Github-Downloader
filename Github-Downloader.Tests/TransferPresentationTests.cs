@@ -27,6 +27,11 @@ public sealed class WebTransferProgressTests
 
         tracker.Log("Extracting archive");
         Assert.Null(tracker.Snapshot().Transfer);
+        int logCount = tracker.Snapshot().Logs.Count;
+        tracker.SetItemPercent(35, "Extracting: 35%");
+        Assert.Equal("Extracting: 35%", tracker.Snapshot().Status);
+        Assert.Equal(17.5, tracker.Snapshot().Percent);
+        Assert.Equal(logCount, tracker.Snapshot().Logs.Count);
         tracker.StartItem();
         tracker.SetTransferProgress(new TransferProgress(1000, null, 500, null));
         Assert.True(tracker.Snapshot().Indeterminate);
@@ -42,6 +47,32 @@ public sealed class WebTransferProgressTests
 [Collection("Repository dragging")]
 public sealed class DesktopTransferProgressTests(RepositoryDragApplication application)
 {
+    [Fact]
+    public async Task ExtractionPercentagesUpdateTheBarWithoutAddingLogRows()
+    {
+        await application.Dispatch(async () =>
+        {
+            DownloadStatusViewModel model = new();
+            await model.RunAsync(async () =>
+            {
+                model.LogStatus("Extracting application");
+                await Task.Run(() =>
+                {
+                    for (int percent = 0; percent <= 100; percent++) model.LogProgress($"Extracting: {percent}%");
+                });
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => { }, Avalonia.Threading.DispatcherPriority.Background);
+                Assert.Equal(100, model.Percent);
+                Assert.Equal("Extracting: 100%", model.ProgressText);
+                Assert.Equal("Extracting application", model.StatusText);
+                Assert.Single(model.Logs);
+                model.LogStatus("Installing next application");
+                Assert.Null(model.Percent);
+                Assert.True(model.IsIndeterminate);
+                return true;
+            });
+        }, CancellationToken.None);
+    }
+
     [Fact]
     public async Task CancelStopsOperationWithoutFailureAndAllowsAnotherDownload()
     {

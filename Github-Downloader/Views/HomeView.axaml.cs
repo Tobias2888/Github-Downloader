@@ -14,6 +14,7 @@ using Github_Downloader_lib;
 using Github_Downloader_lib.Models;
 using Github_Downloader.Enums;
 using Github_Downloader.ViewModels;
+using Github_Downloader.Services;
 using SecretsLib;
 using LoggerLib;
 
@@ -130,7 +131,7 @@ public partial class HomeView : UserControl
             {
                 if (!File.Exists(path)) throw new FileNotFoundException("The local file no longer exists.");
                 string? destination = null;
-                if (ArchiveExtractor.IsSupportedArchive(path))
+                if (ArchiveExtractor.IsSupportedArchive(path) && !OperatingSystem.IsLinux())
                 {
                     IReadOnlyList<IStorageFolder> folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
                     {
@@ -144,7 +145,7 @@ public partial class HomeView : UserControl
                 installations.Add((path, destination));
             }
 
-            // Recheck after folder selection, since another operation may have started while the dialog was open.
+            // Recheck after any folder selection, since another operation may have started while the dialog was open.
             if (_downloadStatusViewModel.IsUpdating) return;
             await _downloadStatusViewModel.RunAsync(async () =>
             {
@@ -152,7 +153,8 @@ public partial class HomeView : UserControl
                 foreach ((string path, string? destination) in installations)
                 {
                     bool succeeded = await LocalFileInstaller.InstallAsync(path,
-                        _downloadStatusViewModel.LogStatus, _downloadStatusViewModel.LogProgress, destination);
+                        _downloadStatusViewModel.LogStatus, _downloadStatusViewModel.LogProgress, destination,
+                        (directory, candidates) => ArchiveExecutablePicker.SelectAsync(this, directory, candidates));
                     allInstalled &= succeeded;
                 }
                 return allInstalled;
@@ -238,6 +240,7 @@ public partial class HomeView : UserControl
         }
         
         repo.AssetRule = _mainViewModel.AppSettings.DefaultAssetRule;
+        repo.DownloadPath = _mainViewModel.AppSettings.GlobalDownloadPath;
 
         await _downloadStatusViewModel.RunAsync(() =>
             UpdateManager.SearchForUpdates(repo, _downloadStatusViewModel.LogStatus));

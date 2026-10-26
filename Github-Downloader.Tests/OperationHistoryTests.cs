@@ -302,7 +302,7 @@ public sealed class OperationHistoryTests : IDisposable
     [InlineData(true, false)]
     public async Task DebianBatchInstallsAllPackagesWithOneAuthorization(bool reinstall, bool installSucceeds)
     {
-        if (!OperatingSystem.IsLinux()) return;
+        if (!InstallationManager.CanInstallDebianPackages) return;
         Repo first = NewRepo("owner/first");
         Repo second = NewRepo("owner/second");
         Repo excluded = NewRepo("owner/excluded");
@@ -345,7 +345,7 @@ public sealed class OperationHistoryTests : IDisposable
     [Fact]
     public async Task DebianBatchInstallsSuccessfulDownloadsEvenWhenAnotherDownloadFails()
     {
-        if (!OperatingSystem.IsLinux()) return;
+        if (!InstallationManager.CanInstallDebianPackages) return;
         Repo failed = NewRepo("owner/failed");
         Repo successful = NewRepo("owner/successful");
         foreach (Repo repo in new[] { failed, successful })

@@ -68,18 +68,20 @@ public class GithubDownloaderService : IGithubDownloaderService
         {
             if (string.IsNullOrEmpty(message)) return;
 
-            const string prefix = "Downloaded: ";
-            if (message.StartsWith(prefix) && message.EndsWith('%'))
+            bool extracting = message.StartsWith("Extracting: ", StringComparison.Ordinal);
+            string prefix = extracting ? "Extracting: " : "Downloaded: ";
+            int percentIndex = message.IndexOf('%');
+            if (message.StartsWith(prefix) && percentIndex >= prefix.Length && (extracting || percentIndex == message.Length - 1))
             {
                 // The library formats this with the current culture (e.g. "45,50" on de-AT), so
                 // parse with the current culture first and fall back to invariant for "45.50".
                 // NumberStyles.Float is used deliberately: Any would treat the decimal comma as a
                 // group separator and parse "45,50" as 4550.
-                string number = message[prefix.Length..^1].Trim();
+                string number = message[prefix.Length..percentIndex].Trim();
                 if (double.TryParse(number, NumberStyles.Float, CultureInfo.CurrentCulture, out double percent)
                     || double.TryParse(number, NumberStyles.Float, CultureInfo.InvariantCulture, out percent))
                 {
-                    _tracker.SetItemPercent(percent);
+                    _tracker.SetItemPercent(percent, extracting ? message : null);
                     return;
                 }
             }

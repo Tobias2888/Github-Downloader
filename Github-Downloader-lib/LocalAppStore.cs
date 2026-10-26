@@ -17,6 +17,11 @@ public sealed class LocalAppStore
     private static readonly JsonSerializerOptions Options = new() { WriteIndented = true };
 
     internal string InstallersPath => Path.Combine(Path.GetDirectoryName(_path)!, "local-installers");
+    internal string AppsPath => Path.Combine(Path.GetDirectoryName(_path)!, "apps");
+
+    internal bool IsManagedAppDirectory(string path) => OperatingSystem.IsLinux()
+        && Path.IsPathFullyQualified(path)
+        && Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(Path.GetFullPath(path))) == AppsPath;
 
     public LocalAppStore(string path)
     {
@@ -146,7 +151,7 @@ public sealed class LocalAppStore
                     ?? throw new JsonException() : [];
                 if (apps.Any(app => app is null || string.IsNullOrWhiteSpace(app.Id) || string.IsNullOrWhiteSpace(app.FileName)
                     || string.IsNullOrWhiteSpace(app.InstallationName) || !Enum.IsDefined(app.Kind)
-                    || app.DebianPackage is null || app.AppImageId is null || app.ExtractionDirectory is null || app.InstallerPath is null || app.OwnedFiles is null || app.InstallerVersions is null
+                    || app.DebianPackage is null || app.ArchPackage is null || app.AppImageId is null || app.ExtractionDirectory is null || app.InstallerPath is null || app.OwnedFiles is null || app.InstallerVersions is null || app.ExecutablePath is null || app.DesktopEntryHash is null
                     || app.InstallerVersions.Any(version => version is null || string.IsNullOrWhiteSpace(version.Path))
                     || app.OwnedFiles.Any(file => string.IsNullOrWhiteSpace(file.Key) || string.IsNullOrWhiteSpace(file.Value))))
                     throw new JsonException();

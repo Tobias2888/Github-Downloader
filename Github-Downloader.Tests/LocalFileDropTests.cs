@@ -7,6 +7,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Github_Downloader.Views;
+using Github_Downloader.Services;
 using Github_Downloader_lib;
 using Xunit;
 
@@ -17,6 +18,55 @@ public sealed class LocalFileDropTests
 {
     private readonly RepositoryDragApplication _application;
     public LocalFileDropTests(RepositoryDragApplication application) => _application = application;
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ArchiveExecutablePickerStartsInExtractionFolderAndRejectsFilesOutsideIt(bool cancel)
+    {
+        string root = Path.Combine(Path.GetTempPath(), "ghd-executable-picker-" + Guid.NewGuid().ToString("N"));
+        string folder = Path.Combine(root, "extracted");
+        Directory.CreateDirectory(folder);
+        string inside = Path.Combine(folder, "application");
+        string outside = Path.Combine(root, "outside");
+        await File.WriteAllTextAsync(inside, "application");
+        await File.WriteAllTextAsync(outside, "outside");
+        try
+        {
+            await _application.Dispatch(async () =>
+            {
+                Window window = new();
+                IStorageProvider provider = DispatchProxy.Create<IStorageProvider, StorageProxy>();
+                StorageProxy proxy = (StorageProxy)(object)provider;
+                int picks = 0;
+                proxy.Handler = (method, args) =>
+                {
+                    if (method.Name == nameof(IStorageProvider.TryGetFolderFromPathAsync))
+                    {
+                        Assert.Equal(folder, Path.TrimEndingDirectorySeparator(((Uri)args![0]!).LocalPath));
+                        return Task.FromResult<IStorageFolder?>(StorageItem<IStorageFolder>(new Uri(folder)));
+                    }
+                    Assert.Equal(nameof(IStorageProvider.OpenFilePickerAsync), method.Name);
+                    FilePickerOpenOptions options = Assert.IsType<FilePickerOpenOptions>(args![0]);
+                    Assert.False(options.AllowMultiple);
+                    Assert.Equal(folder, options.SuggestedStartLocation!.Path.LocalPath);
+                    Assert.Equal(new[] { "*" }, Assert.Single(options.FileTypeFilter!).Patterns);
+                    picks++;
+                    return Task.FromResult<IReadOnlyList<IStorageFile>>(cancel ? []
+                        : [StorageItem<IStorageFile>(new Uri(picks == 1 ? outside : inside))]);
+                };
+                typeof(TopLevel).GetField("_storageProvider", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(window, provider);
+                window.Show();
+                try
+                {
+                    Assert.Equal(cancel ? null : inside, await ArchiveExecutablePicker.SelectAsync(window, folder, []));
+                    Assert.Equal(cancel ? 1 : 2, picks);
+                }
+                finally { window.Close(); }
+            }, CancellationToken.None);
+        }
+        finally { Directory.Delete(root, true); }
+    }
 
     [Fact]
     public async Task FileDragsOverTextInputsShowFeedbackAndRejectUnsupportedFilesAndBusyOperations()
@@ -73,12 +123,13 @@ public sealed class LocalFileDropTests
     [InlineData(true, "sidebar")]
     [InlineData(false, "local-apps")]
     [InlineData(true, "local-apps")]
-    public async Task BrowsedAndDroppedArchivesShareInstallationAndFolderCancellation(bool cancel, string entryPoint)
+    public async Task LinuxArchivesUseManagedFoldersAndOtherPlatformsCanCancelFolderSelection(bool cancel, string entryPoint)
     {
         string root = Path.Combine(Path.GetTempPath(), "ghd-drop-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         LocalAppStore previous = LocalApps.Store;
         LocalApps.Store = new(Path.Combine(root, "local-apps.json"));
+        bool folderCancelled = cancel && !OperatingSystem.IsLinux();
         try
         {
             string[] sources = [Path.Combine(root, "first app.zip"), Path.Combine(root, "second.zip")];
@@ -94,16 +145,24 @@ public sealed class LocalFileDropTests
                 Window window = new() { Content = home, Width = 1120, Height = 750 };
                 IStorageProvider provider = DispatchProxy.Create<IStorageProvider, StorageProxy>();
                 StorageProxy proxy = (StorageProxy)(object)provider;
+                int folderPicks = 0;
                 proxy.Handler = (method, args) =>
                 {
-                    if (entryPoint != "drop" && method.Name == nameof(IStorageProvider.OpenFilePickerAsync))
+                    if (method.Name == nameof(IStorageProvider.TryGetFolderFromPathAsync))
+                        return Task.FromResult<IStorageFolder?>(StorageItem<IStorageFolder>((Uri)args![0]!));
+                    if (method.Name == nameof(IStorageProvider.OpenFilePickerAsync))
                     {
                         FilePickerOpenOptions picker = Assert.IsType<FilePickerOpenOptions>(args![0]);
+                        // Data-only archives prompt for an executable; cancellation keeps the extraction.
+                        if (!picker.AllowMultiple) return Task.FromResult<IReadOnlyList<IStorageFile>>([]);
+                        Assert.NotEqual("drop", entryPoint);
                         Assert.True(picker.AllowMultiple);
                         Assert.Contains("*.zip", Assert.Single(picker.FileTypeFilter!).Patterns!);
                         return Task.FromResult<IReadOnlyList<IStorageFile>>(sources.Select(path => StorageItem<IStorageFile>(new Uri(path))).ToArray());
                     }
                     Assert.Equal(nameof(IStorageProvider.OpenFolderPickerAsync), method.Name);
+                    Assert.False(OperatingSystem.IsLinux());
+                    folderPicks++;
                     FolderPickerOpenOptions options = Assert.IsType<FolderPickerOpenOptions>(args![0]);
                     string source = sources.Single(path => options.Title!.Contains(Path.GetFileName(path)));
                     IStorageFolder folder = StorageItem<IStorageFolder>(new Uri(Path.Combine(root, Path.GetFileNameWithoutExtension(source))));
@@ -128,20 +187,25 @@ public sealed class LocalFileDropTests
                     }
                     // The routed event starts an asynchronous installation; wait for its persisted results.
                     using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(10));
-                    if (!cancel)
+                    if (!folderCancelled)
                     {
                         while (LocalApps.Store.Read().Count < 2 || ((App)Application.Current!).DownloadStatusViewModel.IsUpdating)
                             await Task.Delay(10, timeout.Token);
                         Assert.Equal(1, home.FindControl<TabStrip>("AppTabs")!.SelectedIndex);
                         Assert.Equal(2, home.FindControl<LocalAppsView>("LocalAppsPanel")!.FindControl<ItemsControl>("AppsList")!.ItemCount);
                     }
-                    Assert.Equal(cancel ? 0 : 2, LocalApps.Store.Read().Count);
+                    Assert.Equal(folderCancelled ? 0 : 2, LocalApps.Store.Read().Count);
+                    Assert.Equal(OperatingSystem.IsLinux() ? 0 : cancel ? 1 : 2, folderPicks);
                     foreach (string source in sources)
                     {
                         Assert.True(File.Exists(source));
-                        string extracted = Path.Combine(root, Path.GetFileNameWithoutExtension(source), "application.txt");
-                        Assert.Equal(!cancel, File.Exists(extracted));
-                        if (!cancel) Assert.Equal(Path.GetFileName(source), File.ReadAllText(extracted));
+                        string destination = OperatingSystem.IsLinux()
+                            ? LocalApps.Store.Read().Single(app => app.FileName == Path.GetFileName(source)).ExtractionDirectory
+                            : Path.Combine(root, Path.GetFileNameWithoutExtension(source));
+                        if (OperatingSystem.IsLinux()) Assert.StartsWith(LocalApps.Store.AppsPath + Path.DirectorySeparatorChar, destination);
+                        string extracted = Path.Combine(destination, "application.txt");
+                        Assert.Equal(!folderCancelled, File.Exists(extracted));
+                        if (!folderCancelled) Assert.Equal(Path.GetFileName(source), File.ReadAllText(extracted));
                     }
                 }
                 finally { window.Close(); }

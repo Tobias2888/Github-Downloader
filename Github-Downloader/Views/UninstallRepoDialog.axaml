@@ -13,11 +13,11 @@
         <TextBlock Name="UninstallDetails" TextWrapping="Wrap" Foreground="#DDD"/>
         <TextBlock Name="RepositoryNotice" Text="The repository stays tracked and is excluded from Update All."
                    IsVisible="{Binding CanUninstall}" TextWrapping="Wrap" Foreground="#AAA"/>
-        <StackPanel Name="PackageFields" Spacing="8" IsVisible="{Binding NeedsDebianPackageName}">
-            <TextBlock Text="Installed Debian package name" Foreground="White"/>
+        <StackPanel Name="PackageFields" Spacing="8" IsVisible="{Binding NeedsPackageName}">
+            <TextBlock Text="Installed package name" Foreground="White"/>
             <TextBlock Text="Enter the package name shown in your package manager."
                        TextWrapping="Wrap" FontSize="12" Foreground="#AAA"/>
-            <TextBox Name="PackageName" PlaceholderText="e.g. code or code:amd64" TextChanged="PackageName_OnTextChanged"/>
+            <TextBox Name="PackageName" PlaceholderText="e.g. code" TextChanged="PackageName_OnTextChanged"/>
         </StackPanel>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
             <Button Content="Cancel" Click="Cancel_OnClick" Padding="16,8"/>

@@ -7,6 +7,7 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Github_Downloader_lib;
 using Github_Downloader_lib.Models;
+using Github_Downloader.Services;
 
 namespace Github_Downloader.Views;
 
@@ -40,7 +41,8 @@ public partial class LocalAppsView : UserControl
         App application = (App)Application.Current!;
         if (application.DownloadStatusViewModel.IsUpdating) { application.DownloadStatusViewModel.Show(); return; }
         await application.DownloadStatusViewModel.RunAsync(() => new LocalAppManager().ReinstallAsync(app,
-            application.DownloadStatusViewModel.LogStatus, application.DownloadStatusViewModel.LogProgress), "Reinstall local app");
+            application.DownloadStatusViewModel.LogStatus, application.DownloadStatusViewModel.LogProgress,
+            (directory, candidates) => ArchiveExecutablePicker.SelectAsync(this, directory, candidates)), "Reinstall local app");
         Refresh();
     }
 
@@ -67,7 +69,8 @@ public partial class LocalAppsView : UserControl
         if (version is null) return;
         if (application.DownloadStatusViewModel.IsUpdating) { application.DownloadStatusViewModel.Show(); return; }
         await application.DownloadStatusViewModel.RunAsync(() => new LocalAppManager().InstallVersionAsync(app, version,
-            application.DownloadStatusViewModel.LogStatus, application.DownloadStatusViewModel.LogProgress), "Install saved version");
+            application.DownloadStatusViewModel.LogStatus, application.DownloadStatusViewModel.LogProgress,
+            (directory, candidates) => ArchiveExecutablePicker.SelectAsync(this, directory, candidates)), "Install saved version");
         Refresh();
     }
 

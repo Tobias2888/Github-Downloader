@@ -17,7 +17,9 @@ public static class ArchiveExtractor
     public static IReadOnlyList<string> SupportedExtensions { get; } = Array.AsReadOnly(Extensions);
 
     public static bool IsSupportedArchive(string fileName) =>
-        Extensions.Any(extension => fileName.EndsWith(extension, StringComparison.OrdinalIgnoreCase));
+        // Native packages must reach the installer even when Auto-extract is enabled.
+        !(InstallationManager.CanInstallArchPackages && InstallationManager.IsArchPackageFile(fileName))
+        && Extensions.Any(extension => fileName.EndsWith(extension, StringComparison.OrdinalIgnoreCase));
 
     public static async Task ExtractAsync(string archivePath, string destination, Action<string>? progress = null,
         string? protectedFile = null, Action<string, bool>? fileWritten = null)
@@ -62,11 +64,31 @@ public static class ArchiveExtractor
 
         try
         {
+            int lastPercent = -1;
+            void ReportPercent(double value)
+            {
+                int percent = (int)Math.Clamp(value, 0, 100);
+                if (percent <= lastPercent) return;
+                lastPercent = percent;
+                progress?.Invoke($"Extracting: {percent}%");
+            }
+            ReportPercent(0);
+            using FileStream source = File.OpenRead(archivePath);
+            long totalUncompressed = 0;
+            long completedBytes = 0;
+            ReaderOptions readerOptions = new()
+            {
+                LeaveStreamOpen = true,
+                Progress = new InlineExtractionProgress(report => ReportPercent(totalUncompressed > 0
+                    ? 90.0 * (completedBytes + report.BytesTransferred) / totalUncompressed
+                    : source.Length > 0 ? 90.0 * source.Position / source.Length : 0))
+            };
             // 7z needs the seekable archive API; the reader API unwraps compressed TARs.
             using IArchive? archive = archivePath.EndsWith(".7z", StringComparison.OrdinalIgnoreCase)
-                ? ArchiveFactory.OpenArchive(archivePath)
+                ? ArchiveFactory.OpenArchive(source, readerOptions)
                 : null;
-            using IReader reader = archive?.ExtractAllEntries() ?? ReaderFactory.OpenReader(archivePath);
+            totalUncompressed = archive?.TotalUncompressedSize ?? 0;
+            using IReader reader = archive?.ExtractAllEntries() ?? ReaderFactory.OpenReader(source, readerOptions);
             ExtractionOptions options = new()
             {
                 Overwrite = true,
@@ -92,11 +114,12 @@ public static class ArchiveExtractor
                 }
 
                 Directory.CreateDirectory(Path.GetDirectoryName(output)!);
-                progress?.Invoke("Extracting archive entry");
                 reader.WriteEntryToFile(output, options);
+                if (totalUncompressed > 0) completedBytes += entry.Size;
                 if (!OperatingSystem.IsWindows() && entry is SharpCompress.Common.Tar.TarEntry tarEntry)
                     File.SetUnixFileMode(output, (UnixFileMode)(tarEntry.Mode & 0x1FF));
             }
+            ReportPercent(90);
 
             // Validate all destinations before merging. Keep unrelated files, such as user settings.
             string[] directories = Directory.GetDirectories(staging, "*", SearchOption.AllDirectories);
@@ -120,13 +143,16 @@ public static class ArchiveExtractor
             Directory.CreateDirectory(destination);
             foreach (string directory in directories)
                 Directory.CreateDirectory(GetEntryPath(destination, Path.GetRelativePath(staging, directory)));
+            int movedFiles = 0;
             foreach (string file in files)
             {
                 string target = GetEntryPath(destination, Path.GetRelativePath(staging, file));
                 bool existed = File.Exists(target);
                 File.Move(file, target, overwrite: true);
                 fileWritten?.Invoke(target, existed);
+                ReportPercent(90.0 + 9.0 * ++movedFiles / files.Length);
             }
+            ReportPercent(100);
         }
         finally
         {
@@ -134,6 +160,11 @@ public static class ArchiveExtractor
                 File.SetAttributes(file, FileAttributes.Normal);
             Directory.Delete(staging, recursive: true);
         }
+    }
+
+    private sealed class InlineExtractionProgress(Action<ProgressReport> report) : IProgress<ProgressReport>
+    {
+        public void Report(ProgressReport value) => report(value);
     }
 
     internal static string GetEntryPath(string root, string key)

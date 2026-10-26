@@ -8,15 +8,23 @@ namespace Github_Downloader_lib;
 public static class LocalFileInstaller
 {
     public static IReadOnlyList<string> SupportedExtensions { get; } = Array.AsReadOnly(
-        new[] { ".exe", ".msi" }.Concat(OperatingSystem.IsLinux() ? new[] { ".deb", ".appimage" } : [])
+        new[] { ".exe", ".msi" }.Concat(OperatingSystem.IsLinux() ? new[] { ".appimage" } : [])
+            .Concat(InstallationManager.CanInstallDebianPackages ? new[] { ".deb" } : [])
+            .Concat(InstallationManager.CanInstallArchPackages ? new[] { ".pkg.tar.zst", ".pacman" } : [])
             .Concat(ArchiveExtractor.SupportedExtensions).ToArray());
 
     public static Task<bool> InstallAsync(string path, Action<string> status, Action<string> progress,
         string? extractionDirectory = null) =>
         InstallAsync(path, status, progress, extractionDirectory, null, FileManager.CachePath, LocalInstallerRetention.LoadLimit());
 
+    public static Task<bool> InstallAsync(string path, Action<string> status, Action<string> progress,
+        string? extractionDirectory, Func<string, IReadOnlyList<string>, Task<string?>> selectExecutable) =>
+        InstallAsync(path, status, progress, extractionDirectory, null, FileManager.CachePath,
+            LocalInstallerRetention.LoadLimit(), selectExecutable);
+
     internal static async Task<bool> InstallAsync(string path, Action<string> status, Action<string> progress,
-        string? extractionDirectory, Func<UpdateManager.Asset, Task<bool>>? installer, string cachePath, int? versionsToKeep = LocalInstallerRetention.DefaultVersionsToKeep)
+        string? extractionDirectory, Func<UpdateManager.Asset, Task<bool>>? installer, string cachePath, int? versionsToKeep = LocalInstallerRetention.DefaultVersionsToKeep,
+        Func<string, IReadOnlyList<string>, Task<string?>>? selectExecutable = null, ArchiveAppLauncher? launcher = null)
     {
         if (versionsToKeep < 0) throw new ArgumentOutOfRangeException(nameof(versionsToKeep));
         string source = Path.GetFullPath(path);
@@ -24,16 +32,26 @@ public static class LocalFileInstaller
         bool archive = ArchiveExtractor.IsSupportedArchive(source);
         if (!archive && !UpdateManager.IsInstallerAsset(source))
             throw new ArgumentException("Choose a supported installer or archive for this operating system.");
-        if (archive && string.IsNullOrWhiteSpace(extractionDirectory))
-            throw new ArgumentException("Choose an extraction folder for this archive.");
-        string? destination = archive ? Path.GetFullPath(extractionDirectory!) : null;
         string filename = Path.GetFileName(source);
         // A separate namespace and filename hash avoid collisions with tracked repositories.
         string name = Regex.Replace(Path.GetFileNameWithoutExtension(filename), "[^A-Za-z0-9_.-]", "-");
         name = name[..Math.Min(64, name.Length)];
         string hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(filename)))[..12].ToLowerInvariant();
+        if (archive && string.IsNullOrWhiteSpace(extractionDirectory))
+        {
+            if (!OperatingSystem.IsLinux()) throw new ArgumentException("Choose an extraction folder for this archive.");
+            string managedPath = Path.Combine(LocalApps.Store.AppsPath, $"{name}-{hash}");
+            extractionDirectory = managedPath;
+            IReadOnlyList<LocalApp> apps = LocalApps.Store.Read();
+            // Reuse tracked installations, but never merge into an unrelated directory.
+            for (int copy = 2; File.Exists(extractionDirectory) || Directory.Exists(extractionDirectory)
+                && !apps.Any(app => app.Kind == LocalAppKind.Archive && app.ExtractionDirectory == extractionDirectory); copy++)
+                extractionDirectory = managedPath + "-" + copy;
+        }
+        string? destination = archive ? Path.GetFullPath(extractionDirectory!) : null;
         Repo local = new() { Url = "", Name = $"local/{name}-{hash}", AutoExtract = archive };
         LocalAppKind kind = archive ? LocalAppKind.Archive
+            : InstallationManager.IsArchPackageFile(source) ? LocalAppKind.Arch
             : Path.GetExtension(source).Equals(".deb", StringComparison.OrdinalIgnoreCase) ? LocalAppKind.Debian
             : Path.GetExtension(source).Equals(".appimage", StringComparison.OrdinalIgnoreCase) ? LocalAppKind.AppImage
             : LocalAppKind.Executable;
@@ -44,8 +62,10 @@ public static class LocalFileInstaller
         string id = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identity)));
         LocalApp? previous = LocalApps.Store.Read().FirstOrDefault(app => app.Id == id);
         Dictionary<string, string> owned = previous is null ? new() : new(previous.OwnedFiles);
+        List<string> extracted = [];
         void FileWritten(string file, bool existed)
         {
+            extracted.Add(file);
             string relative = Path.GetRelativePath(destination!, file);
             if (!existed || owned.ContainsKey(relative)) owned[relative] = LocalAppManager.FileHash(file);
         }
@@ -77,14 +97,29 @@ public static class LocalFileInstaller
             if (!success) return false;
             // Package identity stays stable when a Debian installer filename changes between versions.
             if (kind == LocalAppKind.Debian && local.InstalledDebianPackage.Length > 0) id = "deb:" + local.InstalledDebianPackage;
-            store.SaveInstallation(new()
+            if (kind == LocalAppKind.Arch && local.InstalledArchPackage.Length > 0) id = "arch:" + local.InstalledArchPackage;
+            LocalApp installedApp = new()
             {
                 Id = id, FileName = filename, InstallationName = local.Name, Kind = kind,
-                InstalledAt = DateTimeOffset.UtcNow, DebianPackage = local.InstalledDebianPackage,
+                InstalledAt = DateTimeOffset.UtcNow, DebianPackage = local.InstalledDebianPackage, ArchPackage = local.InstalledArchPackage,
                 AppImageId = local.InstalledAppImageId, ExtractionDirectory = destination ?? "", OwnedFiles = owned,
                 InstallerPath = keepInstaller ? savedPath : ""
-            }, versionsToKeep);
+            };
+            if (archive)
+                installedApp = installedApp with
+                {
+                    ExecutablePath = previous?.ExecutablePath ?? "", DesktopEntryHash = previous?.DesktopEntryHash ?? ""
+                };
+            // Keep extracted files tracked even if selecting or creating a launcher fails.
+            store.SaveInstallation(installedApp, versionsToKeep);
             saved = true;
+            if (archive)
+            {
+                LocalApp stored = store.Read().Single(app => app.Id == id);
+                LocalApp configured = await (launcher ?? new ArchiveAppLauncher()).ConfigureAsync(
+                    stored, previous, extracted, selectExecutable, progress);
+                store.Save(configured);
+            }
             return true;
         }
         finally

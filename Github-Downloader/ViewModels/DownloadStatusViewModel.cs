@@ -189,16 +189,24 @@ public class DownloadStatusViewModel : ViewModelBase
     {
         if (string.IsNullOrEmpty(message)) return;
 
-        const string prefix = "Downloaded: ";
-        if (message.StartsWith(prefix) && message.EndsWith('%'))
+        bool extracting = message.StartsWith("Extracting: ", StringComparison.Ordinal);
+        string prefix = extracting ? "Extracting: " : "Downloaded: ";
+        int percentIndex = message.IndexOf('%');
+        if (message.StartsWith(prefix) && percentIndex >= prefix.Length && (extracting || percentIndex == message.Length - 1))
         {
             // The library formats this with the current culture (e.g. "45,50" on de-AT), so
             // parse with the current culture first and fall back to invariant for "45.50".
-            string number = message[prefix.Length..^1].Trim();
+            string number = message[prefix.Length..percentIndex].Trim();
             if (double.TryParse(number, NumberStyles.Float, CultureInfo.CurrentCulture, out double percent)
                 || double.TryParse(number, NumberStyles.Float, CultureInfo.InvariantCulture, out percent))
             {
-                Percent = percent;
+                void UpdateProgress()
+                {
+                    Percent = percent;
+                    ProgressText = message;
+                }
+                if (Dispatcher.UIThread.CheckAccess()) UpdateProgress();
+                else Dispatcher.UIThread.Post(UpdateProgress);
                 return;
             }
         }

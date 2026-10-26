@@ -96,6 +96,7 @@ public sealed class DesktopStartupTests
                 Assert.True(await activation.ActivateAsync(TimeSpan.FromSeconds(5)));
                 await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
                 Assert.True(app.MainWindow!.IsVisible);
+                Assert.NotNull(app.MainWindow.Icon);
                 app.MainWindow.UpdateLayout();
                 HomeView home = Assert.Single(app.MainWindow.GetVisualDescendants().OfType<HomeView>());
                 Assert.Same(cachedRepositories, home.FindControl<ItemsControl>("RepoList")!.ItemsSource);

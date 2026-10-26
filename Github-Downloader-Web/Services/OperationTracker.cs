@@ -82,9 +82,17 @@ public sealed class OperationTracker
         }
     }
 
-    public void SetItemPercent(double percent)
+    public void SetItemPercent(double percent, string? status = null)
     {
-        lock (_lock) _itemPercent = Math.Clamp(percent, 0, 100);
+        lock (_lock)
+        {
+            _itemPercent = Math.Clamp(percent, 0, 100);
+            if (status is not null)
+            {
+                _status = status;
+                _transfer = null;
+            }
+        }
     }
 
     public void Finish(bool success, string? error = null)

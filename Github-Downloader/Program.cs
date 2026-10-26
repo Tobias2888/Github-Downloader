@@ -45,6 +45,7 @@ class Program
             .With(new X11PlatformOptions()
             {
                 UseDBusMenu = false,
+                WmClass = "github-downloader",
             })
             .WithInterFont()
             .LogToTrace();

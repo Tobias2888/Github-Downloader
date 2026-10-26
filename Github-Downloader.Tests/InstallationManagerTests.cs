@@ -94,7 +94,7 @@ public sealed class InstallationManagerTests : IDisposable
     [Fact]
     public async Task OlderDebianInstallationsRequireAnExplicitPackageName()
     {
-        if (!OperatingSystem.IsLinux()) return;
+        if (!InstallationManager.CanInstallDebianPackages) return;
         Repo repo = NewRepo();
         repo.AssetNames = ["unknown-name.deb"];
         List<ProcessStartInfo> commands = [];

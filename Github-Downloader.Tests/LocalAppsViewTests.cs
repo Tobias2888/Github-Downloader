@@ -20,6 +20,45 @@ public sealed class LocalAppsViewTests
     private readonly RepositoryDragApplication _application;
     public LocalAppsViewTests(RepositoryDragApplication application) => _application = application;
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task LegacyArchUninstallDialogRequiresAValidPackageName(bool local)
+    {
+        if (!InstallationManager.CanInstallArchPackages) return;
+        await _application.Dispatch(() =>
+        {
+            Repo repo = new() { Url = "", Name = "owner/arch", CurrentInstallTag = "v1" };
+            repo.ReplaceAssets(["app.pkg.tar.zst"], ["https://example.invalid/package"]);
+            repo.DownloadAssetIndex = 0;
+            LocalApp app = new()
+            {
+                Id = "legacy-arch", FileName = "app.pkg.tar.zst", InstallationName = "local/arch", Kind = LocalAppKind.Arch
+            };
+            UninstallRepoDialog dialog = local ? new(app) : new(repo);
+            dialog.Show();
+            try
+            {
+                dialog.UpdateLayout();
+                Assert.True(dialog.FindControl<StackPanel>("PackageFields")!.IsVisible);
+                Button confirm = dialog.FindControl<Button>("ConfirmUninstall")!;
+                TextBox package = dialog.FindControl<TextBox>("PackageName")!;
+                Assert.False(confirm.IsEnabled);
+                package.Text = "--all";
+                Dispatcher.UIThread.RunJobs();
+                Assert.False(confirm.IsEnabled);
+                package.Text = "actual-package";
+                Dispatcher.UIThread.RunJobs();
+                Assert.True(confirm.IsEnabled);
+                package.Text = "";
+                Dispatcher.UIThread.RunJobs();
+                Assert.False(confirm.IsEnabled);
+            }
+            finally { dialog.Close(); }
+            return Task.CompletedTask;
+        }, CancellationToken.None);
+    }
+
     [Fact]
     public async Task SavedVersionPickerCancelsWithoutChangesAndInstallsTheChosenArchive()
     {

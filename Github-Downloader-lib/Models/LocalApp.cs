@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 namespace Github_Downloader_lib.Models;
 
 [JsonConverter(typeof(JsonStringEnumConverter<LocalAppKind>))]
-public enum LocalAppKind { Debian, AppImage, Archive, Executable }
+public enum LocalAppKind { Debian, AppImage, Archive, Executable, Arch }
 
 public sealed record LocalInstallerVersion(string Path, DateTimeOffset SavedAt)
 {
@@ -20,9 +20,12 @@ public sealed record LocalApp
     public DateTimeOffset InstalledAt { get; init; }
     public bool IsInstalled { get; init; } = true;
     public string DebianPackage { get; init; } = "";
+    public string ArchPackage { get; init; } = "";
     public string AppImageId { get; init; } = "";
     public string ExtractionDirectory { get; init; } = "";
     public string InstallerPath { get; init; } = "";
+    public string ExecutablePath { get; init; } = "";
+    public string DesktopEntryHash { get; init; } = "";
     public List<LocalInstallerVersion> InstallerVersions { get; init; } = new();
     public Dictionary<string, string> OwnedFiles { get; init; } = new();
     [JsonIgnore] public string Name => Path.GetFileNameWithoutExtension(FileName);
@@ -35,19 +38,22 @@ public sealed record LocalApp
     [JsonIgnore] public string Type => Kind switch
     {
         LocalAppKind.Debian => "Debian package",
+        LocalAppKind.Arch => "Arch package",
         LocalAppKind.AppImage => "AppImage",
         LocalAppKind.Archive => "Extracted archive",
         _ => "Executable installer"
     };
     [JsonIgnore] public string Status => IsInstalled ? "Installed" : "Uninstalled";
-    [JsonIgnore] public bool CanUninstall => IsInstalled && (Kind == LocalAppKind.Archive
-        || OperatingSystem.IsLinux() && Kind is LocalAppKind.Debian or LocalAppKind.AppImage);
+    [JsonIgnore] public bool CanUninstall => Kind == LocalAppKind.Archive
+        && LocalApps.Store.IsManagedAppDirectory(ExtractionDirectory) && Directory.Exists(ExtractionDirectory)
+        || IsInstalled && (Kind == LocalAppKind.Archive
+        || OperatingSystem.IsLinux() && Kind is LocalAppKind.Debian or LocalAppKind.AppImage or LocalAppKind.Arch);
     [JsonIgnore] public bool UseSystemUninstaller => IsInstalled && Kind == LocalAppKind.Executable && OperatingSystem.IsWindows();
 
     public Repo ToRepo() => new()
     {
         Url = "", Name = InstallationName, CurrentInstallTag = "local",
-        InstalledDebianPackage = DebianPackage, InstalledAppImageId = AppImageId,
+        InstalledDebianPackage = DebianPackage, InstalledArchPackage = ArchPackage, InstalledAppImageId = AppImageId,
         AssetNames = [FileName], AssetName = FileName
     };
 }

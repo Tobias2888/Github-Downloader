@@ -91,7 +91,7 @@ public sealed class LocalInstallerRetentionTests : IDisposable
     [Fact]
     public async Task DebianVersionsWithDifferentFilenamesShareThePackageRetentionLimit()
     {
-        if (!OperatingSystem.IsLinux()) return;
+        if (!InstallationManager.CanInstallDebianPackages) return;
         string? first = null;
         for (int version = 1; version <= 2; version++)
         {

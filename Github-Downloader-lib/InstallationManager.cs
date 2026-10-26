@@ -9,6 +9,16 @@ namespace Github_Downloader_lib;
 
 public sealed class InstallationManager
 {
+    internal const string DebianInstallerPath = "/usr/bin/apt-get";
+    internal const string ArchInstallerPath = "/usr/bin/pacman";
+
+    public static bool CanInstallDebianPackages => OperatingSystem.IsLinux() && File.Exists(DebianInstallerPath);
+
+    public static bool CanInstallArchPackages => OperatingSystem.IsLinux() && File.Exists(ArchInstallerPath);
+
+    public static bool IsArchPackageFile(string name) => name.EndsWith(".pkg.tar.zst", StringComparison.OrdinalIgnoreCase)
+        || name.EndsWith(".pacman", StringComparison.OrdinalIgnoreCase);
+
     private readonly string _appImagesDirectory;
     private readonly string _desktopDirectory;
     private readonly Func<ProcessStartInfo, Action<string>, Task<CommandResult>> _run;
@@ -28,6 +38,23 @@ public sealed class InstallationManager
 
     public static bool IsValidDebianPackageName(string? name) => name is not null
         && Regex.IsMatch(name, @"\A[a-z0-9][a-z0-9+.-]+(?::[a-z0-9][a-z0-9-]*)?\z");
+
+    public static bool IsValidArchPackageName(string? name) => name is not null
+        && Regex.IsMatch(name, @"\A[a-z0-9@_+][a-z0-9@_+.-]*\z");
+
+    public async Task<string> ReadArchPackageNameAsync(string path)
+    {
+        Logger.LogI("Arch package metadata read started");
+        ProcessStartInfo start = CreateStartInfo(ArchInstallerPath);
+        foreach (string argument in new[] { "-Qp", "--quiet", "--", Path.GetFullPath(path) })
+            start.ArgumentList.Add(argument);
+        CommandResult result = await _run(start, _ => { });
+        if (result.ExitCode != 0) throw new InvalidOperationException("Could not read the Arch package metadata.");
+        string package = result.Output.Trim();
+        if (!IsValidArchPackageName(package)) throw new InvalidOperationException("The Arch package name is invalid.");
+        Logger.LogI("Arch package metadata read completed");
+        return package;
+    }
 
     public static string GetAppImageId(Repo repo)
     {
@@ -91,8 +118,13 @@ public sealed class InstallationManager
             if ((repo.NeedsDebianPackageName || package.Length > 0) && !IsValidDebianPackageName(package))
                 throw new InvalidOperationException("Enter the installed Debian package name.");
 
+            string archPackage = repo.InstalledArchPackage;
+            if (repo.NeedsArchPackageName) archPackage = legacyDebianPackage?.Trim() ?? string.Empty;
+            if ((repo.NeedsArchPackageName || archPackage.Length > 0) && !IsValidArchPackageName(archPackage))
+                throw new InvalidOperationException("Enter the installed Arch package name.");
+
             string appImageId = repo.InstalledAppImageId;
-            if (appImageId.Length == 0 && repo.InstalledDebianPackage.Length == 0
+            if (appImageId.Length == 0 && repo.InstalledDebianPackage.Length == 0 && archPackage.Length == 0
                 && Path.GetExtension(repo.SelectedAssetName).Equals(".appimage", StringComparison.OrdinalIgnoreCase))
                 appImageId = GetAppImageId(repo);
             if (appImageId.Length > 0) ValidateAppImageInstallation(appImageId);
@@ -114,6 +146,22 @@ public sealed class InstallationManager
                 }
                 Logger.LogI("Debian package removed");
                 repo.InstalledDebianPackage = string.Empty;
+            }
+
+            if (archPackage.Length > 0)
+            {
+                Logger.LogI("Removing Arch package");
+                progress("Removing Arch package");
+                CommandResult result = await _run(CreateArchRemovalStartInfo(archPackage), _ => { });
+                if (result.ExitCode != 0)
+                {
+                    Logger.LogE($"Arch package removal failed (exit code {result.ExitCode})");
+                    progress($"Uninstall failed (exit code {result.ExitCode}). Check authorization and package dependencies.");
+                    history.Finish(HistoryStatus.Failed, HistoryOutcome.UninstallFailed);
+                    return false;
+                }
+                repo.InstalledArchPackage = string.Empty;
+                Logger.LogI("Arch package removed");
             }
 
             if (appImageId.Length > 0)
@@ -154,14 +202,31 @@ public sealed class InstallationManager
             actions.Add($"Removes the Debian package {target}.");
         }
 
+        if (repo.InstalledArchPackage.Length > 0 || repo.NeedsArchPackageName)
+        {
+            string package = repo.NeedsArchPackageName
+                ? legacyDebianPackage?.Trim() ?? string.Empty : repo.InstalledArchPackage;
+            string target = package.Length > 0 ? $"'{package}'" : "named below";
+            actions.Add($"Removes the Arch package {target}.");
+        }
+
         bool hasAppImage = repo.InstalledAppImageId.Length > 0
-            || repo.InstalledDebianPackage.Length == 0
+            || repo.InstalledDebianPackage.Length == 0 && repo.InstalledArchPackage.Length == 0
             && Path.GetExtension(repo.SelectedAssetName).Equals(".appimage", StringComparison.OrdinalIgnoreCase);
         if (hasAppImage)
             actions.Add("Removes the AppImage and its application-menu entry.");
 
         actions.Add("Your settings and saved downloads are kept.");
         return string.Join(" ", actions);
+    }
+
+    internal static ProcessStartInfo CreateArchRemovalStartInfo(string package)
+    {
+        if (!IsValidArchPackageName(package)) throw new ArgumentException("Invalid Arch package name.", nameof(package));
+        ProcessStartInfo start = UpdateManager.CreatePackageInstallStartInfo(ArchInstallerPath);
+        foreach (string argument in new[] { "-R", "--noconfirm", "--", package })
+            start.ArgumentList.Add(argument);
+        return start;
     }
 
     internal static ProcessStartInfo CreateDebianRemovalStartInfo(string package)

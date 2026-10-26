@@ -114,7 +114,42 @@ public sealed class ArchiveExtractorTests : IDisposable
         Assert.False(File.Exists(archive));
         Assert.False(File.Exists(Path.Combine(repo.DownloadPath, Path.GetFileName(archive))));
         Assert.NotEmpty(progress);
+        int[] percentages = progress.Select(message => int.Parse(message["Extracting: ".Length..message.IndexOf('%')])).ToArray();
+        Assert.Equal(0, percentages[0]);
+        Assert.Equal(100, percentages[^1]);
+        Assert.Equal(percentages.Order().ToArray(), percentages);
         AssertNoStagingDirectories();
+    }
+
+    [Fact]
+    public async Task ExtractionReportsBoundedProgressAndCompletesOnlyAfterFilesAreInstalled()
+    {
+        string archive = CreateZip(Enumerable.Range(0, 250).Select(index => ($"file-{index}.txt", Payload)).ToArray());
+        string destination = Path.Combine(_root, "extracted");
+        List<string> progress = [];
+        int written = 0;
+        await ArchiveExtractor.ExtractAsync(archive, destination, message =>
+        {
+            progress.Add(message);
+            if (message.StartsWith("Extracting: 100%")) Assert.Equal(250, written);
+        }, fileWritten: (_, _) => written++);
+        Assert.Equal(250, written);
+        Assert.InRange(progress.Count, 3, 101);
+        Assert.Equal("Extracting: 100%", progress[^1]);
+        Assert.DoesNotContain("Extracting archive entry", progress);
+    }
+
+    [Fact]
+    public async Task LargeFilesReportProgressDuringDecompression()
+    {
+        byte[] bytes = new byte[2_000_000];
+        new Random(42).NextBytes(bytes);
+        string archive = CreateZip(("large.txt", Convert.ToBase64String(bytes)));
+        List<int> progress = [];
+        await ArchiveExtractor.ExtractAsync(archive, Path.Combine(_root, "extracted"),
+            message => progress.Add(int.Parse(message["Extracting: ".Length..message.IndexOf('%')])));
+        Assert.Contains(progress, percent => percent > 0 && percent < 90);
+        Assert.InRange(progress.Count, 4, 110);
     }
 
     [Fact]

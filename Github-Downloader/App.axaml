@@ -8,6 +8,9 @@
              
     <Application.Styles>
         <FluentTheme />
+        <Style Selector="Window">
+            <Setter Property="Icon" Value="avares://Github-Downloader/resources/icon.png" />
+        </Style>
     </Application.Styles>
              
              <Application.DataTemplates>

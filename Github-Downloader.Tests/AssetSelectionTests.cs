@@ -359,7 +359,7 @@ public sealed class AssetSelectionTests
         await _application.Dispatch(async () =>
         {
             Repo repo = NewRepo();
-            repo.ReplaceAssets(["app.deb", "app.zip", "app.msi", "app.AppImage"], ["deb", "zip", "msi", "appimage"]);
+            repo.ReplaceAssets(["app.deb", "app.zip", "app.msi", "app.AppImage", "app.pkg.tar.zst"], ["deb", "zip", "msi", "appimage", "arch"]);
             repo.DownloadAssetIndex = 0;
             repo.AutoExtract = true;
             repo.NewFileName = "custom-name";
@@ -378,9 +378,9 @@ public sealed class AssetSelectionTests
                 StackPanel downloadPath = details.FindControl<StackPanel>("StpDownloadPath")!;
                 TextBox rename = details.FindControl<TextBox>("TbxRenameFile")!;
                 ComboBox selection = details.FindControl<ComboBox>("CobAsset")!;
-                Assert.True(saveRow.IsVisible);
-                Assert.False(extract.IsEffectivelyVisible);
-                Assert.Equal(!RuntimeInformation.IsOSPlatform(OSPlatform.Linux), downloadPath.IsVisible);
+                Assert.Equal(InstallationManager.CanInstallDebianPackages, saveRow.IsVisible);
+                Assert.Equal(!InstallationManager.CanInstallDebianPackages, extract.IsEffectivelyVisible);
+                Assert.Equal(!InstallationManager.CanInstallDebianPackages, downloadPath.IsVisible);
 
                 save.IsChecked = true;
                 Assert.True(repo.SaveFileAnyway);
@@ -388,7 +388,7 @@ public sealed class AssetSelectionTests
                 Assert.True(downloadPath.IsVisible);
                 Assert.True(rename.IsEffectivelyVisible);
                 save.IsChecked = false;
-                Assert.False(extract.IsEffectivelyVisible);
+                Assert.Equal(!InstallationManager.CanInstallDebianPackages, extract.IsEffectivelyVisible);
 
                 selection.SelectedIndex = 1;
                 Assert.False(saveRow.IsVisible);
@@ -402,13 +402,19 @@ public sealed class AssetSelectionTests
                 selection.SelectedIndex = 3;
                 Assert.Equal(!RuntimeInformation.IsOSPlatform(OSPlatform.Linux), downloadPath.IsVisible);
 
+                selection.SelectedIndex = 4;
+                Assert.Equal(InstallationManager.CanInstallArchPackages, saveRow.IsVisible);
+                Assert.Equal(!InstallationManager.CanInstallArchPackages, downloadPath.IsVisible);
+                Assert.Equal(!InstallationManager.CanInstallArchPackages, extract.IsEffectivelyVisible);
+
                 repo.AssetRule = "*.zip";
                 Assert.False(saveRow.IsVisible);
                 Assert.True(extract.IsEffectivelyVisible);
                 Assert.True(downloadPath.IsVisible);
                 repo.AssetRule = "*.deb";
-                Assert.True(saveRow.IsVisible);
-                Assert.False(extract.IsEffectivelyVisible);
+                Assert.Equal(InstallationManager.CanInstallDebianPackages, saveRow.IsVisible);
+                Assert.Equal(!InstallationManager.CanInstallDebianPackages, extract.IsEffectivelyVisible);
+                Assert.Equal(!InstallationManager.CanInstallDebianPackages, downloadPath.IsVisible);
                 repo.SaveFileAnyway = true;
                 Assert.True(save.IsChecked);
                 Assert.True(extract.IsEffectivelyVisible);

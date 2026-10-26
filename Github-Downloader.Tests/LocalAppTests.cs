@@ -56,7 +56,7 @@ public sealed class LocalAppTests : IDisposable
     [Fact]
     public async Task DebianInstallationPersistsExactPackageAcrossRestartAndReinstall()
     {
-        if (!OperatingSystem.IsLinux()) return;
+        if (!InstallationManager.CanInstallDebianPackages) return;
         foreach (string filename in new[] { "app-v1.deb", "app-v2.deb" })
         {
             string source = Path.Combine(_root, filename);

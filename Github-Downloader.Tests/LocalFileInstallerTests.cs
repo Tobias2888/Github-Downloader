@@ -28,7 +28,8 @@ public sealed class LocalFileInstallerTests : IDisposable
     [InlineData(".msi", false)]
     public async Task LocalInstallersUseStagedCopiesAndRecordTheActualInstallerResult(string extension, bool success)
     {
-        if (!OperatingSystem.IsLinux() && extension is ".deb" or ".AppImage") return;
+        if (extension == ".deb" && !InstallationManager.CanInstallDebianPackages) return;
+        if (extension == ".AppImage" && !OperatingSystem.IsLinux()) return;
         string source = Path.Combine(_root, "my installer 'quoted'" + extension);
         await File.WriteAllTextAsync(source, "original installer");
         Repo? installed = null;
@@ -88,7 +89,7 @@ public sealed class LocalFileInstallerTests : IDisposable
     public async Task SameNamedInstallersKeepSeparateReadableCopies()
     {
         string source = Path.Combine(_root, "example.deb");
-        if (!OperatingSystem.IsLinux()) source = Path.Combine(_root, "example.exe");
+        if (!InstallationManager.CanInstallDebianPackages) source = Path.Combine(_root, "example.exe");
         await File.WriteAllTextAsync(source, "first version");
         Assert.True(await LocalFileInstaller.InstallAsync(source, _ => { }, _ => { }, null,
             _ => Task.FromResult(true), Cache));
@@ -135,13 +136,43 @@ public sealed class LocalFileInstallerTests : IDisposable
     }
 
     [Fact]
-    public async Task UnsupportedFilesAndArchivesWithoutADestinationAreRejectedBeforeInstallation()
+    public async Task LinuxArchivesUseManagedAppFoldersAndReuseTheirInstallation()
+    {
+        if (!OperatingSystem.IsLinux()) return;
+        string source = CreateArchive("managed.zip", "file.txt");
+        Assert.True(await LocalFileInstaller.InstallAsync(source, _ => { }, _ => { }, null, null, Cache));
+        LocalApp first = Assert.Single(LocalApps.Store.Read());
+        Assert.StartsWith(LocalApps.Store.AppsPath + Path.DirectorySeparatorChar, first.ExtractionDirectory);
+        Assert.Equal("archive content", await File.ReadAllTextAsync(Path.Combine(first.ExtractionDirectory, "file.txt")));
+        Assert.True(await LocalFileInstaller.InstallAsync(source, _ => { }, _ => { }, null, null, Cache));
+        LocalApp reinstalled = Assert.Single(LocalApps.Store.Read());
+        Assert.Equal(first.ExtractionDirectory, reinstalled.ExtractionDirectory);
+        Assert.Equal(first.Id, reinstalled.Id);
+        Assert.True(File.Exists(source));
+        string otherSource = CreateArchive("other.zip", "file.txt");
+        Assert.True(await LocalFileInstaller.InstallAsync(otherSource, _ => { }, _ => { }, null, null, Cache));
+        Assert.Equal(2, LocalApps.Store.Read().Count);
+        Assert.Equal(2, LocalApps.Store.Read().Select(app => app.ExtractionDirectory).Distinct().Count());
+        LocalApps.Store.Remove(first.Id);
+        string unmanaged = Path.Combine(first.ExtractionDirectory, "file.txt");
+        await File.WriteAllTextAsync(unmanaged, "keep unmanaged files");
+        Assert.True(await LocalFileInstaller.InstallAsync(source, _ => { }, _ => { }, null, null, Cache));
+        LocalApp fresh = Assert.Single(LocalApps.Store.Read(), app => app.FileName == first.FileName);
+        Assert.NotEqual(first.ExtractionDirectory, fresh.ExtractionDirectory);
+        Assert.Equal("keep unmanaged files", await File.ReadAllTextAsync(unmanaged));
+    }
+
+    [Fact]
+    public async Task UnsupportedFilesAndMissingSourcesAreRejectedBeforeInstallation()
     {
         string source = Path.Combine(_root, "file.txt");
         await File.WriteAllTextAsync(source, "keep");
         await Assert.ThrowsAsync<ArgumentException>(() => LocalFileInstaller.InstallAsync(source, _ => { }, _ => { }, null, null, Cache));
-        string archive = CreateArchive("archive.zip", "file.txt");
-        await Assert.ThrowsAsync<ArgumentException>(() => LocalFileInstaller.InstallAsync(archive, _ => { }, _ => { }, null, null, Cache));
+        if (!OperatingSystem.IsLinux())
+        {
+            string archive = CreateArchive("archive.zip", "file.txt");
+            await Assert.ThrowsAsync<ArgumentException>(() => LocalFileInstaller.InstallAsync(archive, _ => { }, _ => { }, null, null, Cache));
+        }
         await Assert.ThrowsAsync<FileNotFoundException>(() => LocalFileInstaller.InstallAsync(Path.Combine(_root, "missing.exe"), _ => { }, _ => { }, null, null, Cache));
         Assert.Empty(OperationHistory.Store.Query().Entries);
         Assert.False(Directory.Exists(Cache));

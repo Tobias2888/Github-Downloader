@@ -53,7 +53,8 @@ public partial class UninstallRepoDialog : Window
         else if (_repo is not null)
             UninstallDetails.Text = _installations.GetUninstallDescription(_repo, PackageName.Text);
         ConfirmUninstall.IsEnabled = _removeOnly || _repo is not null && (_localApp?.CanUninstall ?? _repo.CanUninstall)
-            && (!_repo.NeedsDebianPackageName || InstallationManager.IsValidDebianPackageName(PackageName.Text?.Trim()));
+            && (!_repo.NeedsDebianPackageName || InstallationManager.IsValidDebianPackageName(PackageName.Text?.Trim()))
+            && (!_repo.NeedsArchPackageName || InstallationManager.IsValidArchPackageName(PackageName.Text?.Trim()));
     }
 
     private void Cancel_OnClick(object? sender, RoutedEventArgs e) => Close(null);

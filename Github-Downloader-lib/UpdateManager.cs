@@ -69,6 +69,7 @@ public static class UpdateManager
             nameof(Repo.AutoExtract),
             nameof(Repo.NewFileName),
             nameof(Repo.InstalledDebianPackage),
+            nameof(Repo.InstalledArchPackage),
             nameof(Repo.InstalledAppImageId),
             nameof(Repo.CurrentInstallTag),
             nameof(Repo.LastDownloadTag)
@@ -324,10 +325,14 @@ public static class UpdateManager
         }
     }
 
-    public static bool IsInstallerAsset(string name)
+    public static bool IsInstallerAsset(string name) =>
+        IsInstallerAsset(name, OperatingSystem.IsLinux(), InstallationManager.CanInstallDebianPackages, InstallationManager.CanInstallArchPackages);
+
+    internal static bool IsInstallerAsset(string name, bool isLinux, bool canInstallDebianPackages, bool canInstallArchPackages = false)
     {
         string extension = Path.GetExtension(name).ToLowerInvariant();
-        return OperatingSystem.IsLinux() && extension is ".deb" or ".appimage"
+        return isLinux && (extension == ".appimage" || extension == ".deb" && canInstallDebianPackages
+                || InstallationManager.IsArchPackageFile(name) && canInstallArchPackages)
             || extension is ".exe" or ".msi";
     }
 
@@ -362,7 +367,7 @@ public static class UpdateManager
         int failed = 0;
         int skipped = 0;
         statusText("Downloading updates...");
-        Repo[] debianRepos = !downloadOnly && OperatingSystem.IsLinux() && installAsset is null
+        Repo[] debianRepos = !downloadOnly && InstallationManager.CanInstallDebianPackages && installAsset is null
             ? snapshot.Where(repo => (!respectExclusions || !repo.ExcludedFromDownloadAll)
                 && (force || !repo.IsUpToDate)
                 && repo.SelectedAssetName.EndsWith(".deb", StringComparison.OrdinalIgnoreCase)).ToArray()
@@ -629,6 +634,8 @@ public static class UpdateManager
 
     private static async Task<bool> InstallAssetAsync(Asset asset, Action<string> progressText)
     {
+        if (InstallationManager.CanInstallArchPackages && InstallationManager.IsArchPackageFile(asset.TempAssetPath))
+            return await InstallArchAssetAsync(asset, progressText);
         if (OperatingSystem.IsLinux() && asset.TempAssetPath.EndsWith(".deb", StringComparison.OrdinalIgnoreCase))
         {
             InstallationManager installations = new();
@@ -831,27 +838,11 @@ public static class UpdateManager
         Logger.LogI($"Installing Debian packages (count {debPaths.Count})");
         progressText("Installing Debian packages...");
         
-        ProcessStartInfo start = new()
-        {
-            FileName = "/usr/bin/" + (usePkexec ? "pkexec" : "sudo"),
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            RedirectStandardInput = providePassword,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-
-        if (providePassword)
-        {
-            start.ArgumentList.Add("-S");
-            start.ArgumentList.Add("-p");
-            start.ArgumentList.Add("");
-        }
-        start.ArgumentList.Add("/usr/bin/apt-get");
+        ProcessStartInfo start = CreatePackageInstallStartInfo(InstallationManager.DebianInstallerPath);
         foreach (string argument in new[] { "install", "-y", "--allow-downgrades", "--reinstall", "--" })
             start.ArgumentList.Add(argument);
         foreach (string package in packages) start.ArgumentList.Add(package);
-        int exitCode = await RunDebianInstallCommandAsync(start, progressText);
+        int exitCode = await RunPackageInstallCommandAsync(start, progressText);
 
         if (exitCode == 0)
         {
@@ -867,13 +858,64 @@ public static class UpdateManager
         return false;
     }
 
-    internal static async Task<int> RunDebianInstallCommandAsync(ProcessStartInfo start, Action<string> progressText)
+    internal static ProcessStartInfo CreatePackageInstallStartInfo(string packageManager)
+    {
+        bool usePkexec = CurPlatform == Platform.Avalonia;
+        bool providePassword = !usePkexec && !string.IsNullOrEmpty(RootPassword);
+        ProcessStartInfo start = new()
+        {
+            FileName = "/usr/bin/" + (usePkexec ? "pkexec" : "sudo"),
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            RedirectStandardInput = providePassword,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        if (providePassword)
+        {
+            start.ArgumentList.Add("-S");
+            start.ArgumentList.Add("-p");
+            start.ArgumentList.Add("");
+        }
+        start.ArgumentList.Add(packageManager);
+        return start;
+    }
+
+    internal static async Task<bool> InstallArchAssetAsync(Asset asset, Action<string> progressText,
+        InstallationManager? installations = null, Func<ProcessStartInfo, Action<string>, Task<int>>? run = null)
+    {
+        installations ??= new();
+        string package = await installations.ReadArchPackageNameAsync(asset.TempAssetPath);
+        if (!await InstallArchPackageAsync(asset.TempAssetPath, progressText, run)) return false;
+        asset.Repo.InstalledArchPackage = package;
+        return true;
+    }
+
+    internal static async Task<bool> InstallArchPackageAsync(string path, Action<string> progressText,
+        Func<ProcessStartInfo, Action<string>, Task<int>>? run = null)
+    {
+        Logger.LogI("Installing Arch package");
+        progressText("Installing Arch package...");
+        ProcessStartInfo start = CreatePackageInstallStartInfo(InstallationManager.ArchInstallerPath);
+        foreach (string argument in new[] { "-U", "--noconfirm", "--", Path.GetFullPath(path) })
+            start.ArgumentList.Add(argument);
+        int exitCode = await (run ?? RunPackageInstallCommandAsync)(start, progressText);
+        if (exitCode == 0)
+        {
+            Logger.LogI("Installation complete");
+            return true;
+        }
+        Logger.LogE($"Installation failed with exit code {exitCode}");
+        progressText($"Installation failed with exit code {exitCode}");
+        return false;
+    }
+
+    internal static async Task<int> RunPackageInstallCommandAsync(ProcessStartInfo start, Action<string> progressText)
     {
         using Process process = new() { StartInfo = start };
         process.Start();
-        // Show package-manager output live without writing private paths to activity logs.
-        Task output = ForwardInstallationOutputAsync(process.StandardOutput, progressText);
-        Task errors = ForwardInstallationOutputAsync(process.StandardError, progressText);
+        Task output = ForwardInstallationOutputAsync(process.StandardOutput, progressText, isError: false);
+        Task errors = ForwardInstallationOutputAsync(process.StandardError, progressText, isError: true);
         if (start.RedirectStandardInput)
         {
             await process.StandardInput.WriteLineAsync(RootPassword);
@@ -884,10 +926,14 @@ public static class UpdateManager
         return process.ExitCode;
     }
 
-    private static async Task ForwardInstallationOutputAsync(StreamReader reader, Action<string> progressText)
+    private static async Task ForwardInstallationOutputAsync(StreamReader reader, Action<string> progressText, bool isError)
     {
         while (await reader.ReadLineAsync() is string line)
+        {
+            if (isError) await Logger.LogE($"Package manager: {line}");
+            else await Logger.LogI($"Package manager: {line}");
             progressText(line);
+        }
     }
 
     private static async Task<bool> InstallExeAsync(List<string> exePaths, Action<string> progressText)

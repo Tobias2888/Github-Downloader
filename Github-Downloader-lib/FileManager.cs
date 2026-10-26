@@ -137,6 +137,7 @@ public static class FileManager
                 repo.CurrentInstallTag = "";
                 repo.LastDownloadTag = "";
                 repo.InstalledDebianPackage = "";
+                repo.InstalledArchPackage = "";
                 repo.InstalledAppImageId = "";
             }
             Logger.LogI("Configuration import completed");

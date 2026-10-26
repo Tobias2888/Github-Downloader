@@ -250,6 +250,8 @@ public class Repo : INotifyPropertyChanged, IJsonOnDeserializing, IJsonOnDeseria
             OnPropertyChanged(nameof(IsUpToDate));
             OnPropertyChanged(nameof(CanUninstall));
             OnPropertyChanged(nameof(NeedsDebianPackageName));
+            OnPropertyChanged(nameof(NeedsArchPackageName));
+            OnPropertyChanged(nameof(NeedsPackageName));
         }
     }
     
@@ -383,6 +385,25 @@ public class Repo : INotifyPropertyChanged, IJsonOnDeserializing, IJsonOnDeseria
             OnPropertyChanged(nameof(InstalledDebianPackage));
             OnPropertyChanged(nameof(CanUninstall));
             OnPropertyChanged(nameof(NeedsDebianPackageName));
+            OnPropertyChanged(nameof(NeedsArchPackageName));
+            OnPropertyChanged(nameof(NeedsPackageName));
+        }
+    }
+
+    private string _installedArchPackage = string.Empty;
+    public string InstalledArchPackage
+    {
+        get => _installedArchPackage;
+        set
+        {
+            value ??= string.Empty;
+            if (_installedArchPackage == value) return;
+            _installedArchPackage = value;
+            OnPropertyChanged(nameof(InstalledArchPackage));
+            OnPropertyChanged(nameof(CanUninstall));
+            OnPropertyChanged(nameof(NeedsDebianPackageName));
+            OnPropertyChanged(nameof(NeedsArchPackageName));
+            OnPropertyChanged(nameof(NeedsPackageName));
         }
     }
 
@@ -398,17 +419,30 @@ public class Repo : INotifyPropertyChanged, IJsonOnDeserializing, IJsonOnDeseria
             OnPropertyChanged(nameof(InstalledAppImageId));
             OnPropertyChanged(nameof(CanUninstall));
             OnPropertyChanged(nameof(NeedsDebianPackageName));
+            OnPropertyChanged(nameof(NeedsArchPackageName));
+            OnPropertyChanged(nameof(NeedsPackageName));
         }
     }
 
     [JsonIgnore]
     public bool CanUninstall => System.OperatingSystem.IsLinux()
-        && (InstalledDebianPackage.Length > 0 || InstalledAppImageId.Length > 0
-            || CurrentInstallTag.Length > 0 && Path.GetExtension(SelectedAssetName).ToLowerInvariant() is ".deb" or ".appimage");
+        && (InstalledDebianPackage.Length > 0 || InstalledArchPackage.Length > 0 || InstalledAppImageId.Length > 0
+            || CurrentInstallTag.Length > 0 && (Path.GetExtension(SelectedAssetName).Equals(".appimage", System.StringComparison.OrdinalIgnoreCase)
+                || InstallationManager.CanInstallDebianPackages && Path.GetExtension(SelectedAssetName).Equals(".deb", System.StringComparison.OrdinalIgnoreCase)
+                || InstallationManager.CanInstallArchPackages && InstallationManager.IsArchPackageFile(SelectedAssetName)));
 
     [JsonIgnore]
-    public bool NeedsDebianPackageName => InstalledDebianPackage.Length == 0 && InstalledAppImageId.Length == 0
+    public bool NeedsDebianPackageName => InstallationManager.CanInstallDebianPackages
+        && InstalledDebianPackage.Length == 0 && InstalledArchPackage.Length == 0 && InstalledAppImageId.Length == 0
         && CurrentInstallTag.Length > 0 && Path.GetExtension(SelectedAssetName).Equals(".deb", System.StringComparison.OrdinalIgnoreCase);
+
+    [JsonIgnore]
+    public bool NeedsArchPackageName => InstallationManager.CanInstallArchPackages
+        && InstalledArchPackage.Length == 0 && InstalledDebianPackage.Length == 0 && InstalledAppImageId.Length == 0
+        && CurrentInstallTag.Length > 0 && InstallationManager.IsArchPackageFile(SelectedAssetName);
+
+    [JsonIgnore]
+    public bool NeedsPackageName => NeedsDebianPackageName || NeedsArchPackageName;
 
     private void OnSelectedAssetChanged()
     {
@@ -425,6 +459,8 @@ public class Repo : INotifyPropertyChanged, IJsonOnDeserializing, IJsonOnDeseria
         OnPropertyChanged(nameof(AssetSelectionStatus));
         OnPropertyChanged(nameof(CanUninstall));
         OnPropertyChanged(nameof(NeedsDebianPackageName));
+        OnPropertyChanged(nameof(NeedsArchPackageName));
+        OnPropertyChanged(nameof(NeedsPackageName));
     }
 
     private bool _hasRelease = true;

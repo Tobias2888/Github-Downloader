@@ -103,7 +103,7 @@ public sealed class ActionLoggingTests : IAsyncLifetime
     [Theory]
     [InlineData(0)]
     [InlineData(7)]
-    public async Task DebianInstallationForwardsBothStreamsWithoutPersistingRawOutput(int exitCode)
+    public async Task PackageInstallationForwardsBothStreamsAndLogsDiagnostics(int exitCode)
     {
         if (!OperatingSystem.IsLinux()) return;
         ProcessStartInfo start = new("/bin/sh")
@@ -122,7 +122,7 @@ public sealed class ActionLoggingTests : IAsyncLifetime
         System.Collections.Concurrent.ConcurrentQueue<string> progress = new();
 
         // The child cannot exit until stdout reaches the callback, proving output is live.
-        Assert.Equal(exitCode, await UpdateManager.RunDebianInstallCommandAsync(start, line =>
+        Assert.Equal(exitCode, await UpdateManager.RunPackageInstallCommandAsync(start, line =>
         {
             progress.Enqueue(line);
             if (line == PrivateData + "/stdout") File.WriteAllText(signal, "received");
@@ -130,7 +130,11 @@ public sealed class ActionLoggingTests : IAsyncLifetime
 
         Assert.Contains(PrivateData + "/stdout", progress);
         Assert.Contains(PrivateData + "/stderr", progress);
-        Assert.DoesNotContain(PrivateData, await ReadLogAsync());
+        string log = await ReadLogAsync();
+        Assert.Contains("Package manager: " + PrivateData + "/stdout", log);
+        Assert.Contains("Package manager: " + PrivateData + "/stderr", log);
+        Assert.Contains(log.Split('\n'), line => line.Contains("[Error]", StringComparison.Ordinal)
+            && line.Contains(PrivateData + "/stderr", StringComparison.Ordinal));
     }
 
     private async Task<string> ReadLogAsync()
