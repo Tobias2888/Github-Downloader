@@ -162,7 +162,8 @@ public static class ConfigurationArchive
                     ExtractionDirectory = "",
                     ExecutablePath = "",
                     DesktopEntryHash = "",
-                    OwnedFiles = new(),
+                    DesktopIconPath = "",
+                    OwnedFiles = null,
                     InstallerPath = Rebase(app.InstallerPath),
                     InstallerVersions = app.InstallerVersions
                         .Concat(app.InstallerPath.Length == 0 ? [] : new[] { new LocalInstallerVersion(app.InstallerPath, app.InstalledAt) })

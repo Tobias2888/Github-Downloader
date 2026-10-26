@@ -26,8 +26,10 @@ public sealed record LocalApp
     public string InstallerPath { get; init; } = "";
     public string ExecutablePath { get; init; } = "";
     public string DesktopEntryHash { get; init; } = "";
+    public string DesktopIconPath { get; init; } = "";
     public List<LocalInstallerVersion> InstallerVersions { get; init; } = new();
-    public Dictionary<string, string> OwnedFiles { get; init; } = new();
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Dictionary<string, string>? OwnedFiles { get; init; }
     [JsonIgnore] public string Name => Path.GetFileNameWithoutExtension(FileName);
     [JsonIgnore] public bool CanReinstall => File.Exists(InstallerPath);
     [JsonIgnore] public IReadOnlyList<LocalInstallerVersion> AvailableInstallerVersions => InstallerVersions
@@ -36,6 +38,8 @@ public sealed record LocalApp
         .Where(version => File.Exists(version.Path)).OrderByDescending(version => version.SavedAt).ToArray();
     [JsonIgnore] public bool CanChooseInstallerVersion => AvailableInstallerVersions.Count > 1;
     [JsonIgnore] public bool CanAddArchiveVersion => Kind == LocalAppKind.Archive;
+    [JsonIgnore] public bool CanSetArchiveIcon => OperatingSystem.IsLinux() && Kind == LocalAppKind.Archive
+        && IsInstalled && ExecutablePath.Length > 0 && DesktopEntryHash.Length > 0;
     [JsonIgnore] public string Type => Kind switch
     {
         LocalAppKind.Debian => "Debian package",
@@ -45,10 +49,9 @@ public sealed record LocalApp
         _ => "Executable installer"
     };
     [JsonIgnore] public string Status => IsInstalled ? "Installed" : "Uninstalled";
-    [JsonIgnore] public bool CanUninstall => Kind == LocalAppKind.Archive
+    [JsonIgnore] public bool CanUninstall => OperatingSystem.IsLinux() && (Kind == LocalAppKind.Archive
         && LocalApps.Store.IsManagedAppDirectory(ExtractionDirectory) && Directory.Exists(ExtractionDirectory)
-        || IsInstalled && (Kind == LocalAppKind.Archive
-        || OperatingSystem.IsLinux() && Kind is LocalAppKind.Debian or LocalAppKind.AppImage or LocalAppKind.Arch);
+        || IsInstalled && Kind is LocalAppKind.Debian or LocalAppKind.AppImage or LocalAppKind.Arch);
     [JsonIgnore] public bool UseSystemUninstaller => IsInstalled && Kind == LocalAppKind.Executable && OperatingSystem.IsWindows();
 
     public Repo ToRepo() => new()

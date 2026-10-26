@@ -77,7 +77,8 @@ internal sealed class ArchiveAppLauncher
         ArchiveExtractor.EnsureNoLinks(executable);
         // ZIP files often lose executable permission. This only makes the selected file runnable.
         File.SetUnixFileMode(executable, File.GetUnixFileMode(executable) | UnixFileMode.UserExecute);
-        string icon = extracted.Where(path => Path.GetFileName(path).Equals("icon.png", StringComparison.OrdinalIgnoreCase)
+        string icon = app.DesktopIconPath.Length > 0 && File.Exists(app.DesktopIconPath) ? app.DesktopIconPath
+            : extracted.Where(path => Path.GetFileName(path).Equals("icon.png", StringComparison.OrdinalIgnoreCase)
             || Path.GetFileName(path).Equals("icon.svg", StringComparison.OrdinalIgnoreCase))
             .OrderBy(path => path.Length).FirstOrDefault() ?? "application-x-executable";
         string content = $"""

@@ -80,6 +80,7 @@ public sealed class RepositoryArchiveInstallerTests : IDisposable
             Assert.True(repo.CanUninstall);
             Assert.Empty(installation.InstallerPath);
             Assert.Empty(installation.InstallerVersions);
+            Assert.NotNull(installation.OwnedFiles);
             Assert.Equal(2, installation.OwnedFiles.Count);
             string entry = Launcher.EntryPath(installation);
             Assert.Contains("Name=example.app\n", File.ReadAllText(entry));
@@ -144,6 +145,7 @@ public sealed class RepositoryArchiveInstallerTests : IDisposable
         Assert.Contains(updated.ExecutablePath, File.ReadAllText(entry));
         Assert.DoesNotContain(legacy, File.ReadAllText(entry));
         Assert.Equal(original.Id, updated.Id);
+        Assert.NotNull(updated.OwnedFiles);
         Assert.Equal(2, updated.OwnedFiles.Count);
         Assert.False(File.Exists(Path.Combine(_root, "example-v3.zip")));
     }
@@ -224,7 +226,8 @@ public sealed class RepositoryArchiveInstallerTests : IDisposable
         Assert.False(File.Exists(archive));
         Assert.Equal("v1", repo.CurrentInstallTag);
         Assert.True(repo.CanUninstall);
-        Assert.Contains("data", repo.ArchiveInstallation!.OwnedFiles.Keys);
+        Assert.NotNull(repo.ArchiveInstallation!.OwnedFiles);
+        Assert.Contains("data", repo.ArchiveInstallation.OwnedFiles.Keys);
         Assert.Equal("outside", File.ReadAllText(outside));
         Assert.False(Directory.Exists(DesktopDirectory));
     }

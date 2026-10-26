@@ -47,7 +47,7 @@ internal static class RepositoryArchiveInstaller
         {
             string destination = GetInstallationDirectory(repo);
             LocalApp? previous = MigrateInstallation(repo, destination);
-            Dictionary<string, string> owned = previous?.ExtractionDirectory == destination ? new(previous.OwnedFiles) : new();
+            Dictionary<string, string> owned = previous?.ExtractionDirectory == destination ? new(previous.OwnedFiles ?? []) : new();
             List<string> extracted = [];
             void FileWritten(string path, bool existed)
             {

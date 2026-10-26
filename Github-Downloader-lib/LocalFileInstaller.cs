@@ -65,18 +65,11 @@ public static class LocalFileInstaller
         LocalApp? previous = LocalApps.Store.Read().FirstOrDefault(app => app.Id == id);
         if (existingAppId is not null && previous is null)
             throw new IOException("The local app entry no longer exists.");
-        Dictionary<string, string> owned = previous is null ? new() : new(previous.OwnedFiles);
         List<string> extracted = [];
-        void FileWritten(string file, bool existed)
-        {
-            extracted.Add(file);
-            string relative = Path.GetRelativePath(destination!, file);
-            if (!existed || owned.ContainsKey(relative)) owned[relative] = LocalAppManager.FileHash(file);
-        }
         string temporary = Path.Combine(Path.GetFullPath(cachePath), "local-" + Guid.NewGuid().ToString("N"));
         UpdateManager.Asset asset = new(local, Path.Combine(temporary, filename), "",
             TemporaryDirectory: temporary, LocalSourcePath: source, ExtractionDirectory: destination,
-            ExtractionFileWritten: archive ? FileWritten : null);
+            ExtractionFileWritten: archive ? (file, _) => extracted.Add(file) : null);
         // Keep the original outside the disposable cache, including for installers that move their input.
         // Reinstalling an already saved file can reuse that copy.
         LocalAppStore store = LocalApps.Store;
@@ -106,13 +99,14 @@ public static class LocalFileInstaller
             {
                 Id = id, FileName = filename, InstallationName = local.Name, Kind = kind,
                 InstalledAt = DateTimeOffset.UtcNow, DebianPackage = local.InstalledDebianPackage, ArchPackage = local.InstalledArchPackage,
-                AppImageId = local.InstalledAppImageId, ExtractionDirectory = destination ?? "", OwnedFiles = owned,
+                AppImageId = local.InstalledAppImageId, ExtractionDirectory = destination ?? "",
                 InstallerPath = keepInstaller ? savedPath : ""
             };
             if (archive)
                 installedApp = installedApp with
                 {
-                    ExecutablePath = previous?.ExecutablePath ?? "", DesktopEntryHash = previous?.DesktopEntryHash ?? ""
+                    ExecutablePath = previous?.ExecutablePath ?? "", DesktopEntryHash = previous?.DesktopEntryHash ?? "",
+                    DesktopIconPath = previous?.DesktopIconPath ?? ""
                 };
             // Keep extracted files tracked even if selecting or creating a launcher fails.
             store.SaveInstallation(installedApp, versionsToKeep);

@@ -17,6 +17,7 @@ public partial class LocalAppsView : UserControl
 {
     public event EventHandler<RoutedEventArgs>? InstallRequested;
     private bool _addingVersion;
+    private bool _choosingIcon;
 
     public LocalAppsView() => InitializeComponent();
 
@@ -37,6 +38,41 @@ public partial class LocalAppsView : UserControl
 
     private void OnLoaded(object? sender, RoutedEventArgs e) => Refresh();
     private void Install_OnClick(object? sender, RoutedEventArgs e) => InstallRequested?.Invoke(this, e);
+
+    private async void ChooseIcon_OnClick(object? sender, RoutedEventArgs e)
+    {
+        if (_choosingIcon || sender is not Button { DataContext: LocalApp app }
+            || TopLevel.GetTopLevel(this) is not Window owner) return;
+        App application = (App)Application.Current!;
+        if (application.DownloadStatusViewModel.IsUpdating) { application.DownloadStatusViewModel.Show(); return; }
+        _choosingIcon = true;
+        try
+        {
+            IReadOnlyList<IStorageFile> files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = $"Choose an icon for {app.Name}", AllowMultiple = false,
+                SuggestedStartLocation = await owner.StorageProvider.TryGetFolderFromPathAsync(app.ExtractionDirectory),
+                FileTypeFilter = [new FilePickerFileType("Application icons")
+                {
+                    Patterns = ["*.png", "*.svg", "*.xpm", "*.PNG", "*.SVG", "*.XPM"]
+                }]
+            });
+            if (files.Count == 0) return;
+            string path = files[0].TryGetLocalPath() ?? throw new IOException("Choose an icon stored on this computer.");
+            if (application.DownloadStatusViewModel.IsUpdating) return;
+            await application.DownloadStatusViewModel.RunAsync(async () =>
+            {
+                await new LocalAppManager().SetArchiveIconAsync(app, path, application.DownloadStatusViewModel.LogProgress);
+                return true;
+            }, "Change archive app icon");
+            Refresh();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            ListStatus.Text = $"Could not change the archive app icon: {exception.Message}";
+        }
+        finally { _choosingIcon = false; }
+    }
 
     private async void Reinstall_OnClick(object? sender, RoutedEventArgs e)
     {

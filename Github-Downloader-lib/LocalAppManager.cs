@@ -24,6 +24,25 @@ public sealed class LocalAppManager
             app.Kind == LocalAppKind.Archive ? app.ExtractionDirectory : null, null, FileManager.CachePath,
             LocalInstallerRetention.LoadLimit(), selectExecutable, _launcher, existingAppId: app.Id);
 
+    public async Task SetArchiveIconAsync(LocalApp app, string iconPath, Action<string> progress)
+    {
+        LocalApp current = _store.Read().FirstOrDefault(entry => entry.Id == app.Id)
+            ?? throw new IOException("The local app entry no longer exists.");
+        if (!current.CanSetArchiveIcon)
+            throw new InvalidOperationException("Install an archive with an application-menu entry before choosing an icon.");
+        string extension = Path.GetExtension(iconPath).ToLowerInvariant();
+        if (extension is not (".png" or ".svg" or ".xpm"))
+            throw new ArgumentException("Choose a PNG, SVG, or XPM icon.", nameof(iconPath));
+        byte[] content = await File.ReadAllBytesAsync(iconPath);
+        string savedIcon = Path.Combine(_store.IconsPath, Convert.ToHexString(SHA256.HashData(content)) + extension);
+        ArchiveExtractor.EnsureNoLinks(savedIcon);
+        Directory.CreateDirectory(_store.IconsPath);
+        if (!File.Exists(savedIcon)) await File.WriteAllBytesAsync(savedIcon, content);
+        LocalApp updated = await _launcher.ConfigureAsync(current with { DesktopIconPath = savedIcon }, current,
+            [current.ExecutablePath], null, progress);
+        _store.Save(updated);
+    }
+
     public Task<bool> InstallVersionAsync(LocalApp app, LocalInstallerVersion version, Action<string> status, Action<string> progress,
         Func<string, IReadOnlyList<string>, Task<string?>>? selectExecutable = null)
     {
@@ -56,9 +75,7 @@ public sealed class LocalAppManager
 
     public string GetUninstallDescription(LocalApp app) => (app.Kind switch
     {
-        LocalAppKind.Archive => _store.IsManagedAppDirectory(app.ExtractionDirectory)
-            ? "Removes the extracted application folder, including files created by the app, and its application-menu entry. Your original archive is kept."
-            : "Removes extracted app files and the application-menu entry. Changed files and your original archive are kept.",
+        LocalAppKind.Archive => "Removes the extracted application folder, including files created by the app, and its application-menu entry. Your original archive is kept.",
         LocalAppKind.AppImage => "Removes the AppImage and its application-menu entry. Your original file is kept.",
         LocalAppKind.Arch => app.ArchPackage.Length > 0 ? $"Removes the Arch package '{app.ArchPackage}'." : "Removes the Arch package named below.",
         LocalAppKind.Debian => app.DebianPackage.Length > 0 ? $"Removes the Debian package '{app.DebianPackage}'." : "Removes the Debian package named below.",
@@ -86,6 +103,8 @@ public sealed class LocalAppManager
         {
             if (!Path.IsPathFullyQualified(app.ExtractionDirectory)) throw new IOException("The extraction directory is invalid.");
             string root = Path.GetFullPath(app.ExtractionDirectory);
+            if (removeEntireDirectory && !_store.IsManagedAppDirectory(root))
+                throw new IOException("Only archives installed in GHD's managed app folder can be uninstalled.");
             ArchiveExtractor.EnsureNoLinks(root);
             status($"Uninstalling {app.Name}...");
             if (removeEntireDirectory && _store.IsManagedAppDirectory(root))
@@ -102,7 +121,7 @@ public sealed class LocalAppManager
                 return true;
             }
             List<(string Path, string Hash)> files = new();
-            foreach (KeyValuePair<string, string> file in app.OwnedFiles)
+            foreach (KeyValuePair<string, string> file in app.OwnedFiles ?? [])
             {
                 string path = ArchiveExtractor.GetEntryPath(root, file.Key);
                 ArchiveExtractor.EnsureNoLinks(path);

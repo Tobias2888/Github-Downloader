@@ -28,7 +28,7 @@ public sealed class LocalAppTests : IDisposable
             using StreamWriter writer = new(archive.CreateEntry("app.txt").Open());
             writer.Write("original content");
         }
-        string destination = Path.Combine(_root, "app");
+        string destination = Path.Combine(OperatingSystem.IsLinux() ? LocalApps.Store.AppsPath : _root, "app");
         string cache = Path.Combine(_root, "cache");
         Assert.True(await LocalFileInstaller.InstallAsync(source, _ => { }, _ => { }, destination, null, cache));
         LocalApp app = Assert.Single(new LocalAppStore(AppsPath).Read());
@@ -41,6 +41,13 @@ public sealed class LocalAppTests : IDisposable
         LocalApp reinstalled = Assert.Single(LocalApps.Store.Read());
         Assert.Equal(app.Id, reinstalled.Id);
         Assert.Equal(app.InstallerPath, reinstalled.InstallerPath);
+        if (!OperatingSystem.IsLinux())
+        {
+            Assert.False(reinstalled.CanUninstall);
+            await Assert.ThrowsAsync<InvalidOperationException>(() => new LocalAppManager().UninstallAsync(reinstalled, _ => { }, _ => { }));
+            Assert.Equal("original content", await File.ReadAllTextAsync(Path.Combine(destination, "app.txt")));
+            return;
+        }
         Assert.True(await new LocalAppManager().UninstallAsync(reinstalled, _ => { }, _ => { }));
         Assert.True(File.Exists(app.InstallerPath));
         LocalApp uninstalled = Assert.Single(new LocalAppStore(AppsPath).Read());
@@ -128,8 +135,9 @@ public sealed class LocalAppTests : IDisposable
     }
 
     [Fact]
-    public async Task ArchiveRemovalKeepsOriginalPreexistingChangedAndUnrelatedFiles()
+    public async Task ArchivesExtractedOutsideManagedFolderHaveNoUninstallOrFileRecords()
     {
+        if (!OperatingSystem.IsLinux()) return;
         string destination = Path.Combine(_root, "app");
         Directory.CreateDirectory(destination);
         await File.WriteAllTextAsync(Path.Combine(destination, "existing.txt"), "preexisting");
@@ -142,23 +150,25 @@ public sealed class LocalAppTests : IDisposable
             }
         Assert.True(await LocalFileInstaller.InstallAsync(source, _ => { }, _ => { }, destination, null, Path.Combine(_root, "cache")));
         LocalApp app = Assert.Single(new LocalAppStore(AppsPath).Read());
-        Assert.Equal(2, app.OwnedFiles.Count);
+        Assert.Null(app.OwnedFiles);
+        Assert.DoesNotContain("OwnedFiles", await File.ReadAllTextAsync(AppsPath));
         await File.WriteAllTextAsync(Path.Combine(destination, "changed.txt"), "user changes");
         await File.WriteAllTextAsync(Path.Combine(destination, "settings.json"), "user settings");
-        Assert.True(await new LocalAppManager().UninstallAsync(app, _ => { }, _ => { }));
-        Assert.False(File.Exists(Path.Combine(destination, "app.txt")));
+        Assert.False(app.CanUninstall);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => new LocalAppManager().UninstallAsync(app, _ => { }, _ => { }));
+        Assert.True(File.Exists(Path.Combine(destination, "app.txt")));
         Assert.Equal("user changes", await File.ReadAllTextAsync(Path.Combine(destination, "changed.txt")));
         Assert.Equal("user settings", await File.ReadAllTextAsync(Path.Combine(destination, "settings.json")));
         Assert.True(File.Exists(Path.Combine(destination, "existing.txt")));
         Assert.True(File.Exists(source));
-        Assert.False(Assert.Single(LocalApps.Store.Read()).IsInstalled);
-        Assert.Contains(OperationHistory.Store.Query().Entries, entry => entry.Action == HistoryAction.Uninstall && entry.Status == HistoryStatus.Succeeded);
+        Assert.True(Assert.Single(LocalApps.Store.Read()).IsInstalled);
     }
 
     [Fact]
-    public async Task ArchiveReinstallKeepsOwnershipOfPreviouslyCreatedFiles()
+    public async Task ArchiveReinstallNeedsNoFileRecordsForUninstall()
     {
-        string destination = Path.Combine(_root, "app");
+        if (!OperatingSystem.IsLinux()) return;
+        string destination = Path.Combine(LocalApps.Store.AppsPath, "app");
         for (int version = 1; version <= 2; version++)
         {
             string source = Path.Combine(_root, $"app-v{version}.zip");
@@ -171,14 +181,15 @@ public sealed class LocalAppTests : IDisposable
         }
         LocalApp app = Assert.Single(LocalApps.Store.Read());
         Assert.Equal("app-v2.zip", app.FileName);
-        Assert.Single(app.OwnedFiles);
+        Assert.Null(app.OwnedFiles);
         Assert.True(await new LocalAppManager().UninstallAsync(app, _ => { }, _ => { }));
         Assert.False(File.Exists(Path.Combine(destination, "app.txt")));
     }
 
     [Fact]
-    public async Task ArchiveRemovalRejectsLinksAndTraversalBeforeDeletingAnyFiles()
+    public async Task ArchiveRemovalOutsideManagedFolderIsRejectedEvenWithFileRecords()
     {
+        if (!OperatingSystem.IsLinux()) return;
         string destination = Path.Combine(_root, "app");
         Directory.CreateDirectory(destination);
         string file = Path.Combine(destination, "app.txt");
@@ -189,7 +200,7 @@ public sealed class LocalAppTests : IDisposable
             OwnedFiles = new() { ["app.txt"] = LocalAppManager.FileHash(file), ["../outside.txt"] = new string('A', 64) }
         };
         LocalApps.Store.Save(app);
-        await Assert.ThrowsAsync<IOException>(() => new LocalAppManager().UninstallAsync(app, _ => { }, _ => { }));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => new LocalAppManager().UninstallAsync(app, _ => { }, _ => { }));
         Assert.Equal("keep", await File.ReadAllTextAsync(file));
         Assert.Single(LocalApps.Store.Read());
         if (OperatingSystem.IsWindows()) return;
@@ -198,7 +209,7 @@ public sealed class LocalAppTests : IDisposable
         File.Delete(file);
         File.CreateSymbolicLink(file, outside);
         app = app with { OwnedFiles = new() { ["app.txt"] = LocalAppManager.FileHash(outside) } };
-        await Assert.ThrowsAsync<IOException>(() => new LocalAppManager().UninstallAsync(app, _ => { }, _ => { }));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => new LocalAppManager().UninstallAsync(app, _ => { }, _ => { }));
         Assert.Equal("outside", await File.ReadAllTextAsync(outside));
     }
 
@@ -273,6 +284,24 @@ public sealed class LocalAppTests : IDisposable
     }
 
     [Fact]
+    public void CatalogOmitsFileRecordsForEveryLocalApp()
+    {
+        LocalApp managed = DebianApp() with
+        {
+            Kind = LocalAppKind.Archive, ExtractionDirectory = Path.Combine(LocalApps.Store.AppsPath, "example"),
+            OwnedFiles = new() { ["app.txt"] = new string('A', 64) }
+        };
+        File.WriteAllText(AppsPath, System.Text.Json.JsonSerializer.Serialize(new[] { managed }));
+        Assert.Null(Assert.Single(LocalApps.Store.Read()).OwnedFiles);
+        LocalApps.Store.Save(managed);
+        Assert.DoesNotContain("OwnedFiles", File.ReadAllText(AppsPath));
+        LocalApps.Store.Save(DebianApp() with { OwnedFiles = managed.OwnedFiles });
+        Assert.DoesNotContain("OwnedFiles", File.ReadAllText(AppsPath));
+        LocalApps.Store.Save(managed with { ExtractionDirectory = Path.Combine(_root, "chosen") });
+        Assert.DoesNotContain("OwnedFiles", File.ReadAllText(AppsPath));
+    }
+
+    [Fact]
     public void ExistingEntriesDefaultToInstalled()
     {
         File.WriteAllText(AppsPath, """
@@ -280,7 +309,7 @@ public sealed class LocalAppTests : IDisposable
             """);
         LocalApp app = Assert.Single(LocalApps.Store.Read());
         Assert.True(app.IsInstalled);
-        Assert.True(app.CanUninstall);
+        Assert.False(app.CanUninstall);
     }
 
     [Theory]

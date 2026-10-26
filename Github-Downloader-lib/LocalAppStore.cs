@@ -18,6 +18,7 @@ public sealed class LocalAppStore
 
     internal string InstallersPath => Path.Combine(Path.GetDirectoryName(_path)!, "local-installers");
     internal string AppsPath => Path.Combine(Path.GetDirectoryName(_path)!, "apps");
+    internal string IconsPath => Path.Combine(Path.GetDirectoryName(_path)!, "local-icons");
 
     internal bool IsManagedAppDirectory(string path) => OperatingSystem.IsLinux()
         && Path.IsPathFullyQualified(path)
@@ -72,6 +73,8 @@ public sealed class LocalAppStore
     }, true);
 
     private static StringComparer PathComparer => OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+
+    private static LocalApp WithoutFileRecords(LocalApp app) => app with { OwnedFiles = null };
 
     private static void ValidateLimit(int? limit)
     {
@@ -151,12 +154,13 @@ public sealed class LocalAppStore
                     ?? throw new JsonException() : [];
                 if (apps.Any(app => app is null || string.IsNullOrWhiteSpace(app.Id) || string.IsNullOrWhiteSpace(app.FileName)
                     || string.IsNullOrWhiteSpace(app.InstallationName) || !Enum.IsDefined(app.Kind)
-                    || app.DebianPackage is null || app.ArchPackage is null || app.AppImageId is null || app.ExtractionDirectory is null || app.InstallerPath is null || app.OwnedFiles is null || app.InstallerVersions is null || app.ExecutablePath is null || app.DesktopEntryHash is null
-                    || app.InstallerVersions.Any(version => version is null || string.IsNullOrWhiteSpace(version.Path))
-                    || app.OwnedFiles.Any(file => string.IsNullOrWhiteSpace(file.Key) || string.IsNullOrWhiteSpace(file.Value))))
+                    || app.DebianPackage is null || app.ArchPackage is null || app.AppImageId is null || app.ExtractionDirectory is null || app.InstallerPath is null || app.InstallerVersions is null || app.ExecutablePath is null || app.DesktopEntryHash is null
+                    || app.DesktopIconPath is null
+                    || app.InstallerVersions.Any(version => version is null || string.IsNullOrWhiteSpace(version.Path))))
                     throw new JsonException();
             }
             catch (JsonException) { throw new InvalidDataException("The local app list could not be read. Its file was preserved."); }
+            apps = apps.Select(WithoutFileRecords).ToList();
             T result = action(apps);
             if (save)
             {
@@ -167,7 +171,7 @@ public sealed class LocalAppStore
                     using (FileStream file = new(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
                     {
                         if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(temporary, UnixFileMode.UserRead | UnixFileMode.UserWrite);
-                        JsonSerializer.Serialize(file, apps, Options);
+                        JsonSerializer.Serialize(file, apps.Select(WithoutFileRecords), Options);
                         file.Flush(true);
                     }
                     File.Move(temporary, _path, true);

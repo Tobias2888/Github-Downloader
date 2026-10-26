@@ -137,8 +137,10 @@ public sealed class LocalAppsViewTests
         LocalApp app = new()
         {
             Id = "example", FileName = "example.zip", InstallationName = "local/example",
-            Kind = LocalAppKind.Archive, InstallerPath = saved, IsInstalled = installed
+            Kind = LocalAppKind.Archive, InstallerPath = saved, IsInstalled = installed,
+            ExtractionDirectory = Path.Combine(LocalApps.Store.AppsPath, "example")
         };
+        if (installed) Directory.CreateDirectory(app.ExtractionDirectory);
         LocalApps.Store.Save(app);
         try
         {
@@ -156,7 +158,7 @@ public sealed class LocalAppsViewTests
                     Button remove = Assert.Single(buttons, button => Equals(button.Content, "Remove"));
                     Assert.True(remove.IsEffectivelyVisible);
                     Assert.True(Assert.Single(buttons, button => Equals(button.Content, "Reinstall")).IsEffectivelyVisible);
-                    Assert.Equal(installed, Assert.Single(buttons, button => Equals(button.Content, "Uninstall")).IsVisible);
+                    Assert.Equal(installed && OperatingSystem.IsLinux(), Assert.Single(buttons, button => Equals(button.Content, "Uninstall")).IsVisible);
 
                     remove.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                     UninstallRepoDialog dialog = Assert.Single(window.OwnedWindows.OfType<UninstallRepoDialog>());

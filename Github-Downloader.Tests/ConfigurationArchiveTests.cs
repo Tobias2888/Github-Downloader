@@ -45,6 +45,7 @@ public sealed class ConfigurationArchiveTests : IDisposable
                 DebianPackage = "source-debian", ArchPackage = "source-arch", AppImageId = "source-appimage",
                 ExtractionDirectory = Path.Combine(source, "apps", id),
                 ExecutablePath = Path.Combine(source, "apps", id, "app"), DesktopEntryHash = "source-launcher",
+                DesktopIconPath = Path.Combine(source, "local-icons", "icon.png"),
                 OwnedFiles = new() { ["app"] = "source-file-hash" },
                 InstallerPath = versions[1].Path, InstallerVersions = versions });
         }
@@ -75,7 +76,8 @@ public sealed class ConfigurationArchiveTests : IDisposable
             Assert.Empty(app.ExtractionDirectory);
             Assert.Empty(app.ExecutablePath);
             Assert.Empty(app.DesktopEntryHash);
-            Assert.Empty(app.OwnedFiles);
+            Assert.Empty(app.DesktopIconPath);
+            Assert.Null(app.OwnedFiles);
             Assert.Equal(mode != InstallerExportMode.None, app.CanReinstall);
             if (mode != InstallerExportMode.None)
             {

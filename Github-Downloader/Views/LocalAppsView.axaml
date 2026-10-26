@@ -23,6 +23,7 @@
                                 <TextBlock Grid.Row="3" Text="{Binding Status}" Foreground="#AAA"/>
                                 <StackPanel Grid.Column="1" Grid.RowSpan="4" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center" Margin="16,0,0,0">
                                     <Button Content="Add version…" IsVisible="{Binding CanAddArchiveVersion}" Click="AddVersion_OnClick"/>
+                                    <Button Content="Choose icon…" IsVisible="{Binding CanSetArchiveIcon}" Click="ChooseIcon_OnClick"/>
                                     <Button Content="Reinstall" IsVisible="{Binding CanReinstall}" Click="Reinstall_OnClick"/>
                                     <Button Content="Install version…" IsVisible="{Binding CanChooseInstallerVersion}" Click="InstallVersion_OnClick"/>
                                     <Button Content="Uninstall" IsVisible="{Binding CanUninstall}" Click="Uninstall_OnClick" Background="#963B3B"/>

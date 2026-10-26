@@ -11,7 +11,7 @@ public sealed class ArchiveAppLauncherTests : IDisposable
     private readonly string _root = Path.Combine(Path.GetTempPath(), "ghd-archive-launcher-" + Guid.NewGuid().ToString("N"));
     private readonly LocalAppStore _previousApps = LocalApps.Store;
     private readonly HistoryStore _previousHistory = OperationHistory.Store;
-    private string Destination => Path.Combine(_root, "app with spaces");
+    private string Destination => Path.Combine(LocalApps.Store.AppsPath, "app with spaces");
     private ArchiveAppLauncher Launcher => new(Path.Combine(_root, "applications"));
 
     public ArchiveAppLauncherTests()
@@ -38,6 +38,62 @@ public sealed class ArchiveAppLauncherTests : IDisposable
             Path.Combine(_root, "cache"), selectExecutable: select, launcher: Launcher);
 
     [Fact]
+    public async Task ChosenIconIsCopiedAndReusedAcrossArchiveVersionsAndReinstall()
+    {
+        if (!OperatingSystem.IsLinux()) return;
+        Assert.True(await Install(Archive(("app", "#!/bin/sh\n"), ("icon.png", "bundled icon"))));
+        LocalApp app = Assert.Single(LocalApps.Store.Read());
+        Assert.True(app.CanSetArchiveIcon);
+        string icon = Path.Combine(_root, "chosen icon.SVG");
+        const string image = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"32\" height=\"32\"><circle cx=\"16\" cy=\"16\" r=\"12\"/></svg>";
+        await File.WriteAllTextAsync(icon, image);
+        LocalAppManager manager = new(LocalApps.Store, new(_root, _root, (_, _) => throw new Exception("No commands needed.")), Launcher);
+        await manager.SetArchiveIconAsync(app, icon, _ => { });
+        LocalApp updated = Assert.Single(new LocalAppStore(Path.Combine(_root, "apps.json")).Read());
+        Assert.StartsWith(LocalApps.Store.IconsPath + Path.DirectorySeparatorChar, updated.DesktopIconPath);
+        Assert.Equal(image, await File.ReadAllTextAsync(updated.DesktopIconPath));
+        Assert.Contains("Icon=" + ArchiveAppLauncher.EscapeValue(updated.DesktopIconPath) + "\n",
+            await File.ReadAllTextAsync(Launcher.EntryPath(updated)));
+        Assert.Equal(LocalAppManager.FileHash(Launcher.EntryPath(updated)), updated.DesktopEntryHash);
+        File.Delete(icon);
+        Assert.True(await Install(Archive(("app", "#!/bin/sh\n# next version"), ("icon.png", "new bundled icon"))));
+        LocalApp next = Assert.Single(LocalApps.Store.Read());
+        Assert.Equal(updated.DesktopIconPath, next.DesktopIconPath);
+        Assert.Contains("Icon=" + ArchiveAppLauncher.EscapeValue(updated.DesktopIconPath) + "\n",
+            await File.ReadAllTextAsync(Launcher.EntryPath(next)));
+        Assert.True(await manager.UninstallAsync(next, _ => { }, _ => { }));
+        LocalApp removed = Assert.Single(LocalApps.Store.Read());
+        Assert.False(removed.CanSetArchiveIcon);
+        Assert.True(File.Exists(updated.DesktopIconPath));
+        Assert.True(await manager.ReinstallAsync(removed, _ => { }, _ => { }));
+        LocalApp reinstalled = Assert.Single(LocalApps.Store.Read());
+        Assert.Equal(updated.DesktopIconPath, reinstalled.DesktopIconPath);
+        Assert.Contains("Icon=" + ArchiveAppLauncher.EscapeValue(updated.DesktopIconPath) + "\n",
+            await File.ReadAllTextAsync(Launcher.EntryPath(reinstalled)));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ChoosingIconPreservesUserEditedEntriesAndRejectsUnsupportedFiles(bool changedEntry)
+    {
+        if (!OperatingSystem.IsLinux()) return;
+        Assert.True(await Install(Archive(("app", "#!/bin/sh\n"))));
+        LocalApp app = Assert.Single(LocalApps.Store.Read());
+        string entry = Launcher.EntryPath(app);
+        if (changedEntry) await File.AppendAllTextAsync(entry, "# user customization\n");
+        string original = await File.ReadAllTextAsync(entry);
+        string icon = Path.Combine(_root, changedEntry ? "icon.png" : "icon.txt");
+        await File.WriteAllTextAsync(icon, "image");
+        LocalAppManager manager = new(LocalApps.Store, new(_root, _root, (_, _) => throw new Exception("No commands needed.")), Launcher);
+        if (changedEntry) await Assert.ThrowsAsync<IOException>(() => manager.SetArchiveIconAsync(app, icon, _ => { }));
+        else await Assert.ThrowsAsync<ArgumentException>(() => manager.SetArchiveIconAsync(app, icon, _ => { }));
+        Assert.Equal(original, await File.ReadAllTextAsync(entry));
+        Assert.Empty(Assert.Single(LocalApps.Store.Read()).DesktopIconPath);
+        Assert.Equal("image", await File.ReadAllTextAsync(icon));
+    }
+
+    [Fact]
     public async Task ManagedAppUninstallRemovesRuntimeFilesAndTheEntireFolderWithoutFollowingLinks()
     {
         if (!OperatingSystem.IsLinux()) return;
@@ -45,6 +101,8 @@ public sealed class ArchiveAppLauncherTests : IDisposable
         Assert.True(await LocalFileInstaller.InstallAsync(source, _ => { }, _ => { }, null, null,
             Path.Combine(_root, "cache"), launcher: Launcher));
         LocalApp app = Assert.Single(LocalApps.Store.Read());
+        Assert.Null(app.OwnedFiles);
+        Assert.DoesNotContain("OwnedFiles", await File.ReadAllTextAsync(Path.Combine(_root, "apps.json")));
         string runtime = Path.Combine(app.ExtractionDirectory, "nested", ".config");
         Directory.CreateDirectory(runtime);
         await File.WriteAllTextAsync(Path.Combine(runtime, "generated.conf"), "generated settings");
@@ -89,7 +147,7 @@ public sealed class ArchiveAppLauncherTests : IDisposable
     }
 
     [Fact]
-    public async Task SingleExecutableCreatesLauncherAndUninstallRemovesItWhileKeepingChangedFilesAndArchive()
+    public async Task SingleExecutableCreatesLauncherAndUninstallRemovesTheAppWhileKeepingArchive()
     {
         if (!OperatingSystem.IsLinux()) return;
         string source = Archive(("bin/launch app", "#!/bin/sh\nexit 0\n"), ("icon.png", "icon"), ("settings.txt", "original"));
@@ -125,7 +183,7 @@ public sealed class ArchiveAppLauncherTests : IDisposable
         Assert.False(File.Exists(entry));
         Assert.False(File.Exists(app.ExecutablePath));
         Assert.False(Directory.Exists(Path.GetDirectoryName(app.ExecutablePath)));
-        Assert.Equal("user settings", await File.ReadAllTextAsync(Path.Combine(Destination, "settings.txt")));
+        Assert.False(Directory.Exists(Destination));
         Assert.True(File.Exists(source));
         LocalApp removed = Assert.Single(LocalApps.Store.Read());
         Assert.True(removed.CanReinstall);
@@ -232,7 +290,8 @@ public sealed class ArchiveAppLauncherTests : IDisposable
         LocalApp app = Assert.Single(LocalApps.Store.Read());
         Assert.True(app.CanUninstall);
         Assert.True(app.CanReinstall);
-        Assert.Contains("data", app.OwnedFiles.Keys);
+        Assert.Null(app.OwnedFiles);
+        Assert.True(File.Exists(Path.Combine(app.ExtractionDirectory, "data")));
         Assert.Empty(app.DesktopEntryHash);
         Assert.False(File.Exists(Launcher.EntryPath(app)));
     }
