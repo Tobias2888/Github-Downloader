@@ -142,6 +142,93 @@ public sealed class LocalInstallerRetentionTests : IDisposable
     }
 
     [Fact]
+    public async Task NewArchiveWithDifferentFilenameUpdatesChosenAppAndKeepsRollbackVersion()
+    {
+        string destination = Path.Combine(_root, "application");
+        string first = Path.Combine(_root, "example-1.0.zip");
+        string second = Path.Combine(_root, "example-2.0.zip");
+        foreach (string source in new[] { first, second })
+        {
+            using ZipArchive archive = ZipFile.Open(source, ZipArchiveMode.Create);
+            using StreamWriter writer = new(archive.CreateEntry("application.txt").Open());
+            writer.Write(Path.GetFileName(source));
+        }
+        Assert.True(await LocalFileInstaller.InstallAsync(first, _ => { }, _ => { }, destination, null, Cache, 2));
+        LocalApp original = Assert.Single(LocalApps.Store.Read());
+        LocalApp unrelated = SaveLegacyApp("unrelated", installed: true);
+        LocalAppManager manager = new();
+        Assert.True(await manager.InstallNewArchiveVersionAsync(original, second, _ => { }, _ => { }));
+        Assert.Equal(2, LocalApps.Store.Read().Count);
+        Assert.Contains(LocalApps.Store.Read(), app => app.Id == unrelated.Id && app.IsInstalled);
+        LocalApp updated = LocalApps.Store.Read().Single(app => app.Id == original.Id);
+        Assert.True(updated.IsInstalled);
+        Assert.Equal("example-2.0.zip", updated.FileName);
+        Assert.Equal(destination, updated.ExtractionDirectory);
+        Assert.Equal("example-2.0.zip", File.ReadAllText(Path.Combine(destination, "application.txt")));
+        Assert.Equal(2, updated.InstallerVersions.Count);
+        Assert.All(updated.InstallerVersions, version => Assert.True(File.Exists(version.Path)));
+        Assert.True(await manager.InstallVersionAsync(updated, updated.AvailableInstallerVersions.Last(), _ => { }, _ => { }));
+        Assert.Equal(2, LocalApps.Store.Read().Count);
+        Assert.Equal("example-1.0.zip", File.ReadAllText(Path.Combine(destination, "application.txt")));
+        Assert.Equal(2, LocalApps.Store.Read().Single(app => app.Id == original.Id).InstallerVersions.Count);
+        await Assert.ThrowsAsync<ArgumentException>(() => manager.InstallNewArchiveVersionAsync(unrelated, second, _ => { }, _ => { }));
+        await Assert.ThrowsAsync<ArgumentException>(() => manager.InstallNewArchiveVersionAsync(updated, unrelated.InstallerPath, _ => { }, _ => { }));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task InstallingAnImportedArchiveUpdatesItsEntryAndPreservesVersions(bool chooseVersion)
+    {
+        if (!OperatingSystem.IsLinux()) return;
+        string originalRoot = Path.Combine(_root, "original");
+        Directory.CreateDirectory(originalRoot);
+        LocalApps.Store = new(Path.Combine(originalRoot, "local-apps.json"));
+        for (int version = 1; version <= 2; version++)
+        {
+            string source = Path.Combine(_root, $"app-v{version}.zip");
+            using (ZipArchive archive = ZipFile.Open(source, ZipArchiveMode.Create))
+            {
+                using StreamWriter writer = new(archive.CreateEntry("application.txt").Open());
+                writer.Write($"version {version}");
+            }
+            Assert.True(await LocalFileInstaller.InstallAsync(source, _ => { }, _ => { },
+                Path.Combine(originalRoot, "original-installation"), null, Cache, 2));
+        }
+        string originalId = Assert.Single(LocalApps.Store.Read()).Id;
+        File.WriteAllText(Path.Combine(originalRoot, "repos.json"), "[]");
+        File.WriteAllText(Path.Combine(originalRoot, "appsettings.json"), "{}");
+        string backup = Path.Combine(_root, "backup.zip");
+        ConfigurationArchive.Export(backup, InstallerExportMode.All, originalRoot);
+        Directory.Delete(originalRoot, true);
+        string importedRoot = Path.Combine(_root, "imported");
+        ConfigurationArchive.Import(backup, importedRoot);
+        LocalApps.Store = new(Path.Combine(importedRoot, "local-apps.json"));
+        LocalApp imported = Assert.Single(LocalApps.Store.Read());
+        Assert.False(imported.IsInstalled);
+        Assert.Empty(imported.ExtractionDirectory);
+        LocalAppManager manager = new();
+        LocalInstallerVersion selected = chooseVersion ? imported.AvailableInstallerVersions.Last()
+            : imported.AvailableInstallerVersions.First();
+        if (chooseVersion)
+            Assert.True(await manager.InstallVersionAsync(imported, selected, _ => { }, _ => { }));
+        else
+            Assert.True(await manager.ReinstallAsync(imported, _ => { }, _ => { }));
+        LocalApp installed = Assert.Single(LocalApps.Store.Read());
+        Assert.Equal(originalId, installed.Id);
+        Assert.True(installed.IsInstalled);
+        Assert.Equal(imported.InstallerVersions, installed.InstallerVersions);
+        Assert.Equal(selected.Path, installed.InstallerPath);
+        Assert.Equal(chooseVersion ? "version 1" : "version 2",
+            File.ReadAllText(Path.Combine(installed.ExtractionDirectory, "application.txt")));
+        Assert.True(await manager.ReinstallAsync(installed, _ => { }, _ => { }));
+        LocalApp reinstalled = Assert.Single(LocalApps.Store.Read());
+        Assert.Equal(originalId, reinstalled.Id);
+        Assert.Equal(installed.ExtractionDirectory, reinstalled.ExtractionDirectory);
+        Assert.Equal(imported.InstallerVersions, reinstalled.InstallerVersions);
+    }
+
+    [Fact]
     public async Task VersionInstallationRejectsMissingAndUnrecordedInstallers()
     {
         LocalApp app = SaveLegacyApp("example", installed: true);

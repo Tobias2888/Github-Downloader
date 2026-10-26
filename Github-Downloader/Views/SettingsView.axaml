@@ -460,15 +460,17 @@
                         <TextBlock Text="Data Management"
                                    Classes="SubTitle"/>
                         
-                        <Button Content="Import Repository Configuration" 
+                        <Button Content="Import Configuration"
                                 HorizontalAlignment="Stretch" 
                                 Command="{Binding ImportConfig}"
                                 CommandParameter="{Binding $parent[UserControl]}"/>
                         
-                        <Button Content="Export Repository Configuration" 
+                        <Button Content="Export Configuration"
                                 HorizontalAlignment="Stretch"
                                 Command="{Binding ExportConfig}"
                                 CommandParameter="{Binding $parent[UserControl]}"/>
+
+                        <TextBlock Name="ConfigurationStatus" Text="{Binding ConfigurationStatus}" TextWrapping="Wrap"/>
 
                         <TextBlock Text="Re-download and reinstall every tracked repository, including those excluded from bulk updates."
                                    TextWrapping="Wrap"/>

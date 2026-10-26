@@ -55,6 +55,36 @@ public sealed class SettingsViewTests
         }, CancellationToken.None);
     }
 
+    [Theory]
+    [InlineData(0, InstallerExportMode.None)]
+    [InlineData(1, InstallerExportMode.Newest)]
+    [InlineData(2, InstallerExportMode.All)]
+    public async Task ExportDialogReturnsSelectedModeAndAllowsCancellation(int index, InstallerExportMode expected)
+    {
+        await _application.Dispatch(async () =>
+        {
+            Window owner = new();
+            owner.Show();
+            try
+            {
+                ExportConfigurationDialog dialog = new();
+                Task<InstallerExportMode?> result = dialog.ShowDialog<InstallerExportMode?>(owner);
+                ComboBox modes = dialog.FindControl<ComboBox>("InstallerMode")!;
+                Assert.Equal(3, modes.ItemCount);
+                Assert.Equal(0, modes.SelectedIndex);
+                modes.SelectedIndex = index;
+                dialog.FindControl<Button>("ConfirmExport")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                Assert.Equal(expected, await result);
+
+                dialog = new();
+                result = dialog.ShowDialog<InstallerExportMode?>(owner);
+                dialog.FindControl<Button>("CancelExport")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                Assert.Null(await result);
+            }
+            finally { owner.Close(); }
+        }, CancellationToken.None);
+    }
+
     [Fact]
     public void OldSettingsKeepPlatformDefaultAndCustomRulesRoundTrip()
     {

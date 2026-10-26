@@ -191,6 +191,36 @@ public sealed class ArchiveAppLauncherTests : IDisposable
         Assert.Equal(mode, File.GetUnixFileMode(outside));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ReinstallAdoptsIdenticalLauncherAfterImportClearsOwnership(bool changed)
+    {
+        if (!OperatingSystem.IsLinux()) return;
+        Assert.True(await Install(Archive(("app", "#!/bin/sh\n"))));
+        LocalApp app = Assert.Single(LocalApps.Store.Read());
+        string entry = Launcher.EntryPath(app);
+        if (changed) await File.AppendAllTextAsync(entry, "# user customization\n");
+        string original = await File.ReadAllTextAsync(entry);
+        LocalApp imported = app with
+        {
+            IsInstalled = false, ExtractionDirectory = "", ExecutablePath = "", DesktopEntryHash = "",
+            OwnedFiles = new()
+        };
+        LocalApps.Store.Save(imported);
+        if (changed)
+            await Assert.ThrowsAsync<IOException>(() => Install(imported.InstallerPath));
+        else
+        {
+            Assert.True(await Install(imported.InstallerPath));
+            LocalApp installed = Assert.Single(LocalApps.Store.Read());
+            Assert.True(installed.IsInstalled);
+            Assert.Equal(app.ExecutablePath, installed.ExecutablePath);
+            Assert.Equal(LocalAppManager.FileHash(entry), installed.DesktopEntryHash);
+        }
+        Assert.Equal(original, await File.ReadAllTextAsync(entry));
+    }
+
     [Fact]
     public async Task LauncherFailureKeepsExtractedFilesAndTheSavedArchiveTracked()
     {

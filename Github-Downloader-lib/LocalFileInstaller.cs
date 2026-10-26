@@ -24,7 +24,8 @@ public static class LocalFileInstaller
 
     internal static async Task<bool> InstallAsync(string path, Action<string> status, Action<string> progress,
         string? extractionDirectory, Func<UpdateManager.Asset, Task<bool>>? installer, string cachePath, int? versionsToKeep = LocalInstallerRetention.DefaultVersionsToKeep,
-        Func<string, IReadOnlyList<string>, Task<string?>>? selectExecutable = null, ArchiveAppLauncher? launcher = null)
+        Func<string, IReadOnlyList<string>, Task<string?>>? selectExecutable = null, ArchiveAppLauncher? launcher = null,
+        string? existingAppId = null)
     {
         if (versionsToKeep < 0) throw new ArgumentOutOfRangeException(nameof(versionsToKeep));
         string source = Path.GetFullPath(path);
@@ -59,8 +60,11 @@ public static class LocalFileInstaller
         string folderIdentity = destination is null ? "" : Path.TrimEndingDirectorySeparator(destination);
         if (OperatingSystem.IsWindows()) folderIdentity = folderIdentity.ToUpperInvariant();
         string identity = archive ? "archive:" + folderIdentity : local.Name;
-        string id = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identity)));
+        // A restored app keeps its catalog identity even when its installation folder changes.
+        string id = existingAppId ?? Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identity)));
         LocalApp? previous = LocalApps.Store.Read().FirstOrDefault(app => app.Id == id);
+        if (existingAppId is not null && previous is null)
+            throw new IOException("The local app entry no longer exists.");
         Dictionary<string, string> owned = previous is null ? new() : new(previous.OwnedFiles);
         List<string> extracted = [];
         void FileWritten(string file, bool existed)
@@ -96,8 +100,8 @@ public static class LocalFileInstaller
             bool success = await UpdateManager.ApplyAssetAsync(asset, status, progress, false, installer);
             if (!success) return false;
             // Package identity stays stable when a Debian installer filename changes between versions.
-            if (kind == LocalAppKind.Debian && local.InstalledDebianPackage.Length > 0) id = "deb:" + local.InstalledDebianPackage;
-            if (kind == LocalAppKind.Arch && local.InstalledArchPackage.Length > 0) id = "arch:" + local.InstalledArchPackage;
+            if (existingAppId is null && kind == LocalAppKind.Debian && local.InstalledDebianPackage.Length > 0) id = "deb:" + local.InstalledDebianPackage;
+            if (existingAppId is null && kind == LocalAppKind.Arch && local.InstalledArchPackage.Length > 0) id = "arch:" + local.InstalledArchPackage;
             LocalApp installedApp = new()
             {
                 Id = id, FileName = filename, InstallationName = local.Name, Kind = kind,

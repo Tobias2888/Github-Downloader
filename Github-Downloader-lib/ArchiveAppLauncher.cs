@@ -64,11 +64,17 @@ internal sealed class ArchiveAppLauncher
             """ + "\n";
         string entry = EntryPath(app);
         ArchiveExtractor.EnsureNoLinks(entry);
-        if (File.Exists(entry) && (previous is null || previous.DesktopEntryHash.Length == 0
+        bool matchingEntry = File.Exists(entry) && await File.ReadAllTextAsync(entry) == content;
+        if (File.Exists(entry) && !matchingEntry && (previous is null || previous.DesktopEntryHash.Length == 0
             || LocalAppManager.FileHash(entry) != previous.DesktopEntryHash))
             throw new IOException("The application-menu entry was changed or belongs to another application.");
-        Directory.CreateDirectory(_desktopDirectory);
-        await File.WriteAllTextAsync(entry, content);
+        // An import can leave an identical launcher without its catalog ownership hash.
+        // Adopt it without overwriting a file whose ownership is no longer recorded.
+        if (!matchingEntry)
+        {
+            Directory.CreateDirectory(_desktopDirectory);
+            await File.WriteAllTextAsync(entry, content);
+        }
         Logger.LogI("Local archive application-menu entry created");
         progress("Added the extracted application to the application menu.");
         return app with { ExecutablePath = executable, DesktopEntryHash = LocalAppManager.FileHash(entry) };

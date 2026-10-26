@@ -35,6 +35,7 @@ public sealed record LocalApp
         .DistinctBy(version => version.Path, OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)
         .Where(version => File.Exists(version.Path)).OrderByDescending(version => version.SavedAt).ToArray();
     [JsonIgnore] public bool CanChooseInstallerVersion => AvailableInstallerVersions.Count > 1;
+    [JsonIgnore] public bool CanAddArchiveVersion => Kind == LocalAppKind.Archive;
     [JsonIgnore] public string Type => Kind switch
     {
         LocalAppKind.Debian => "Debian package",

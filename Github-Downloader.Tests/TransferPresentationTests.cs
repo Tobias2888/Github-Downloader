@@ -74,6 +74,19 @@ public sealed class DesktopTransferProgressTests(RepositoryDragApplication appli
     }
 
     [Fact]
+    public async Task OperationFailuresShowTheSpecificReason()
+    {
+        await application.Dispatch(async () =>
+        {
+            DownloadStatusViewModel model = new();
+            string reason = "The application-menu entry was changed or belongs to another application.";
+            Assert.False(await model.RunAsync(() => Task.FromException<bool>(new IOException(reason))));
+            Assert.Contains(model.Logs, entry => entry.Level == "error" && entry.Message.Contains(reason));
+            Assert.False(model.IsUpdating);
+        }, CancellationToken.None);
+    }
+
+    [Fact]
     public async Task CancelStopsOperationWithoutFailureAndAllowsAnotherDownload()
     {
         await application.Dispatch(async () =>

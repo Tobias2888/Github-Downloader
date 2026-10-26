@@ -22,7 +22,7 @@ public sealed class LocalAppManager
         Func<string, IReadOnlyList<string>, Task<string?>>? selectExecutable = null) =>
         LocalFileInstaller.InstallAsync(app.InstallerPath, status, progress,
             app.Kind == LocalAppKind.Archive ? app.ExtractionDirectory : null, null, FileManager.CachePath,
-            LocalInstallerRetention.LoadLimit(), selectExecutable, _launcher);
+            LocalInstallerRetention.LoadLimit(), selectExecutable, _launcher, existingAppId: app.Id);
 
     public Task<bool> InstallVersionAsync(LocalApp app, LocalInstallerVersion version, Action<string> status, Action<string> progress,
         Func<string, IReadOnlyList<string>, Task<string?>>? selectExecutable = null)
@@ -38,7 +38,20 @@ public sealed class LocalAppManager
         ArchiveExtractor.EnsureNoLinks(selected.Path);
         return LocalFileInstaller.InstallAsync(selected.Path, status, progress,
             current.Kind == LocalAppKind.Archive ? current.ExtractionDirectory : null, null, FileManager.CachePath,
-            LocalInstallerRetention.LoadLimit(), selectExecutable, _launcher);
+            LocalInstallerRetention.LoadLimit(), selectExecutable, _launcher, existingAppId: current.Id);
+    }
+
+    public Task<bool> InstallNewArchiveVersionAsync(LocalApp app, string path, Action<string> status, Action<string> progress,
+        Func<string, IReadOnlyList<string>, Task<string?>>? selectExecutable = null, string? extractionDirectory = null)
+    {
+        LocalApp current = _store.Read().FirstOrDefault(entry => entry.Id == app.Id)
+            ?? throw new IOException("The local app entry no longer exists.");
+        if (current.Kind != LocalAppKind.Archive || !ArchiveExtractor.IsSupportedArchive(path))
+            throw new ArgumentException("Choose an archive to add a version of this app.");
+        string? destination = string.IsNullOrWhiteSpace(current.ExtractionDirectory)
+            ? extractionDirectory : current.ExtractionDirectory;
+        return LocalFileInstaller.InstallAsync(path, status, progress, destination, null, FileManager.CachePath,
+            LocalInstallerRetention.LoadLimit(), selectExecutable, _launcher, existingAppId: current.Id);
     }
 
     public string GetUninstallDescription(LocalApp app) => (app.Kind switch

@@ -1,6 +1,8 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using Avalonia.Platform.Storage;
 using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
@@ -14,6 +16,7 @@ namespace Github_Downloader.Views;
 public partial class LocalAppsView : UserControl
 {
     public event EventHandler<RoutedEventArgs>? InstallRequested;
+    private bool _addingVersion;
 
     public LocalAppsView() => InitializeComponent();
 
@@ -44,6 +47,50 @@ public partial class LocalAppsView : UserControl
             application.DownloadStatusViewModel.LogStatus, application.DownloadStatusViewModel.LogProgress,
             (directory, candidates) => ArchiveExecutablePicker.SelectAsync(this, directory, candidates)), "Reinstall local app");
         Refresh();
+    }
+
+    private async void AddVersion_OnClick(object? sender, RoutedEventArgs e)
+    {
+        if (_addingVersion || sender is not Button { DataContext: LocalApp app }
+            || TopLevel.GetTopLevel(this) is not Window owner) return;
+        App application = (App)Application.Current!;
+        if (application.DownloadStatusViewModel.IsUpdating) { application.DownloadStatusViewModel.Show(); return; }
+        _addingVersion = true;
+        try
+        {
+            IReadOnlyList<IStorageFile> files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = $"Add a version of {app.Name}",
+                AllowMultiple = false,
+                FileTypeFilter = [new FilePickerFileType("Archives")
+                {
+                    Patterns = ArchiveExtractor.SupportedExtensions
+                        .SelectMany(extension => new[] { "*" + extension, "*" + extension.ToUpperInvariant() }).ToArray()
+                }]
+            });
+            if (files.Count == 0) return;
+            string path = files[0].TryGetLocalPath() ?? throw new IOException("Choose an archive stored on this computer.");
+            string? destination = null;
+            if (!OperatingSystem.IsLinux() && string.IsNullOrWhiteSpace(app.ExtractionDirectory))
+            {
+                IReadOnlyList<IStorageFolder> folders = await owner.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+                {
+                    Title = $"Extract {Path.GetFileName(path)} to", AllowMultiple = false
+                });
+                if (folders.Count == 0) return;
+                destination = folders[0].TryGetLocalPath() ?? throw new IOException("Choose a folder on this computer.");
+            }
+            if (application.DownloadStatusViewModel.IsUpdating) return;
+            await application.DownloadStatusViewModel.RunAsync(() => new LocalAppManager().InstallNewArchiveVersionAsync(app, path,
+                application.DownloadStatusViewModel.LogStatus, application.DownloadStatusViewModel.LogProgress,
+                (directory, candidates) => ArchiveExecutablePicker.SelectAsync(this, directory, candidates), destination), "Install new archive version");
+            Refresh();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            ListStatus.Text = $"Could not add the archive version: {exception.Message}";
+        }
+        finally { _addingVersion = false; }
     }
 
     private async void Uninstall_OnClick(object? sender, RoutedEventArgs e)

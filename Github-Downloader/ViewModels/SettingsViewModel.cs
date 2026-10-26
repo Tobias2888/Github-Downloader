@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using System.Text.Json;
+using Github_Downloader.Views;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
@@ -319,52 +321,103 @@ public class SettingsViewModel : ViewModelBase
         }
     }
 
+    private string _configurationStatus = "";
+    public string ConfigurationStatus
+    {
+        get => _configurationStatus;
+        private set { _configurationStatus = value; OnPropertyChanged(); }
+    }
+
+    private static readonly FilePickerFileType[] ArchiveFileTypes =
+    [
+        new("ZIP archive") { Patterns = ["*.zip"] },
+        new("Gzip compressed TAR archive") { Patterns = ["*.tar.gz", "*.tag.gz"] }
+    ];
+
     public async Task ExportConfig(Visual visual)
     {
         Logger.LogI("Configuration export requested");
-        
-        TopLevel? topLevel = TopLevel.GetTopLevel(visual);
-        if (topLevel is null) return;
-        
-        IStorageFile? file = await topLevel.StorageProvider.SaveFilePickerAsync(
-            new FilePickerSaveOptions
-            {
-                Title = "Export Repository Configuration",
-                SuggestedFileName = "repos.json",
-                FileTypeChoices = new[]
-                {
-                    new FilePickerFileType("JSON files")
-                    {
-                        Patterns = new[] { "*.json" }
-                    }
-                }
-            });
-
-        if (file is null) Logger.LogI("Configuration export cancelled");
-        if (file is not null)
+        if (TopLevel.GetTopLevel(visual) is not Window owner) return;
+        ConfigurationStatus = "";
+        InstallerExportMode? mode = await new ExportConfigurationDialog().ShowDialog<InstallerExportMode?>(owner);
+        if (mode is null) return;
+        try
         {
-            FileManager.ExportRepoConfig(file.Path.LocalPath);
+            IStorageFile? file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = "Export Configuration",
+                SuggestedFileName = "github-downloader-config.zip",
+                DefaultExtension = "zip",
+                ShowOverwritePrompt = true,
+                FileTypeChoices = ArchiveFileTypes
+            });
+            if (file is null) return;
+            _settings.Save();
+            FileManager.SaveRepos();
+            await Task.Run(() => ConfigurationArchive.Export(file.Path.LocalPath, mode.Value, FileManager.AppdataPath));
+            ConfigurationStatus = "Configuration exported.";
+            Logger.LogI("Configuration export completed");
+        }
+        catch (Exception exception)
+        {
+            ConfigurationStatus = $"Export failed: {exception.Message}";
+            Logger.LogE($"Configuration export failed ({exception.GetType().Name})");
         }
     }
 
     public async Task ImportConfig(Visual visual)
     {
         Logger.LogI("Configuration import requested");
-
         TopLevel? topLevel = TopLevel.GetTopLevel(visual);
         if (topLevel is null) return;
-
-        IReadOnlyList<IStorageFile> files = await topLevel.StorageProvider.OpenFilePickerAsync(
-            new FilePickerOpenOptions
-            {
-                Title = "Select repo.json",
-                AllowMultiple = false,
-            });
-
-        if (files.Count == 0) Logger.LogI("Configuration import cancelled");
-        if (files.Count > 0)
+        ConfigurationStatus = "";
+        if (((App)Application.Current!).DownloadStatusViewModel.IsUpdating)
         {
-            await FileManager.ImportRepoConfig(files[0].Path.LocalPath);
+            ConfigurationStatus = "Wait for the current operation to finish before importing configuration.";
+            return;
+        }
+        try
+        {
+            IReadOnlyList<IStorageFile> files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Import Configuration",
+                AllowMultiple = false,
+                FileTypeFilter = [new("Configuration files") { Patterns = ["*.zip", "*.tar.gz", "*.tag.gz", "*.json"] }]
+            });
+            if (files.Count == 0) return;
+            string path = files[0].Path.LocalPath;
+            if (path.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+                await FileManager.ImportRepoConfig(path);
+            else
+            {
+                await Task.Run(() => ConfigurationArchive.Import(path, FileManager.AppdataPath, json =>
+                {
+                    AppSettings imported = JsonSerializer.Deserialize<AppSettings>(json)
+                        ?? throw new InvalidDataException("Invalid application settings.");
+                    if (imported.CheckForUpdatesInterval <= 0)
+                        throw new InvalidDataException("Invalid update interval.");
+                    if (imported.LocalInstallerVersionsToKeep < 0)
+                        throw new InvalidDataException("Invalid installer retention setting.");
+                }));
+                await FileManager.LoadRepos(refreshDetails: false);
+                _settings = AppSettings.Load();
+                _mainViewModel.AppSettings = _settings;
+                _mainViewModel.AutoCheckForUpdatesTimer.Interval = TimeSpan.FromMinutes(_settings.CheckForUpdatesInterval);
+                if (_settings.AutoCheckForUpdates) _mainViewModel.AutoCheckForUpdatesTimer.Start();
+                else _mainViewModel.AutoCheckForUpdatesTimer.Stop();
+                ShowLocalInstallerRetentionConfirmation = false;
+                LocalInstallerRetentionStatus = "";
+                _localInstallerRetentionMode = _settings.LocalInstallerVersionsToKeep.HasValue ? 0 : 1;
+                _localInstallerVersionsToKeep = _settings.LocalInstallerVersionsToKeep ?? LocalInstallerRetention.DefaultVersionsToKeep;
+                OnPropertyChanged(string.Empty);
+            }
+            ConfigurationStatus = "Configuration imported.";
+            Logger.LogI("Configuration import completed");
+        }
+        catch (Exception exception)
+        {
+            ConfigurationStatus = $"Import failed: {exception.Message}";
+            Logger.LogE($"Configuration import failed ({exception.GetType().Name})");
         }
     }
 }

@@ -1,0 +1,19 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Github_Downloader.Views.ExportConfigurationDialog"
+        Title="Export configuration" Width="510" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner" RequestedThemeVariant="Dark" Background="#222226">
+    <StackPanel Margin="24" Spacing="16">
+        <TextBlock Text="Include saved local installers?" FontSize="20" FontWeight="SemiBold"/>
+        <TextBlock Text="The archive includes repository settings, application settings, and the local app catalog. Choose which installer files to include." TextWrapping="Wrap"/>
+        <ComboBox Name="InstallerMode" SelectedIndex="0" HorizontalAlignment="Stretch">
+            <ComboBoxItem Content="No installers"/>
+            <ComboBoxItem Content="Newest saved version of each installer"/>
+            <ComboBoxItem Content="All saved installers"/>
+        </ComboBox>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+            <Button Name="CancelExport" Content="Cancel" Click="Cancel_OnClick" Padding="16,8"/>
+            <Button Name="ConfirmExport" Content="Continue" Click="Continue_OnClick" Padding="16,8"/>
+        </StackPanel>
+    </StackPanel>
+</Window>

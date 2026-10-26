@@ -128,7 +128,7 @@ public class DownloadStatusViewModel : ViewModelBase
         catch (Exception exception)
         {
             Logger.LogE($"Operation failed ({exception.GetType().Name})");
-            Log($"Operation failed ({exception.GetType().Name}). Check permissions, connectivity and installation requirements.", "error");
+            Log($"Operation failed ({exception.GetType().Name}): {exception.Message}", "error");
         }
         finally
         {
