@@ -1,11 +1,11 @@
 pkgname = github-downloader-cli
 pkgbase = github-downloader-cli
-pkgver = 3.4.1-1
+pkgver = 3.5.0-1
 pkgdesc = GitHub Downloader CLI
 url = https://github.com/Tobias2888/Github-Downloader
-builddate = 1792962754
+builddate = 1793055002
 packager = Tobias Hofinger <github.flashy834@passmail.net>
-size = 76494036
+size = 76551380
 arch = aarch64
 license = MIT
 depend = glibc
