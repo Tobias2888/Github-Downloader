@@ -426,7 +426,8 @@ public class Repo : INotifyPropertyChanged, IJsonOnDeserializing, IJsonOnDeseria
 
     [JsonIgnore]
     public bool CanUninstall => System.OperatingSystem.IsLinux()
-        && (InstalledDebianPackage.Length > 0 || InstalledArchPackage.Length > 0 || InstalledAppImageId.Length > 0
+        && (ArchiveInstallation is { IsInstalled: true }
+            || InstalledDebianPackage.Length > 0 || InstalledArchPackage.Length > 0 || InstalledAppImageId.Length > 0
             || CurrentInstallTag.Length > 0 && (Path.GetExtension(SelectedAssetName).Equals(".appimage", System.StringComparison.OrdinalIgnoreCase)
                 || InstallationManager.CanInstallDebianPackages && Path.GetExtension(SelectedAssetName).Equals(".deb", System.StringComparison.OrdinalIgnoreCase)
                 || InstallationManager.CanInstallArchPackages && InstallationManager.IsArchPackageFile(SelectedAssetName)));
@@ -501,6 +502,31 @@ public class Repo : INotifyPropertyChanged, IJsonOnDeserializing, IJsonOnDeseria
             _downloadPath = value;
             OnPropertyChanged(nameof(DownloadPath));
             OnPropertyChanged(nameof(ExtractionDirectory));
+        }
+    }
+
+    private bool _createArchiveLauncher = true;
+    public bool CreateArchiveLauncher
+    {
+        get => _createArchiveLauncher;
+        set
+        {
+            if (_createArchiveLauncher == value) return;
+            _createArchiveLauncher = value;
+            OnPropertyChanged(nameof(CreateArchiveLauncher));
+        }
+    }
+
+    private LocalApp? _archiveInstallation;
+    public LocalApp? ArchiveInstallation
+    {
+        get => _archiveInstallation;
+        set
+        {
+            if (_archiveInstallation == value) return;
+            _archiveInstallation = value;
+            OnPropertyChanged(nameof(ArchiveInstallation));
+            OnPropertyChanged(nameof(CanUninstall));
         }
     }
 

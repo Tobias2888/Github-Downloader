@@ -237,6 +237,84 @@ public sealed class ArchiveAppLauncherTests : IDisposable
         Assert.False(File.Exists(Launcher.EntryPath(app)));
     }
 
+    [Fact]
+    public void RepositoryLauncherFilenamesUseOwnerAndRepoWhileLocalAppsKeepUniqueSuffixes()
+    {
+        LocalApp repo = new() { Id = "repository:owner/My.App", FileName = "release-v2.zip", InstallationName = "owner/My.App" };
+        string filename = Path.GetFileName(Launcher.EntryPath(repo));
+        Assert.Equal("owner_my.app.desktop", filename);
+        Assert.NotEqual(Launcher.EntryPath(repo with { Id = "repository:owner-a/repo" }),
+            Launcher.EntryPath(repo with { Id = "repository:owner/a-repo" }));
+        Assert.Equal(Launcher.EntryPath(repo), Launcher.EntryPath(repo with { FileName = "release-v3.zip" }));
+        LocalApp local = new() { Id = "first", FileName = "My App v2.zip", InstallationName = "local/example" };
+        Assert.Matches(@"^my-app-v2-[a-f0-9]{12}\.desktop$", Path.GetFileName(Launcher.EntryPath(local)));
+        Assert.NotEqual(Launcher.EntryPath(local), Launcher.EntryPath(local with { Id = "second" }));
+        foreach (string name in new[] { "../../unsafe name.zip", "日本語.zip", new string('a', 400) + ".zip" })
+        {
+            string path = Launcher.EntryPath(local with { FileName = name });
+            Assert.Equal(Path.Combine(_root, "applications"), Path.GetDirectoryName(path));
+            Assert.True(Path.GetFileName(path).Length < 150);
+            Assert.Matches(@"^[a-z0-9._-]+-[a-f0-9]{12}\.desktop$", Path.GetFileName(path));
+        }
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task ReinstallMigratesLegacyFilenamesAndPreservesEditedLegacyLaunchers(bool changed, bool prefixed)
+    {
+        if (!OperatingSystem.IsLinux()) return;
+        Assert.True(await Install(Archive(("app", "#!/bin/sh\n"))));
+        LocalApp app = Assert.Single(LocalApps.Store.Read());
+        string readable = Launcher.EntryPath(app);
+        string legacy = prefixed ? Launcher.PrefixedEntryPath(app) : Launcher.LegacyEntryPath(app);
+        File.Move(readable, legacy);
+        if (changed) await File.AppendAllTextAsync(legacy, "# user customization\n");
+        string original = await File.ReadAllTextAsync(legacy);
+        Assert.True(await Install(app.InstallerPath));
+        LocalApp updated = Assert.Single(LocalApps.Store.Read());
+        Assert.True(File.Exists(readable));
+        Assert.Equal(LocalAppManager.FileHash(readable), updated.DesktopEntryHash);
+        Assert.Equal(changed, File.Exists(legacy));
+        if (changed) Assert.Equal(original, await File.ReadAllTextAsync(legacy));
+        else Assert.Single(Directory.GetFiles(Path.Combine(_root, "applications"), "*.desktop"));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UninstallCanRemoveALegacyLauncherBeforeItHasBeenMigrated(bool prefixed)
+    {
+        if (!OperatingSystem.IsLinux()) return;
+        Assert.True(await Install(Archive(("app", "#!/bin/sh\n"))));
+        LocalApp app = Assert.Single(LocalApps.Store.Read());
+        string legacy = prefixed ? Launcher.PrefixedEntryPath(app) : Launcher.LegacyEntryPath(app);
+        File.Move(Launcher.EntryPath(app), legacy);
+        Launcher.Remove(app);
+        Assert.False(File.Exists(legacy));
+    }
+
+    [Fact]
+    public async Task RenamedArchiveVersionReplacesTheOldReadableLauncher()
+    {
+        if (!OperatingSystem.IsLinux()) return;
+        Assert.True(await Install(Archive(("app", "#!/bin/sh\n"))));
+        LocalApp first = Assert.Single(LocalApps.Store.Read());
+        string original = Launcher.EntryPath(first);
+        Assert.True(await Install(Archive(("app", "#!/bin/sh\n# new version\n"))));
+        LocalApp second = Assert.Single(LocalApps.Store.Read());
+        Assert.Equal(first.Id, second.Id);
+        string updated = Launcher.EntryPath(second);
+        Assert.NotEqual(original, updated);
+        Assert.False(File.Exists(original));
+        Assert.True(File.Exists(updated));
+        Assert.Single(Directory.GetFiles(Path.Combine(_root, "applications"), "*.desktop"));
+        Launcher.Remove(second);
+        Assert.False(File.Exists(updated));
+    }
+
     [Theory]
     [InlineData("/tmp/my app", "\"/tmp/my app\"")]
     [InlineData("/tmp/100% app", "\"/tmp/100%% app\"")]

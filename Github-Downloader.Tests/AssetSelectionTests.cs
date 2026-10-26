@@ -395,6 +395,18 @@ public sealed class AssetSelectionTests
                 Assert.True(extract.IsEffectivelyVisible);
                 Assert.True(downloadPath.IsVisible);
                 Assert.True(rename.IsEffectivelyVisible);
+                ToggleSwitch launcher = details.FindControl<ToggleSwitch>("TglCreateArchiveLauncher")!;
+                Assert.True(launcher.IsEffectivelyVisible);
+                Assert.True(launcher.IsChecked);
+                launcher.IsChecked = false;
+                Assert.False(repo.CreateArchiveLauncher);
+                Repo restoredLauncherSetting = JsonSerializer.Deserialize<Repo>(JsonSerializer.Serialize(repo))!;
+                Assert.False(restoredLauncherSetting.CreateArchiveLauncher);
+                extract.IsChecked = false;
+                Assert.False(launcher.IsEffectivelyVisible);
+                extract.IsChecked = true;
+                Assert.True(launcher.IsEffectivelyVisible);
+                Assert.False(launcher.IsChecked);
 
                 selection.SelectedIndex = 2;
                 Assert.True(saveRow.IsVisible);

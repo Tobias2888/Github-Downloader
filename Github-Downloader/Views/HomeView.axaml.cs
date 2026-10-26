@@ -268,7 +268,8 @@ public partial class HomeView : UserControl
     {
         await ((App)Application.Current!).RunDownloadsAsync(cancellationToken => UpdateManager.UpdateReposAsync(UpdateManager.Repos,
             _downloadStatusViewModel.LogStatus, _downloadStatusViewModel.LogProgress,
-            transferProgress: _downloadStatusViewModel.ReportTransfer, cancellationToken: cancellationToken),
+            transferProgress: _downloadStatusViewModel.ReportTransfer, cancellationToken: cancellationToken,
+            selectArchiveExecutable: ((App)Application.Current!).SelectRepositoryArchiveExecutableAsync),
             UpdateManager.Repos.Where(repo => !repo.ExcludedFromDownloadAll && !repo.IsUpToDate));
         
         CheckForGlobalUpdates();

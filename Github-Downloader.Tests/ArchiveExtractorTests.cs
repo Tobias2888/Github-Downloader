@@ -43,6 +43,7 @@ public sealed class ArchiveExtractorTests : IDisposable
     {
         Repo repo = CreateRepo();
         repo.AutoExtract = autoExtract;
+        repo.CreateArchiveLauncher = false;
         repo.SaveFileAnyway = true;
         repo.NewFileName = "renamed.zip";
         string archive = CreateArchive("zip");

@@ -95,7 +95,8 @@ public partial class App : Application
 
             performedUpdate = reinstall || !repo.IsUpToDate;
             return await UpdateManager.UpdateRepo(repo, DownloadStatusViewModel.LogStatus,
-                DownloadStatusViewModel.LogProgress, reinstall, DownloadStatusViewModel.ReportTransfer, cancellationToken);
+                DownloadStatusViewModel.LogProgress, reinstall, DownloadStatusViewModel.ReportTransfer, cancellationToken,
+                selectArchiveExecutable: SelectRepositoryArchiveExecutableAsync);
         });
         if (succeeded && performedUpdate)
             await Notifications.NotifyDownloadsCompletedAsync(1, repo.Name);
@@ -119,7 +120,8 @@ public partial class App : Application
                 return await UpdateManager.UpdateReposAsync(repositories,
                     DownloadStatusViewModel.LogStatus, DownloadStatusViewModel.LogProgress,
                     downloadAnyways: true, respectExclusions: false,
-                    transferProgress: DownloadStatusViewModel.ReportTransfer, cancellationToken: cancellationToken);
+                    transferProgress: DownloadStatusViewModel.ReportTransfer, cancellationToken: cancellationToken,
+                    selectArchiveExecutable: SelectRepositoryArchiveExecutableAsync);
             }, repositories);
         }
         finally
@@ -127,6 +129,13 @@ public partial class App : Application
             FileManager.SaveRepos();
             UpdateIcon();
         }
+    }
+
+    internal Task<string?> SelectRepositoryArchiveExecutableAsync(string directory, IReadOnlyList<string> candidates)
+    {
+        ShowMainWindow();
+        return MainWindow is null ? Task.FromResult<string?>(null)
+            : ArchiveExecutablePicker.SelectAsync(MainWindow, directory, candidates);
     }
 
     public async Task UninstallRepoAsync(Repo repo)

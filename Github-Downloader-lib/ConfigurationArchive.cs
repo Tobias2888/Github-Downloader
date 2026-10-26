@@ -127,6 +127,15 @@ public static class ConfigurationArchive
                 throw new InvalidDataException("The archive must contain repos.json and appsettings.json.");
             List<Repo>? repos = JsonSerializer.Deserialize<List<Repo>>(File.ReadAllText(Path.Combine(staging, "repos.json")));
             if (repos is null || repos.Any(repo => repo is null)) throw new InvalidDataException("Invalid repository configuration.");
+            if (repos.Any(repo => repo.ArchiveInstallation is not null))
+            {
+                foreach (Repo repo in repos.Where(repo => repo.ArchiveInstallation is not null))
+                {
+                    repo.ArchiveInstallation = null;
+                    repo.CurrentInstallTag = "";
+                }
+                File.WriteAllText(Path.Combine(staging, "repos.json"), JsonSerializer.Serialize(repos, JsonOptions));
+            }
             string settings = File.ReadAllText(Path.Combine(staging, "appsettings.json"));
             using (JsonDocument document = JsonDocument.Parse(settings))
                 if (document.RootElement.ValueKind != JsonValueKind.Object) throw new InvalidDataException("Invalid application settings.");

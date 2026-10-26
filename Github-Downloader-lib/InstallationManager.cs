@@ -113,6 +113,20 @@ public sealed class InstallationManager
             if (!OperatingSystem.IsLinux()) throw new PlatformNotSupportedException("Uninstall is supported on Linux.");
             if (!repo.CanUninstall) throw new InvalidOperationException("This repository has no supported installation to uninstall.");
 
+            if (repo.ArchiveInstallation is { IsInstalled: true } archive)
+            {
+                LocalAppManager archives = new(LocalApps.Store, this, new ArchiveAppLauncher(_desktopDirectory));
+                bool removed = await archives.UninstallArchiveAsync(archive, status, progress,
+                    updated => repo.ArchiveInstallation = updated, removeEntireDirectory: false);
+                if (removed)
+                {
+                    repo.CurrentInstallTag = string.Empty;
+                    repo.ExcludedFromDownloadAll = true;
+                    history.Complete(HistoryOutcome.Uninstalled);
+                }
+                return removed;
+            }
+
             string package = repo.InstalledDebianPackage;
             if (repo.NeedsDebianPackageName) package = legacyDebianPackage?.Trim() ?? string.Empty;
             if ((repo.NeedsDebianPackageName || package.Length > 0) && !IsValidDebianPackageName(package))
@@ -192,6 +206,9 @@ public sealed class InstallationManager
     {
         if (!repo.CanUninstall)
             return "This installation must be removed manually.";
+
+        if (repo.ArchiveInstallation is { IsInstalled: true })
+            return "Removes extracted app files and its application-menu entry. Changed files and unrelated files are kept.";
 
         List<string> actions = [];
         if (repo.InstalledDebianPackage.Length > 0 || repo.NeedsDebianPackageName)

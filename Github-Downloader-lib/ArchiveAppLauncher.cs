@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using Github_Downloader_lib.Models;
 using LoggerLib;
 
@@ -18,11 +19,39 @@ internal sealed class ArchiveAppLauncher
                 : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local", "share"), "applications");
     }
 
-    internal string EntryPath(LocalApp app) => Path.Combine(_desktopDirectory,
-        "github-downloader-archive-" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(app.Id))).ToLowerInvariant() + ".desktop");
+    private static string IdentityHash(LocalApp app) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(app.Id))).ToLowerInvariant();
+
+    internal string EntryPath(LocalApp app)
+    {
+        if (!app.Id.StartsWith("repository:", StringComparison.Ordinal)) return LegacyReadableEntryPath(app);
+        string repository = app.Id["repository:".Length..];
+        if (!Regex.IsMatch(repository, @"\A[A-Za-z0-9-]+/[A-Za-z0-9._-]+\z") || repository.Length > 180)
+            throw new IOException("The repository launcher name is invalid.");
+        // Owners cannot contain underscores, so the owner/repository boundary stays unambiguous.
+        return Path.Combine(_desktopDirectory, repository.ToLowerInvariant().Replace('/', '_') + ".desktop");
+    }
+
+    internal string LegacyReadableEntryPath(LocalApp app)
+    {
+        string name = app.Id.StartsWith("repository:", StringComparison.Ordinal) ? app.Id["repository:".Length..] : app.Name;
+        string readable = Regex.Replace(name.ToLowerInvariant(), "[^a-z0-9._-]+", "-").Trim('-', '.');
+        if (readable.Length == 0) readable = "app";
+        readable = readable[..Math.Min(readable.Length, 80)];
+        return Path.Combine(_desktopDirectory, $"{readable}-{IdentityHash(app)[..12]}.desktop");
+    }
+
+    internal string PrefixedEntryPath(LocalApp app) =>
+        Path.Combine(_desktopDirectory, "github-downloader-archive-" + Path.GetFileName(LegacyReadableEntryPath(app)));
+
+    internal string LegacyEntryPath(LocalApp app) =>
+        Path.Combine(_desktopDirectory, "github-downloader-archive-" + IdentityHash(app) + ".desktop");
+
+    private IEnumerable<string> EntryPaths(LocalApp app) =>
+        new[] { EntryPath(app), LegacyReadableEntryPath(app), PrefixedEntryPath(app), LegacyEntryPath(app) }.Distinct(StringComparer.Ordinal);
 
     internal async Task<LocalApp> ConfigureAsync(LocalApp app, LocalApp? previous, IReadOnlyList<string> extracted,
-        Func<string, IReadOnlyList<string>, Task<string?>>? selectExecutable, Action<string> progress)
+        Func<string, IReadOnlyList<string>, Task<string?>>? selectExecutable, Action<string> progress, string? displayName = null)
     {
         if (!OperatingSystem.IsLinux()) return app;
         string? executable = previous is not null && extracted.Contains(previous.ExecutablePath)
@@ -54,7 +83,7 @@ internal sealed class ArchiveAppLauncher
         string content = $"""
             [Desktop Entry]
             Type=Application
-            Name={EscapeValue(app.Name)}
+            Name={EscapeValue(displayName ?? app.Name)}
             Exec={QuoteExecutable(executable)}
             Path={EscapeValue(Path.GetDirectoryName(executable)!)}
             Icon={EscapeValue(icon)}
@@ -75,18 +104,28 @@ internal sealed class ArchiveAppLauncher
             Directory.CreateDirectory(_desktopDirectory);
             await File.WriteAllTextAsync(entry, content);
         }
+        string entryHash = LocalAppManager.FileHash(entry);
+        string previousHash = previous is { DesktopEntryHash.Length: > 0 } ? previous.DesktopEntryHash : entryHash;
+        // Migrate earlier filename formats and names changed by a new archive version.
+        IEnumerable<string> oldEntries = EntryPaths(app).Concat(previous is null ? [] : EntryPaths(previous));
+        foreach (string oldEntry in oldEntries.Distinct(StringComparer.Ordinal))
+            if (oldEntry != entry) RemoveEntry(oldEntry, previousHash);
         Logger.LogI("Local archive application-menu entry created");
         progress("Added the extracted application to the application menu.");
-        return app with { ExecutablePath = executable, DesktopEntryHash = LocalAppManager.FileHash(entry) };
+        return app with { ExecutablePath = executable, DesktopEntryHash = entryHash };
     }
 
     internal void Remove(LocalApp app)
     {
         if (!OperatingSystem.IsLinux() || app.DesktopEntryHash.Length == 0) return;
-        string entry = EntryPath(app);
+        foreach (string entry in EntryPaths(app)) RemoveEntry(entry, app.DesktopEntryHash);
+    }
+
+    private static void RemoveEntry(string entry, string expectedHash)
+    {
         ArchiveExtractor.EnsureNoLinks(entry);
         if (!File.Exists(entry)) return;
-        if (LocalAppManager.FileHash(entry) != app.DesktopEntryHash)
+        if (LocalAppManager.FileHash(entry) != expectedHash)
         {
             Logger.LogW("Changed local archive application-menu entry was kept");
             return;

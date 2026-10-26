@@ -67,6 +67,8 @@ public static class UpdateManager
             nameof(Repo.DownloadPath),
             nameof(Repo.SaveFileAnyway),
             nameof(Repo.AutoExtract),
+            nameof(Repo.CreateArchiveLauncher),
+            nameof(Repo.ArchiveInstallation),
             nameof(Repo.NewFileName),
             nameof(Repo.InstalledDebianPackage),
             nameof(Repo.InstalledArchPackage),
@@ -337,15 +339,17 @@ public static class UpdateManager
     }
 
     public static async Task<bool> UpdateRepo(Repo repo, Action<string> statusText,
-        Action<string> progressText, bool downloadAnyways = false, Action<DownloadProgress>? transferProgress = null, CancellationToken cancellationToken = default)
-        => await RunRepositoryAsync(repo, statusText, progressText, downloadAnyways, transferProgress: transferProgress, cancellationToken: cancellationToken) is not HistoryStatus.Failed;
+        Action<string> progressText, bool downloadAnyways = false, Action<DownloadProgress>? transferProgress = null, CancellationToken cancellationToken = default,
+        Func<string, IReadOnlyList<string>, Task<string?>>? selectArchiveExecutable = null)
+        => await RunRepositoryAsync(repo, statusText, progressText, downloadAnyways, transferProgress: transferProgress, cancellationToken: cancellationToken, selectArchiveExecutable: selectArchiveExecutable) is not HistoryStatus.Failed;
 
     public static Task<bool> UpdateReposAsync(IEnumerable<Repo> repos, Action<string> statusText,
         Action<string> progressText, bool downloadAnyways = false,
         Action<Repo, HistoryStatus>? completed = null, bool respectExclusions = true,
-        Action<DownloadProgress>? transferProgress = null, CancellationToken cancellationToken = default) =>
+        Action<DownloadProgress>? transferProgress = null, CancellationToken cancellationToken = default,
+        Func<string, IReadOnlyList<string>, Task<string?>>? selectArchiveExecutable = null) =>
         RunBatchAsync(repos, statusText, progressText, downloadAnyways, downloadOnly: false,
-            completed: completed, respectExclusions: respectExclusions, transferProgress: transferProgress, cancellationToken: cancellationToken);
+            completed: completed, respectExclusions: respectExclusions, transferProgress: transferProgress, cancellationToken: cancellationToken, selectArchiveExecutable: selectArchiveExecutable);
 
     public static Task<bool> DownloadReposAsync(IEnumerable<Repo> repos, Action<string> statusText,
         Action<string> progressText, bool downloadAnyways = false, Action<Repo, HistoryStatus>? completed = null,
@@ -358,7 +362,8 @@ public static class UpdateManager
         Func<Asset, Task<bool>>? installAsset = null, string? cachePath = null,
         Action<Repo, HistoryStatus>? completed = null, bool respectExclusions = true,
         Action<DownloadProgress>? transferProgress = null,
-        Func<IReadOnlyList<Asset>, Task<bool>>? installDebianAssets = null, CancellationToken cancellationToken = default)
+        Func<IReadOnlyList<Asset>, Task<bool>>? installDebianAssets = null, CancellationToken cancellationToken = default,
+        Func<string, IReadOnlyList<string>, Task<string?>>? selectArchiveExecutable = null)
     {
         Repo[] snapshot = WindowsSelfUpdate.OrderRepositories(repos, downloadOnly);
         using HistoryScope batch = OperationHistory.Store.Begin(downloadOnly ? HistoryAction.Download
@@ -383,7 +388,8 @@ public static class UpdateManager
                 HistoryStatus result = debianResults.TryGetValue(repo, out HistoryStatus debianResult)
                     ? debianResult : await RunRepositoryAsync(repo, statusText, progressText, force,
                     downloadOnly, batch.Id, respectExclusion: !downloadOnly && respectExclusions,
-                    downloadFile: downloadFile, installAsset: installAsset, cachePath: cachePath, transferProgress: transferProgress, cancellationToken: cancellationToken);
+                    downloadFile: downloadFile, installAsset: installAsset, cachePath: cachePath, transferProgress: transferProgress, cancellationToken: cancellationToken,
+                    selectArchiveExecutable: selectArchiveExecutable);
                 completed?.Invoke(repo, result);
                 if (result == HistoryStatus.Skipped) skipped++;
                 else if (result == HistoryStatus.Succeeded) succeeded++;
@@ -502,7 +508,8 @@ public static class UpdateManager
         Guid? batchId = null, bool respectExclusion = false,
         Func<string, string, IProgress<double>, Task>? downloadFile = null,
         Func<Asset, Task<bool>>? installAsset = null, string? cachePath = null,
-        Action<DownloadProgress>? transferProgress = null, CancellationToken cancellationToken = default)
+        Action<DownloadProgress>? transferProgress = null, CancellationToken cancellationToken = default,
+        Func<string, IReadOnlyList<string>, Task<string?>>? selectArchiveExecutable = null)
     {
         using HistoryScope operation = OperationHistory.Store.Begin(downloadOnly ? HistoryAction.Download
             : force ? HistoryAction.Reinstall : HistoryAction.Update, repo, batchId, batchId: batchId);
@@ -525,7 +532,7 @@ public static class UpdateManager
                 return HistoryStatus.Failed;
             }
             downloaded = true;
-            bool success = await ApplyAssetAsync(asset.Value, statusText, progressText, downloadOnly, installAsset);
+            bool success = await ApplyAssetAsync(asset.Value, statusText, progressText, downloadOnly, installAsset, selectArchiveExecutable);
             bool extract = !downloadOnly && repo.AutoExtract && ArchiveExtractor.IsSupportedArchive(asset.Value.TempAssetPath);
             bool install = !downloadOnly && IsInstallerAsset(asset.Value.TempAssetPath);
             bool handedOff = success && SelfUpdate.ShutdownRequested && WindowsSelfUpdate.IsSelfUpdate(repo);
@@ -560,7 +567,9 @@ public static class UpdateManager
     }
 
     internal static async Task<bool> ApplyAssetAsync(Asset asset, Action<string> statusText,
-        Action<string> progressText, bool downloadOnly, Func<Asset, Task<bool>>? installAsset)
+        Action<string> progressText, bool downloadOnly, Func<Asset, Task<bool>>? installAsset,
+        Func<string, IReadOnlyList<string>, Task<string?>>? selectArchiveExecutable = null,
+        ArchiveAppLauncher? archiveLauncher = null)
     {
         bool extract = !downloadOnly && asset.Repo.AutoExtract && ArchiveExtractor.IsSupportedArchive(asset.TempAssetPath);
         bool install = !downloadOnly && IsInstallerAsset(asset.TempAssetPath);
@@ -579,8 +588,12 @@ public static class UpdateManager
             if (extract)
             {
                 statusText($"Extracting {displayName}");
-                await ArchiveExtractor.ExtractDownloadAsync(asset.Repo, asset.TempAssetPath, asset.Tag, progressText,
-                    asset.ExtractionDirectory, asset.LocalSourcePath, asset.ExtractionFileWritten);
+                if (asset.LocalSourcePath is null && OperatingSystem.IsLinux() && asset.Repo.CreateArchiveLauncher)
+                    await RepositoryArchiveInstaller.InstallAsync(asset.Repo, asset.TempAssetPath, asset.Tag,
+                        progressText, selectArchiveExecutable, archiveLauncher);
+                else
+                    await ArchiveExtractor.ExtractDownloadAsync(asset.Repo, asset.TempAssetPath, asset.Tag, progressText,
+                        asset.ExtractionDirectory, asset.LocalSourcePath, asset.ExtractionFileWritten);
             }
             else
             {

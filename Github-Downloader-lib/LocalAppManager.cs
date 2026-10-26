@@ -75,6 +75,12 @@ public sealed class LocalAppManager
             if (removed) _store.Save(app with { IsInstalled = false });
             return removed;
         }
+        return await UninstallArchiveAsync(app, status, progress, _store.Save);
+    }
+
+    internal async Task<bool> UninstallArchiveAsync(LocalApp app, Action<string> status, Action<string> progress,
+        Action<LocalApp> save, bool removeEntireDirectory = true)
+    {
         using HistoryScope history = OperationHistory.Store.Begin(HistoryAction.Uninstall, localFileName: app.FileName);
         try
         {
@@ -82,7 +88,7 @@ public sealed class LocalAppManager
             string root = Path.GetFullPath(app.ExtractionDirectory);
             ArchiveExtractor.EnsureNoLinks(root);
             status($"Uninstalling {app.Name}...");
-            if (_store.IsManagedAppDirectory(root))
+            if (removeEntireDirectory && _store.IsManagedAppDirectory(root))
             {
                 Logger.LogI("Removing managed local archive application folder");
                 progress("Removing extracted application files...");
@@ -90,7 +96,7 @@ public sealed class LocalAppManager
                 // Directory.Delete removes directory links themselves without following their targets.
                 if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
                 _launcher.Remove(app);
-                _store.Save(app with { IsInstalled = false });
+                save(app with { IsInstalled = false });
                 history.Complete(HistoryOutcome.Uninstalled);
                 status("Uninstalled.");
                 return true;
@@ -124,7 +130,7 @@ public sealed class LocalAppManager
                 if (Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any()) Directory.Delete(directory);
             }
             _launcher.Remove(app);
-            _store.Save(app with { IsInstalled = false });
+            save(app with { IsInstalled = false });
             history.Complete(HistoryOutcome.Uninstalled);
             status(changed ? "Uninstalled. Changed files were kept." : "Uninstalled.");
             return true;

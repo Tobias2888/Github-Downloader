@@ -117,7 +117,14 @@
                                     <ToggleSwitch Name="TglAutoExtract" Grid.Column="1" OnContent="" OffContent=""
                                                   IsChecked="{Binding Repo.AutoExtract, Mode=TwoWay}"/>
                                 </Grid>
-                                <TextBlock Text="Extracts archives into a repository folder inside Download Location. The archive file is not kept."
+                                <Grid ColumnDefinitions="*, Auto" IsVisible="{Binding Repo.AutoExtract}">
+                                    <TextBlock Text="Create application launcher" VerticalAlignment="Center"/>
+                                    <ToggleSwitch Name="TglCreateArchiveLauncher" Grid.Column="1" OnContent="" OffContent=""
+                                                  IsChecked="{Binding Repo.CreateArchiveLauncher, Mode=TwoWay}"/>
+                                </Grid>
+                                <TextBlock Text="On Linux, installs into GHD’s apps folder, selects an executable, and adds an application-menu entry. Turn this off to extract files into Download Location."
+                                           IsVisible="{Binding Repo.AutoExtract}" TextWrapping="Wrap" Opacity="0.7" FontSize="12"/>
+                                <TextBlock Text="The archive file is not kept. With the launcher disabled, files are extracted into a repository folder inside Download Location."
                                            IsVisible="{Binding Repo.AutoExtract}" TextWrapping="Wrap" Opacity="0.7" FontSize="12"/>
                             </StackPanel>
                             
