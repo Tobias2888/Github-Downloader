@@ -4,7 +4,7 @@
         <NoWarn>CS8767;CS8600;CS8618;CS8602;CS8604;CS8601;CS4014</NoWarn>
         <AssemblyName>ghd</AssemblyName>
         <OutputType>Exe</OutputType>
-        <TargetFramework>net8.0</TargetFramework>
+        <TargetFramework>net10.0</TargetFramework>
         <RootNamespace>Github_Downloader_cli</RootNamespace>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
