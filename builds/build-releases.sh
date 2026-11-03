@@ -94,8 +94,8 @@ sed -i "s/^Version: .*/Version: $NEW_VERSION/" "$CONTROL_FILE_ARM64_WEB"
 sed -i "s/^\(!define VERSION\s\+\)\"[^\"]\+\"/\1\"$NEW_VERSION\"/" "$NSI_FILE_X64"
 sed -i "s/^\(!define VERSION\s\+\)\"[^\"]\+\"/\1\"$NEW_VERSION\"/" "$NSI_FILE_ARM64"
 
-dotnet restore ../Github-Downloader-cli/Github-Downloader-cli.csproj -r linux-x64
-dotnet publish ../Github-Downloader-cli/Github-Downloader-cli.csproj \
+dotnet restore ../GithubDownloader.Cli/GithubDownloader.Cli.csproj -r linux-x64
+dotnet publish ../GithubDownloader.Cli/GithubDownloader.Cli.csproj \
     --no-restore \
     -c Release \
     -r linux-x64 \
@@ -105,8 +105,8 @@ dotnet publish ../Github-Downloader-cli/Github-Downloader-cli.csproj \
     /p:DebugType=None \
     /p:DebugSymbols=false
 
-dotnet restore ../Github-Downloader-cli/Github-Downloader-cli.csproj -r linux-arm64
-dotnet publish ../Github-Downloader-cli/Github-Downloader-cli.csproj \
+dotnet restore ../GithubDownloader.Cli/GithubDownloader.Cli.csproj -r linux-arm64
+dotnet publish ../GithubDownloader.Cli/GithubDownloader.Cli.csproj \
     --no-restore \
     -c Release \
     -r linux-arm64 \
@@ -116,8 +116,8 @@ dotnet publish ../Github-Downloader-cli/Github-Downloader-cli.csproj \
     /p:DebugType=None \
     /p:DebugSymbols=false
 
-dotnet restore ../Github-Downloader-cli/Github-Downloader-cli.csproj -r linux-x64
-dotnet publish ../Github-Downloader-cli/Github-Downloader-cli.csproj \
+dotnet restore ../GithubDownloader.Cli/GithubDownloader.Cli.csproj -r linux-x64
+dotnet publish ../GithubDownloader.Cli/GithubDownloader.Cli.csproj \
     --no-restore \
     -c Release \
     -r linux-x64 \
@@ -127,8 +127,8 @@ dotnet publish ../Github-Downloader-cli/Github-Downloader-cli.csproj \
     /p:DebugType=None \
     /p:DebugSymbols=false
 
-dotnet restore ../Github-Downloader-cli/Github-Downloader-cli.csproj -r linux-arm64
-dotnet publish ../Github-Downloader-cli/Github-Downloader-cli.csproj \
+dotnet restore ../GithubDownloader.Cli/GithubDownloader.Cli.csproj -r linux-arm64
+dotnet publish ../GithubDownloader.Cli/GithubDownloader.Cli.csproj \
     --no-restore \
     -c Release \
     -r linux-arm64 \
@@ -138,8 +138,8 @@ dotnet publish ../Github-Downloader-cli/Github-Downloader-cli.csproj \
     /p:DebugType=None \
     /p:DebugSymbols=false
 
-dotnet restore ../Github-Downloader-desktop/Github-Downloader-desktop.csproj -r linux-x64
-dotnet publish ../Github-Downloader-desktop/Github-Downloader-desktop.csproj \
+dotnet restore ../GithubDownloader.Desktop/GithubDownloader.Desktop.csproj -r linux-x64
+dotnet publish ../GithubDownloader.Desktop/GithubDownloader.Desktop.csproj \
     --no-restore \
     -c Release \
     -r linux-x64 \
@@ -147,8 +147,8 @@ dotnet publish ../Github-Downloader-desktop/Github-Downloader-desktop.csproj \
     --output "$ARCH_PACKAGE_DIR/opt/Github-Downloader" \
     /p:PublishSingleFile=true
 
-dotnet restore ../Github-Downloader-desktop/Github-Downloader-desktop.csproj -r linux-arm64
-dotnet publish ../Github-Downloader-desktop/Github-Downloader-desktop.csproj \
+dotnet restore ../GithubDownloader.Desktop/GithubDownloader.Desktop.csproj -r linux-arm64
+dotnet publish ../GithubDownloader.Desktop/GithubDownloader.Desktop.csproj \
     --no-restore \
     -c Release \
     -r linux-arm64 \
@@ -156,8 +156,8 @@ dotnet publish ../Github-Downloader-desktop/Github-Downloader-desktop.csproj \
     --output "$ARCH_ARM64_PACKAGE_DIR/opt/Github-Downloader" \
     /p:PublishSingleFile=true
 
-dotnet restore ../Github-Downloader-desktop/Github-Downloader-desktop.csproj -r linux-x64
-dotnet publish ../Github-Downloader-desktop/Github-Downloader-desktop.csproj \
+dotnet restore ../GithubDownloader.Desktop/GithubDownloader.Desktop.csproj -r linux-x64
+dotnet publish ../GithubDownloader.Desktop/GithubDownloader.Desktop.csproj \
     --no-restore \
     -c Release \
     -r linux-x64 \
@@ -165,8 +165,8 @@ dotnet publish ../Github-Downloader-desktop/Github-Downloader-desktop.csproj \
     --output "$LINUX_X64_PACKAGE_DIR/opt/Github-Downloader" \
     /p:PublishSingleFile=true \
 
-dotnet restore ../Github-Downloader-desktop/Github-Downloader-desktop.csproj -r linux-x64
-dotnet publish ../Github-Downloader-desktop/Github-Downloader-desktop.csproj \
+dotnet restore ../GithubDownloader.Desktop/GithubDownloader.Desktop.csproj -r linux-x64
+dotnet publish ../GithubDownloader.Desktop/GithubDownloader.Desktop.csproj \
     --no-restore \
     -c Release \
     -r linux-x64 \
@@ -174,8 +174,8 @@ dotnet publish ../Github-Downloader-desktop/Github-Downloader-desktop.csproj \
     --output "$APPIMAGE_PACKAGE_DIR/usr/bin" \
     /p:PublishSingleFile=true \
 
-dotnet restore ../Github-Downloader-desktop/Github-Downloader-desktop.csproj -r linux-arm64
-dotnet publish ../Github-Downloader-desktop/Github-Downloader-desktop.csproj \
+dotnet restore ../GithubDownloader.Desktop/GithubDownloader.Desktop.csproj -r linux-arm64
+dotnet publish ../GithubDownloader.Desktop/GithubDownloader.Desktop.csproj \
     --no-restore \
     -c Release \
     -r linux-arm64 \
@@ -183,8 +183,8 @@ dotnet publish ../Github-Downloader-desktop/Github-Downloader-desktop.csproj \
     --output "$LINUX_ARM64_PACKAGE_DIR/opt/Github-Downloader" \
     /p:PublishSingleFile=true \
 
-dotnet restore ../Github-Downloader-desktop/Github-Downloader-desktop.csproj -r osx-x64
-dotnet publish ../Github-Downloader-desktop/Github-Downloader-desktop.csproj \
+dotnet restore ../GithubDownloader.Desktop/GithubDownloader.Desktop.csproj -r osx-x64
+dotnet publish ../GithubDownloader.Desktop/GithubDownloader.Desktop.csproj \
     --no-restore \
     -c Release \
     -r osx-x64 \
@@ -192,8 +192,8 @@ dotnet publish ../Github-Downloader-desktop/Github-Downloader-desktop.csproj \
     --output "$OSX_X64_PUBLISH_DIR" \
     /p:PublishSingleFile=true \
 
-dotnet restore ../Github-Downloader-desktop/Github-Downloader-desktop.csproj -r osx-arm64
-dotnet publish ../Github-Downloader-desktop/Github-Downloader-desktop.csproj \
+dotnet restore ../GithubDownloader.Desktop/GithubDownloader.Desktop.csproj -r osx-arm64
+dotnet publish ../GithubDownloader.Desktop/GithubDownloader.Desktop.csproj \
     --no-restore \
     -c Release \
     -r osx-arm64 \
@@ -201,8 +201,8 @@ dotnet publish ../Github-Downloader-desktop/Github-Downloader-desktop.csproj \
     --output "$OSX_ARM64_PUBLISH_DIR" \
     /p:PublishSingleFile=true \
 
-dotnet restore ../Github-Downloader-desktop/Github-Downloader-desktop.csproj -r win-x64
-dotnet publish ../Github-Downloader-desktop/Github-Downloader-desktop.csproj \
+dotnet restore ../GithubDownloader.Desktop/GithubDownloader.Desktop.csproj -r win-x64
+dotnet publish ../GithubDownloader.Desktop/GithubDownloader.Desktop.csproj \
     --no-restore \
     -c Release \
     -r win-x64 \
@@ -210,8 +210,8 @@ dotnet publish ../Github-Downloader-desktop/Github-Downloader-desktop.csproj \
     --output "$WIN_X64_PUBLISH_DIR" \
     /p:PublishSingleFile=true \
 
-dotnet restore ../Github-Downloader-desktop/Github-Downloader-desktop.csproj -r win-arm64
-dotnet publish ../Github-Downloader-desktop/Github-Downloader-desktop.csproj \
+dotnet restore ../GithubDownloader.Desktop/GithubDownloader.Desktop.csproj -r win-arm64
+dotnet publish ../GithubDownloader.Desktop/GithubDownloader.Desktop.csproj \
     --no-restore \
     -c Release \
     -r win-arm64 \
@@ -219,8 +219,8 @@ dotnet publish ../Github-Downloader-desktop/Github-Downloader-desktop.csproj \
     --output "$WIN_ARM64_PUBLISH_DIR" \
     /p:PublishSingleFile=true \
 
-dotnet restore ../Github-Downloader-Web/Github-Downloader-Web.csproj -r linux-x64
-dotnet publish ../Github-Downloader-Web/Github-Downloader-Web.csproj \
+dotnet restore ../GithubDownloader.Web/GithubDownloader.Web.csproj -r linux-x64
+dotnet publish ../GithubDownloader.Web/GithubDownloader.Web.csproj \
     --no-restore \
     -c Release \
     -r linux-x64 \
@@ -230,8 +230,8 @@ dotnet publish ../Github-Downloader-Web/Github-Downloader-Web.csproj \
     /p:DebugType=None \
     /p:DebugSymbols=false
 
-dotnet restore ../Github-Downloader-Web/Github-Downloader-Web.csproj -r linux-arm64
-dotnet publish ../Github-Downloader-Web/Github-Downloader-Web.csproj \
+dotnet restore ../GithubDownloader.Web/GithubDownloader.Web.csproj -r linux-arm64
+dotnet publish ../GithubDownloader.Web/GithubDownloader.Web.csproj \
     --no-restore \
     -c Release \
     -r linux-arm64 \

@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <AssemblyName>Github-Downloader-Web</AssemblyName>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>GithubDownloader.Web</RootNamespace>
+    <NoWarn>CS8767;CS8600;CS8618;CS8602;CS8604;CS8601;CS4014</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GithubDownloader.Core\GithubDownloader.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../libs/FileLib/FileLib/FileLib.csproj" />
+    <ProjectReference Include="../libs/LoggerLib/LoggerLib/LoggerLib.csproj" />
+    <ProjectReference Include="../libs/SecretsLib/SecretsLib/SecretsLib.csproj" />
+  </ItemGroup>
+
+</Project>

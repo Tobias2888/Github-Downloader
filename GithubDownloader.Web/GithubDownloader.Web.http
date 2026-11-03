@@ -1,0 +1,38 @@
+@GithubDownloader_Web_HostAddress = http://localhost:5033
+
+### Health
+GET {{GithubDownloader_Web_HostAddress}}/api/health
+Accept: application/json
+
+### List repositories
+GET {{GithubDownloader_Web_HostAddress}}/api/repositories
+Accept: application/json
+
+### Add repository by URL
+POST {{GithubDownloader_Web_HostAddress}}/api/repositories
+Content-Type: application/json
+
+{
+  "repoUrl": "https://github.com/owner/repo"
+}
+
+### Add repository by name
+POST {{GithubDownloader_Web_HostAddress}}/api/repositories/by-name
+Content-Type: application/json
+
+{
+  "publisherName": "owner",
+  "repoName": "repo"
+}
+
+### Search for updates
+POST {{GithubDownloader_Web_HostAddress}}/api/updates/search
+Content-Type: application/json
+
+{
+  "repoUrls": null
+}
+
+### Settings info
+GET {{GithubDownloader_Web_HostAddress}}/api/settings/info
+Accept: application/json

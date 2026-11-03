@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <NoWarn>CS8767;CS8600;CS8618;CS8602;CS8604;CS8601;CS4014</NoWarn>
+        <TargetFramework>net10.0</TargetFramework>
+        <RootNamespace>GithubDownloader.Core</RootNamespace>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="SharpCompress" Version="0.50.5" />
+      <InternalsVisibleTo Include="GithubDownloader.Tests" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="../libs/FileLib/FileLib/FileLib.csproj" />
+      <ProjectReference Include="../libs/LoggerLib/LoggerLib/LoggerLib.csproj" />
+      <ProjectReference Include="../libs/SecretsLib/SecretsLib/SecretsLib.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="../libs/MetadataGenerator/MetadataGenerator/MetadataGenerator.csproj"
+                          OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+        <AdditionalFiles Include="../builds/github-downloader-linux-x64/DEBIAN/control" />
+    </ItemGroup>
+
+</Project>

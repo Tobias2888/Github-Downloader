@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <NoWarn>CS8767;CS8600;CS8618;CS8602;CS8604;CS8601;CS4014</NoWarn>
+        <AssemblyName>ghd</AssemblyName>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <RootNamespace>GithubDownloader.Cli</RootNamespace>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <InternalsVisibleTo Include="GithubDownloader.Tests" />
+      <ProjectReference Include="..\GithubDownloader.Core\GithubDownloader.Core.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="../libs/FileLib/FileLib/FileLib.csproj" />
+      <ProjectReference Include="../libs/LoggerLib/LoggerLib/LoggerLib.csproj" />
+      <ProjectReference Include="../libs/SecretsLib/SecretsLib/SecretsLib.csproj" />
+    </ItemGroup>
+
+</Project>

@@ -1,9 +1,9 @@
 <Solution>
-  <Project Path="Github-Downloader-cli/Github-Downloader-cli.csproj" />
-  <Project Path="Github-Downloader-lib/Github-Downloader-lib.csproj" />
-  <Project Path="Github-Downloader-desktop/Github-Downloader-desktop.csproj" />
-  <Project Path="Github-Downloader-Web/Github-Downloader-Web.csproj" />
-  <Project Path="Github-Downloader.Tests/Github-Downloader.Tests.csproj" />
+  <Project Path="GithubDownloader.Cli/GithubDownloader.Cli.csproj" />
+  <Project Path="GithubDownloader.Core/GithubDownloader.Core.csproj" />
+  <Project Path="GithubDownloader.Desktop/GithubDownloader.Desktop.csproj" />
+  <Project Path="GithubDownloader.Web/GithubDownloader.Web.csproj" />
+  <Project Path="GithubDownloader.Tests/GithubDownloader.Tests.csproj" />
   <Folder Name="/libs/">
     <Project Path="libs/FileLib/FileLib/FileLib.csproj" />
     <Project Path="libs/LoggerLib/LoggerLib/LoggerLib.csproj" />

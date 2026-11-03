@@ -3,16 +3,16 @@
   <component name="AvaloniaProject">
     <option name="projectPerEditor">
       <map>
-        <entry key="Github-Downloader-desktop/App.axaml" value="Github-Downloader-desktop/Github-Downloader-desktop.csproj" />
-        <entry key="Github-Downloader-desktop/DownloadStatus.axaml" value="Github-Downloader-desktop/Github-Downloader-desktop.csproj" />
-        <entry key="Github-Downloader-desktop/MainWindow.axaml" value="Github-Downloader-desktop/Github-Downloader-desktop.csproj" />
-        <entry key="Github-Downloader-desktop/Views/DownloadStatus.axaml" value="Github-Downloader-desktop/Github-Downloader-desktop.csproj" />
-        <entry key="Github-Downloader-desktop/Views/HomeView.axaml" value="Github-Downloader-desktop/Github-Downloader-desktop.csproj" />
-        <entry key="Github-Downloader-desktop/Views/MainWindow.axaml" value="Github-Downloader-desktop/Github-Downloader-desktop.csproj" />
-        <entry key="Github-Downloader-desktop/Views/RepoDetailsView.axaml" value="Github-Downloader-desktop/Github-Downloader-desktop.csproj" />
-        <entry key="Github-Downloader-desktop/Views/RepoEntryControl.axaml" value="Github-Downloader-desktop/Github-Downloader-desktop.csproj" />
-        <entry key="Github-Downloader-desktop/Views/SettingsView.axaml" value="Github-Downloader-desktop/Github-Downloader-desktop.csproj" />
-        <entry key="Github-Downloader-desktop/Views/UninstallRepoDialog.axaml" value="Github-Downloader-desktop/Github-Downloader-desktop.csproj" />
+        <entry key="GithubDownloader.Desktop/App.axaml" value="GithubDownloader.Desktop/GithubDownloader.Desktop.csproj" />
+        <entry key="GithubDownloader.Desktop/DownloadStatus.axaml" value="GithubDownloader.Desktop/GithubDownloader.Desktop.csproj" />
+        <entry key="GithubDownloader.Desktop/MainWindow.axaml" value="GithubDownloader.Desktop/GithubDownloader.Desktop.csproj" />
+        <entry key="GithubDownloader.Desktop/Views/DownloadStatus.axaml" value="GithubDownloader.Desktop/GithubDownloader.Desktop.csproj" />
+        <entry key="GithubDownloader.Desktop/Views/HomeView.axaml" value="GithubDownloader.Desktop/GithubDownloader.Desktop.csproj" />
+        <entry key="GithubDownloader.Desktop/Views/MainWindow.axaml" value="GithubDownloader.Desktop/GithubDownloader.Desktop.csproj" />
+        <entry key="GithubDownloader.Desktop/Views/RepoDetailsView.axaml" value="GithubDownloader.Desktop/GithubDownloader.Desktop.csproj" />
+        <entry key="GithubDownloader.Desktop/Views/RepoEntryControl.axaml" value="GithubDownloader.Desktop/GithubDownloader.Desktop.csproj" />
+        <entry key="GithubDownloader.Desktop/Views/SettingsView.axaml" value="GithubDownloader.Desktop/GithubDownloader.Desktop.csproj" />
+        <entry key="GithubDownloader.Desktop/Views/UninstallRepoDialog.axaml" value="GithubDownloader.Desktop/GithubDownloader.Desktop.csproj" />
       </map>
     </option>
   </component>

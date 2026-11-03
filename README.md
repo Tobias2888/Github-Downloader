@@ -20,7 +20,7 @@ Install the .NET 10 SDK and clone with submodules:
 git clone --recurse-submodules https://github.com/Tobias2888/Github-Downloader.git
 cd Github-Downloader
 dotnet build Github-Downloader.slnx
-dotnet test Github-Downloader.Tests/Github-Downloader.Tests.csproj
+dotnet test GithubDownloader.Tests/GithubDownloader.Tests.csproj
 ```
 
 For an existing checkout, run `git submodule update --init --recursive` before building. The projects under `libs/` build FileLib, LoggerLib, SecretsLib, and the MetadataGenerator source generator from their pinned BonitoCat repositories. After pulling changes to submodule versions, run the update command again.
