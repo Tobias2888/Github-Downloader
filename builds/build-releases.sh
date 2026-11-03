@@ -244,12 +244,12 @@ dotnet publish ../GithubDownloader.Web/GithubDownloader.Web.csproj \
 
 rm -rf release-assets/*
 
-dpkg-deb --build "$LINUX_X64_PACKAGE_DIR" ./release-assets
-dpkg-deb --build "$LINUX_ARM64_PACKAGE_DIR" ./release-assets
-dpkg-deb --build "$CLI_LINUX_X64_PACKAGE_DIR" ./release-assets
-dpkg-deb --build "$CLI_LINUX_ARM64_PACKAGE_DIR" ./release-assets
-dpkg-deb --build "$WEB_LINUX_X64_PACKAGE_DIR" ./release-assets
-dpkg-deb --build "$WEB_LINUX_ARM64_PACKAGE_DIR" ./release-assets
+dpkg-deb --root-owner-group --build "$LINUX_X64_PACKAGE_DIR" ./release-assets
+dpkg-deb --root-owner-group --build "$LINUX_ARM64_PACKAGE_DIR" ./release-assets
+dpkg-deb --root-owner-group --build "$CLI_LINUX_X64_PACKAGE_DIR" ./release-assets
+dpkg-deb --root-owner-group --build "$CLI_LINUX_ARM64_PACKAGE_DIR" ./release-assets
+dpkg-deb --root-owner-group --build "$WEB_LINUX_X64_PACKAGE_DIR" ./release-assets
+dpkg-deb --root-owner-group --build "$WEB_LINUX_ARM64_PACKAGE_DIR" ./release-assets
 
 ARCH_PACKAGE_VERSION="$NEW_VERSION-1"
 ARCH_BUILD_DATE=$(date +%s)
