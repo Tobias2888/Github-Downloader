@@ -38,6 +38,27 @@ public sealed class ArchiveAppLauncherTests : IDisposable
             Path.Combine(_root, "cache"), selectExecutable: select, launcher: Launcher);
 
     [Fact]
+    public async Task ArgumentsAreSavedAcrossArchiveUpdatesAndCanBeCleared()
+    {
+        if (!OperatingSystem.IsLinux()) return;
+        Assert.True(await Install(Archive(("app", "#!/bin/sh\n"))));
+        LocalApp app = Assert.Single(LocalApps.Store.Read());
+        LocalAppManager manager = new(LocalApps.Store, new(_root, _root, (_, _) => throw new Exception()), Launcher);
+        await manager.SetDesktopEntryArgumentsAsync(app, "--profile \"two words\"", _ => { });
+        LocalApp updated = Assert.Single(LocalApps.Store.Read());
+        Assert.Equal("--profile \"two words\"", updated.DesktopEntryArguments);
+        Assert.Contains(" \"--profile\" \"two words\"\n", await File.ReadAllTextAsync(Launcher.EntryPath(updated)));
+        Assert.True(await Install(Archive(("app", "#!/bin/sh\n# updated"))));
+        LocalApp next = Assert.Single(LocalApps.Store.Read());
+        Assert.Equal(updated.DesktopEntryArguments, next.DesktopEntryArguments);
+        await manager.SetDesktopEntryArgumentsAsync(next, "", _ => { });
+        LocalApp cleared = Assert.Single(LocalApps.Store.Read());
+        Assert.Contains("Exec=" + ArchiveAppLauncher.QuoteExecutable(cleared.ExecutablePath) + "\n",
+            await File.ReadAllTextAsync(Launcher.EntryPath(cleared)));
+        Assert.Equal(LocalAppManager.FileHash(Launcher.EntryPath(cleared)), cleared.DesktopEntryHash);
+    }
+
+    [Fact]
     public async Task ChosenIconIsCopiedAndReusedAcrossArchiveVersionsAndReinstall()
     {
         if (!OperatingSystem.IsLinux()) return;

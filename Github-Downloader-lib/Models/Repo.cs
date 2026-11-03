@@ -505,6 +505,19 @@ public class Repo : INotifyPropertyChanged, IJsonOnDeserializing, IJsonOnDeseria
         }
     }
 
+    private string _desktopEntryArguments = "";
+    public string DesktopEntryArguments
+    {
+        get => _desktopEntryArguments;
+        set
+        {
+            value ??= "";
+            if (_desktopEntryArguments == value) return;
+            _desktopEntryArguments = value;
+            OnPropertyChanged(nameof(DesktopEntryArguments));
+        }
+    }
+
     private bool _createArchiveLauncher = true;
     public bool CreateArchiveLauncher
     {

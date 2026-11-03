@@ -141,7 +141,7 @@ public sealed class InstallationManager
             if (appImageId.Length == 0 && repo.InstalledDebianPackage.Length == 0 && archPackage.Length == 0
                 && Path.GetExtension(repo.SelectedAssetName).Equals(".appimage", StringComparison.OrdinalIgnoreCase))
                 appImageId = GetAppImageId(repo);
-            if (appImageId.Length > 0) ValidateAppImageInstallation(appImageId);
+            if (appImageId.Length > 0) ValidateAppImageInstallation(appImageId, repo.DesktopEntryArguments);
 
             status($"Uninstalling {repo.Name}...");
             if (package.Length > 0)
@@ -267,7 +267,7 @@ public sealed class InstallationManager
         return start;
     }
 
-    private void ValidateAppImageInstallation(string id)
+    private void ValidateAppImageInstallation(string id, string arguments)
     {
         ValidateAppImageId(id);
         string directory = Path.Combine(_appImagesDirectory, id);
@@ -277,9 +277,22 @@ public sealed class InstallationManager
         if (File.Exists(desktopFile))
         {
             string expected = "Exec=" + Path.Combine(directory, id + ".AppImage");
-            if (!File.ReadLines(desktopFile).Contains(expected))
+            string command = DesktopEntryCommand.Create(Path.Combine(directory, id + ".AppImage"), arguments);
+            if (!File.ReadLines(desktopFile).Contains("Exec=" + command)
+                && !(arguments.Length == 0 && File.ReadLines(desktopFile).Contains(expected)))
                 throw new InvalidOperationException("The application-menu entry belongs to another application.");
         }
+    }
+
+    internal void SetAppImageArguments(Repo repo, string arguments)
+    {
+        string id = repo.InstalledAppImageId.Length > 0 ? repo.InstalledAppImageId : GetAppImageId(repo);
+        string command = DesktopEntryCommand.Create(Path.Combine(_appImagesDirectory, id, id + ".AppImage"), arguments);
+        ValidateAppImageInstallation(id, repo.DesktopEntryArguments);
+        string entry = Path.Combine(_desktopDirectory, id + ".desktop");
+        ArchiveExtractor.EnsureNoLinks(entry);
+        string[] lines = File.ReadAllLines(entry);
+        File.WriteAllLines(entry, lines.Select(line => line.StartsWith("Exec=", StringComparison.Ordinal) ? "Exec=" + command : line));
     }
 
     private void RemoveAppImage(string id)

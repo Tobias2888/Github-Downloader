@@ -39,6 +39,20 @@ public partial class LocalAppsView : UserControl
     private void OnLoaded(object? sender, RoutedEventArgs e) => Refresh();
     private void Install_OnClick(object? sender, RoutedEventArgs e) => InstallRequested?.Invoke(this, e);
 
+    private async void Arguments_OnClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { DataContext: LocalApp app } || TopLevel.GetTopLevel(this) is not Window owner) return;
+        App application = (App)Application.Current!;
+        if (application.DownloadStatusViewModel.IsUpdating) { application.DownloadStatusViewModel.Show(); return; }
+        DesktopEntryArgumentsDialog dialog = new(app.DesktopEntryArguments, async arguments =>
+        {
+            if (application.DownloadStatusViewModel.IsUpdating) throw new InvalidOperationException("Wait for the current operation to finish.");
+            await new LocalAppManager().SetDesktopEntryArgumentsAsync(app, arguments, _ => { });
+        });
+        await dialog.ShowDialog(owner);
+        Refresh();
+    }
+
     private async void ChooseIcon_OnClick(object? sender, RoutedEventArgs e)
     {
         if (_choosingIcon || sender is not Button { DataContext: LocalApp app }

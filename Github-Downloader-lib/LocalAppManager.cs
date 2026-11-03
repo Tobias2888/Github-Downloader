@@ -24,6 +24,32 @@ public sealed class LocalAppManager
             app.Kind == LocalAppKind.Archive ? app.ExtractionDirectory : null, null, FileManager.CachePath,
             LocalInstallerRetention.LoadLimit(), selectExecutable, _launcher, existingAppId: app.Id);
 
+    public async Task SetDesktopEntryArgumentsAsync(LocalApp app, string arguments, Action<string> progress)
+    {
+        LocalApp current = _store.Read().FirstOrDefault(entry => entry.Id == app.Id)
+            ?? throw new IOException("The local app entry no longer exists.");
+        if (!current.CanEditDesktopEntryArguments)
+            throw new InvalidOperationException("Install an app with an application-menu entry first.");
+        LocalApp updated = current with { DesktopEntryArguments = arguments };
+        if (current.Kind == LocalAppKind.Archive)
+            updated = await _launcher.ConfigureAsync(updated, current, [current.ExecutablePath], null, progress);
+        else
+            _installations.SetAppImageArguments(current.ToRepo(), arguments);
+        _store.Save(updated);
+    }
+
+    public async Task SetDesktopEntryArgumentsAsync(Repo repo, string arguments, Action<string> progress)
+    {
+        DesktopEntryCommand.Create("app", arguments);
+        if (repo.ArchiveInstallation is { IsInstalled: true, DesktopEntryHash.Length: > 0 } current)
+            repo.ArchiveInstallation = await _launcher.ConfigureAsync(current with { DesktopEntryArguments = arguments },
+                current, [current.ExecutablePath], null, progress, repo.Name.Split('/').Last());
+        if (repo.InstalledAppImageId.Length > 0 || repo.CurrentInstallTag.Length > 0
+            && Path.GetExtension(repo.SelectedAssetName).Equals(".appimage", StringComparison.OrdinalIgnoreCase))
+            _installations.SetAppImageArguments(repo, arguments);
+        repo.DesktopEntryArguments = arguments;
+    }
+
     public async Task SetArchiveIconAsync(LocalApp app, string iconPath, Action<string> progress)
     {
         LocalApp current = _store.Read().FirstOrDefault(entry => entry.Id == app.Id)

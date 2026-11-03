@@ -155,7 +155,7 @@ public sealed class LocalAppStore
                 if (apps.Any(app => app is null || string.IsNullOrWhiteSpace(app.Id) || string.IsNullOrWhiteSpace(app.FileName)
                     || string.IsNullOrWhiteSpace(app.InstallationName) || !Enum.IsDefined(app.Kind)
                     || app.DebianPackage is null || app.ArchPackage is null || app.AppImageId is null || app.ExtractionDirectory is null || app.InstallerPath is null || app.InstallerVersions is null || app.ExecutablePath is null || app.DesktopEntryHash is null
-                    || app.DesktopIconPath is null
+                    || app.DesktopIconPath is null || app.DesktopEntryArguments is null
                     || app.InstallerVersions.Any(version => version is null || string.IsNullOrWhiteSpace(version.Path))))
                     throw new JsonException();
             }

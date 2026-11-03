@@ -60,6 +60,7 @@ internal static class RepositoryArchiveInstaller
             {
                 Id = previous?.Id ?? "repository:" + repo.Name,
                 FileName = Path.GetFileName(archivePath), InstallationName = repo.Name, Kind = LocalAppKind.Archive,
+                DesktopEntryArguments = repo.DesktopEntryArguments,
                 InstalledAt = DateTimeOffset.UtcNow, ExtractionDirectory = destination, OwnedFiles = owned
             };
             // Keep ownership of extracted files if selecting or creating the launcher fails.

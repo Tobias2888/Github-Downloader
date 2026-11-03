@@ -2,6 +2,8 @@
     <PropertyGroup>
         <NoWarn>CS8767;CS8600;CS8618;CS8602;CS8604;CS8601;CS4014</NoWarn>
         <OutputType>WinExe</OutputType>
+        <AssemblyName>Github-Downloader</AssemblyName>
+        <RootNamespace>Github_Downloader</RootNamespace>
         <TargetFramework>net10.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ApplicationManifest>app.manifest</ApplicationManifest>

@@ -85,7 +85,7 @@ internal sealed class ArchiveAppLauncher
             [Desktop Entry]
             Type=Application
             Name={EscapeValue(displayName ?? app.Name)}
-            Exec={QuoteExecutable(executable)}
+            Exec={DesktopEntryCommand.Create(executable, app.DesktopEntryArguments)}
             Path={EscapeValue(Path.GetDirectoryName(executable)!)}
             Icon={EscapeValue(icon)}
             Terminal=false

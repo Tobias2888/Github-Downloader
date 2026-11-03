@@ -65,6 +65,7 @@ public static class LocalFileInstaller
         LocalApp? previous = LocalApps.Store.Read().FirstOrDefault(app => app.Id == id);
         if (existingAppId is not null && previous is null)
             throw new IOException("The local app entry no longer exists.");
+        local.DesktopEntryArguments = previous?.DesktopEntryArguments ?? "";
         List<string> extracted = [];
         string temporary = Path.Combine(Path.GetFullPath(cachePath), "local-" + Guid.NewGuid().ToString("N"));
         UpdateManager.Asset asset = new(local, Path.Combine(temporary, filename), "",
@@ -97,6 +98,7 @@ public static class LocalFileInstaller
             if (existingAppId is null && kind == LocalAppKind.Arch && local.InstalledArchPackage.Length > 0) id = "arch:" + local.InstalledArchPackage;
             LocalApp installedApp = new()
             {
+                DesktopEntryArguments = local.DesktopEntryArguments,
                 Id = id, FileName = filename, InstallationName = local.Name, Kind = kind,
                 InstalledAt = DateTimeOffset.UtcNow, DebianPackage = local.InstalledDebianPackage, ArchPackage = local.InstalledArchPackage,
                 AppImageId = local.InstalledAppImageId, ExtractionDirectory = destination ?? "",

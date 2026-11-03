@@ -736,7 +736,7 @@ public static class UpdateManager
                              Name={displayName}
                              Comment={asset.Repo.Description}
                              GenericName={displayName}
-                             Exec={asset.TempAssetPath}
+                             Exec={DesktopEntryCommand.Create(asset.TempAssetPath, asset.Repo.DesktopEntryArguments)}
                              Icon={iconPath}
                              Type=Application
                              StartupNotify=false

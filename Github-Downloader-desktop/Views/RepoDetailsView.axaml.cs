@@ -143,12 +143,29 @@ public partial class RepoDetailsView : UserControl
         if (repo is null) return;
 
         string extension = Path.GetExtension(repo.SelectedAssetName).ToLowerInvariant();
+        BtnDesktopEntryArguments.IsVisible = OperatingSystem.IsLinux()
+            && (extension == ".appimage" || repo.InstalledAppImageId.Length > 0
+                || ArchiveExtractor.IsSupportedArchive(repo.SelectedAssetName) || repo.ArchiveInstallation is not null);
         StpSaveFileAnyway.IsVisible = UpdateManager.IsInstallerAsset(repo.SelectedAssetName);
         bool installsLinuxPackage = RuntimeInformation.IsOSPlatform(OSPlatform.Linux)
             && UpdateManager.IsInstallerAsset(repo.SelectedAssetName)
             && (extension is ".deb" or ".appimage" || InstallationManager.IsArchPackageFile(repo.SelectedAssetName));
         StpDownloadPath.IsVisible = !installsLinuxPackage || repo.SaveFileAnyway;
     }
+    private async void Arguments_OnClick(object? sender, RoutedEventArgs e)
+    {
+        if (_repoDetailsViewModel.Repo is not Repo repo || TopLevel.GetTopLevel(this) is not Window owner) return;
+        App application = (App)Application.Current!;
+        if (application.DownloadStatusViewModel.IsUpdating) { application.DownloadStatusViewModel.Show(); return; }
+        DesktopEntryArgumentsDialog dialog = new(repo.DesktopEntryArguments, async arguments =>
+        {
+            if (application.DownloadStatusViewModel.IsUpdating) throw new InvalidOperationException("Wait for the current operation to finish.");
+            await new LocalAppManager().SetDesktopEntryArgumentsAsync(repo, arguments, _ => { });
+            FileManager.SaveRepos();
+        });
+        await dialog.ShowDialog(owner);
+    }
+
     private async Task RefreshReleaseAsync()
     {
         await _downloadStatusViewModel.RunAsync(() =>
