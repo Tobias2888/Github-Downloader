@@ -21,7 +21,7 @@ internal static class LoggingSetup
         Logger.LogDir = directory;
         Github_Downloader_lib.OperationHistory.Store = new(Path.Combine(directory, "history.json"));
         Github_Downloader_lib.LocalApps.Store = new(Path.Combine(directory, "local-apps.json"));
-        Task.Run(Logger.CreateFile).GetAwaiter().GetResult();
+        Task.Run(Logger.CreateFileAsync).GetAwaiter().GetResult();
         AppDomain.CurrentDomain.ProcessExit += (_, _) =>
         {
             if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);

@@ -17,8 +17,6 @@
     <ProjectReference Include="../Github-Downloader-desktop/Github-Downloader-desktop.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="LoggerLib">
-      <HintPath>../libs/LoggerLib.dll</HintPath>
-    </Reference>
+    <ProjectReference Include="../libs/LoggerLib/LoggerLib/LoggerLib.csproj" />
   </ItemGroup>
 </Project>

@@ -16,15 +16,9 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Reference Include="FileLib">
-        <HintPath>..\libs\FileLib.dll</HintPath>
-      </Reference>
-      <Reference Include="LoggerLib">
-        <HintPath>..\libs\LoggerLib.dll</HintPath>
-      </Reference>
-      <Reference Include="SecretsLib">
-        <HintPath>..\libs\SecretsLib.dll</HintPath>
-      </Reference>
+      <ProjectReference Include="../libs/FileLib/FileLib/FileLib.csproj" />
+      <ProjectReference Include="../libs/LoggerLib/LoggerLib/LoggerLib.csproj" />
+      <ProjectReference Include="../libs/SecretsLib/SecretsLib/SecretsLib.csproj" />
     </ItemGroup>
 
 </Project>

@@ -37,7 +37,7 @@ public static class Program
         Logger.LogFirstChance = false;
         Logger.LogDebug = false;
         Logger.LogLevel = LogLevel.Info;
-        await Logger.CreateFile();
+        await Logger.CreateFileAsync();
         Logger.LogI("Mode: cli");
         
         // Local installs need neither repository refresh nor shared-cache clearing.

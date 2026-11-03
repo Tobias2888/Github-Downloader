@@ -210,7 +210,7 @@ public partial class App : Application
         Logger.LogFirstChance = false;
         Logger.LogDebug = false;
         Logger.LogLevel = LogLevel.Info;
-        await Logger.CreateFile();
+        await Logger.CreateFileAsync();
         Logger.LogI("Mode: avalonia-desktop-app");
         MainViewModel.AppSettings = AppSettings.Load();
         await InitializeRepositoriesAsync(Program.DesktopActivation,

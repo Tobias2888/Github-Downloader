@@ -26,7 +26,7 @@ public sealed class ArchiveExtractorTests : IDisposable
         Repo repo = CreateRepo();
         LoggerLib.Logger.LogDir = Path.Combine(_root, "logs");
         LoggerLib.Logger.LogToTerminal = false;
-        await LoggerLib.Logger.CreateFile();
+        await LoggerLib.Logger.CreateFileAsync();
 
         bool succeeded = bulk
             ? await UpdateManager.UpdateReposAsync(new[] { repo }, _ => { }, _ => { })
@@ -51,7 +51,7 @@ public sealed class ArchiveExtractorTests : IDisposable
         Directory.CreateDirectory(repo.DownloadPath);
         LoggerLib.Logger.LogDir = Path.Combine(_root, "logs");
         LoggerLib.Logger.LogToTerminal = false;
-        await LoggerLib.Logger.CreateFile();
+        await LoggerLib.Logger.CreateFileAsync();
 
         bool success = await UpdateManager.UpdateReposAsync(
             [new UpdateManager.Asset(repo, archive, "v2")], _ => { }, _ => { });
@@ -84,7 +84,7 @@ public sealed class ArchiveExtractorTests : IDisposable
         List<string> messages = new();
         LoggerLib.Logger.LogDir = Path.Combine(_root, "logs");
         LoggerLib.Logger.LogToTerminal = false;
-        await LoggerLib.Logger.CreateFile();
+        await LoggerLib.Logger.CreateFileAsync();
 
         bool success = await UpdateManager.UpdateReposAsync(
             [new UpdateManager.Asset(repo, archive, "v2", cache)], _ => { }, messages.Add);

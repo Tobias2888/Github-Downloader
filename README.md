@@ -12,6 +12,19 @@ Track GitHub releases, download assets, and keep applications up to date through
 
 Repositories must publish **GitHub Releases with attached assets**. Run only one interface at a time per user: all three share configuration and cache files.
 
+## Building from source
+
+Install the .NET 10 SDK and clone with submodules:
+
+```sh
+git clone --recurse-submodules https://github.com/Tobias2888/Github-Downloader.git
+cd Github-Downloader
+dotnet build Github-Downloader.slnx
+dotnet test Github-Downloader.Tests/Github-Downloader.Tests.csproj
+```
+
+For an existing checkout, run `git submodule update --init --recursive` before building. The projects under `libs/` build FileLib, LoggerLib, SecretsLib, and the MetadataGenerator source generator from their pinned BonitoCat repositories. After pulling changes to submodule versions, run the update command again.
+
 ## License
 
 [GNU GPL v3.0](LICENSE)

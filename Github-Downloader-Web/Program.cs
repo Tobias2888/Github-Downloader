@@ -18,7 +18,7 @@ Logger.LogToTerminal = false;
 Logger.LogFirstChance = false;
 Logger.LogDebug = false;
 Logger.LogLevel = LoggerLib.LogLevel.Info;
-await Logger.CreateFile();
+await Logger.CreateFileAsync();
 Logger.LogI("Mode: web");
 
 builder.Services.AddEndpointsApiExplorer();

@@ -19,7 +19,7 @@ public sealed class ActionLoggingTests : IAsyncLifetime
         Logger.LogDir = _root;
         Logger.LogToTerminal = false;
         Logger.LogFirstChance = false;
-        await Logger.CreateFile();
+        await Logger.CreateFileAsync();
     }
 
     [Fact]
