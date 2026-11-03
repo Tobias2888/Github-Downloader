@@ -42,6 +42,7 @@ ScaffoldingReadMe.txt
 CodeCoverage/
 
 # Personal Rider/ReSharper settings
+.idea/
 *.DotSettings.user
 
 # MSBuild Binary and Structured Log
