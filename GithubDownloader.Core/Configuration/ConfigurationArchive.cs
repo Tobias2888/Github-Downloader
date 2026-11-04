@@ -1,9 +1,11 @@
+using GithubDownloader.Core.LocalApplications;
+using GithubDownloader.Core.Installation.Archives;
 using System.Formats.Tar;
 using System.IO.Compression;
 using System.Text.Json;
 using GithubDownloader.Core.Models;
 
-namespace GithubDownloader.Core;
+namespace GithubDownloader.Core.Configuration;
 
 public enum InstallerExportMode { None, Newest, All }
 

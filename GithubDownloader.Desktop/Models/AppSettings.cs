@@ -1,3 +1,6 @@
+using GithubDownloader.Core.Repositories;
+using GithubDownloader.Core.LocalApplications;
+using GithubDownloader.Core.Configuration;
 using System;
 using System.IO;
 using System.Text.Json;
@@ -19,7 +22,7 @@ public class AppSettings
     public string DefaultAssetRule { get; set; } = AssetSelection.GetDefaultRule();
     public int? LocalInstallerVersionsToKeep { get; set; } = LocalInstallerRetention.DefaultVersionsToKeep;
     public NotificationSettings Notifications { get; set; } = new();
-    private int _logsToKeep = -1;
+    private int _logsToKeep = 30;
     public int LogsToKeep
     {
         get => _logsToKeep;
@@ -54,7 +57,7 @@ public class AppSettings
 
     public void Save()
     {
-        Logger.LogD("Saving application settings");
+        _ = Logger.LogD("Saving application settings");
         try
         {
             string jsonString = JsonSerializer.Serialize(this, new JsonSerializerOptions
@@ -63,11 +66,11 @@ public class AppSettings
             });
             Directory.CreateDirectory(FileManager.AppdataPath);
             File.WriteAllText(_appSettingsFilePath, jsonString);
-            Logger.LogD("Application settings saved");
+            _ = Logger.LogD("Application settings saved");
         }
         catch (Exception exception)
         {
-            Logger.LogE($"Application settings save failed ({exception.GetType().Name})");
+            _ = Logger.LogE($"Application settings save failed ({exception.GetType().Name})");
             throw;
         }
     }

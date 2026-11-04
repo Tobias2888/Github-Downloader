@@ -1,6 +1,7 @@
+using GithubDownloader.Core.Operations;
+using GithubDownloader.Core.Downloads;
 using System;
 using System.Collections.ObjectModel;
-using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,7 +11,7 @@ using Avalonia.Threading;
 using GithubDownloader.Desktop.Models;
 using GithubDownloader.Core;
 using LoggerLib;
-using GithubDownloader.Notifications;
+using GithubDownloader.Core.Notifications;
 
 namespace GithubDownloader.Desktop.ViewModels;
 
@@ -106,11 +107,11 @@ public class DownloadStatusViewModel : ViewModelBase
     {
         if (IsUpdating)
         {
-            Logger.LogW("Operation skipped because another operation is running");
+            _ = Logger.LogW("Operation skipped because another operation is running");
             return false;
         }
 
-        Logger.LogD("Operation started");
+        _ = Logger.LogD("Operation started");
 
         CompletionNotificationHandled = false;
         _operationTitle = title;
@@ -139,7 +140,7 @@ public class DownloadStatusViewModel : ViewModelBase
         catch (Exception exception)
         {
             failure = exception.Message;
-            Logger.LogE($"Operation failed ({exception.GetType().Name})");
+            _ = Logger.LogE($"Operation failed ({exception.GetType().Name})");
             Log($"Operation failed ({exception.GetType().Name}): {exception.Message}", "error");
         }
         finally
@@ -166,7 +167,7 @@ public class DownloadStatusViewModel : ViewModelBase
 
         if (succeeded)
         {
-            Logger.LogD("Operation completed");
+            _ = Logger.LogD("Operation completed");
             Log("Completed", "success");
             Percent = 100;
             CloseDialog();
@@ -176,7 +177,7 @@ public class DownloadStatusViewModel : ViewModelBase
             void ReportFailure()
             {
                 if (Logs.Any(entry => entry.Level == "error")) return;
-                Logger.LogE("Operation did not complete");
+                _ = Logger.LogE("Operation did not complete");
                 Log("The operation could not complete. Check connectivity and installation requirements.", "error");
             }
             if (Dispatcher.UIThread.CheckAccess()) ReportFailure();
@@ -197,6 +198,23 @@ public class DownloadStatusViewModel : ViewModelBase
         else Dispatcher.UIThread.Post(Update);
     }
 
+    public void ReportProgress(OperationProgress progress)
+    {
+        if (progress.Transfer is DownloadProgress transfer)
+        {
+            ReportTransfer(transfer);
+            return;
+        }
+        _notification?.ReportProgress(progress);
+        void Update()
+        {
+            Percent = progress.Percent;
+            ProgressText = progress.DisplayText;
+        }
+        if (Dispatcher.UIThread.CheckAccess()) Update();
+        else Dispatcher.UIThread.Post(Update);
+    }
+
     public void LogStatus(string message)
     {
         Log(message, message.StartsWith("Failed to ", StringComparison.Ordinal) ? "error" : "info");
@@ -206,28 +224,6 @@ public class DownloadStatusViewModel : ViewModelBase
     {
         if (string.IsNullOrEmpty(message)) return;
         _notification?.ReportStatus(message);
-
-        bool extracting = message.StartsWith("Extracting: ", StringComparison.Ordinal);
-        string prefix = extracting ? "Extracting: " : "Downloaded: ";
-        int percentIndex = message.IndexOf('%');
-        if (message.StartsWith(prefix) && percentIndex >= prefix.Length && (extracting || percentIndex == message.Length - 1))
-        {
-            // The library formats this with the current culture (e.g. "45,50" on de-AT), so
-            // parse with the current culture first and fall back to invariant for "45.50".
-            string number = message[prefix.Length..percentIndex].Trim();
-            if (double.TryParse(number, NumberStyles.Float, CultureInfo.CurrentCulture, out double percent)
-                || double.TryParse(number, NumberStyles.Float, CultureInfo.InvariantCulture, out percent))
-            {
-                void UpdateProgress()
-                {
-                    Percent = percent;
-                    ProgressText = message;
-                }
-                if (Dispatcher.UIThread.CheckAccess()) UpdateProgress();
-                else Dispatcher.UIThread.Post(UpdateProgress);
-                return;
-            }
-        }
 
         Log(message, "detail");
     }
@@ -277,7 +273,7 @@ public class DownloadStatusViewModel : ViewModelBase
     {
         if (_downloadStatus is { IsVisible: true }) return true;
 
-        Window mainWindow = ((App)Application.Current!).MainWindow;
+        Window? mainWindow = ((App)Application.Current!).MainWindow;
         if (mainWindow is null) return false;
         if (!mainWindow.IsVisible) return false;
 
@@ -288,11 +284,11 @@ public class DownloadStatusViewModel : ViewModelBase
         };
         _downloadStatus.Closed += (_, _) =>
         {
-            Logger.LogD("Operation status window closed");
+            _ = Logger.LogD("Operation status window closed");
             _downloadStatus = null;
         };
         _downloadStatus.Show(mainWindow);
-        Logger.LogD("Operation status window opened");
+        _ = Logger.LogD("Operation status window opened");
         return true;
     }
 

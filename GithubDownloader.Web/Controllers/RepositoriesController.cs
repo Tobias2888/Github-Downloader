@@ -50,7 +50,7 @@ public class RepositoriesController : ControllerBase
         }
         catch (Exception ex)
         {
-            Logger.LogE($"Failed to add repository ({ex.GetType().Name})");
+            _ = Logger.LogE($"Failed to add repository ({ex.GetType().Name})");
             return BadRequest(new ErrorResponse("Failed to add repository", ex.Message));
         }
     }
@@ -67,7 +67,7 @@ public class RepositoriesController : ControllerBase
         }
         catch (Exception ex)
         {
-            Logger.LogE($"Failed to add repository by name ({ex.GetType().Name})");
+            _ = Logger.LogE($"Failed to add repository by name ({ex.GetType().Name})");
             return BadRequest(new ErrorResponse("Failed to add repository", ex.Message));
         }
     }
@@ -89,7 +89,7 @@ public class RepositoriesController : ControllerBase
         }
         catch (Exception ex)
         {
-            Logger.LogE($"Failed to update repository ({ex.GetType().Name})");
+            _ = Logger.LogE($"Failed to update repository ({ex.GetType().Name})");
             return BadRequest(new ErrorResponse("Failed to update repository", ex.Message));
         }
     }

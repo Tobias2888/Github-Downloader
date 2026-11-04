@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace GithubDownloader.Core;
+namespace GithubDownloader.Core.Installation.Launchers;
 
 internal static class DesktopEntryCommand
 {

@@ -1,3 +1,4 @@
+using GithubDownloader.Core.GitHub;
 using System.Net;
 using GithubDownloader.Core;
 using GithubDownloader.Core.Models;

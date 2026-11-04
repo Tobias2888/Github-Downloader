@@ -1,3 +1,4 @@
+using GithubDownloader.Core.LocalApplications;
 using System.Text.Json.Serialization;
 
 namespace GithubDownloader.Core.Models;

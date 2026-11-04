@@ -1,3 +1,5 @@
+using GithubDownloader.Core.Installation;
+using GithubDownloader.Core.Configuration;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -31,7 +33,7 @@ public partial class App : Application
     public RepoDetailsViewModel RepoDetailsViewModel { get; } = new();
     
     public MainWindow? MainWindow;
-    private TrayIcon _trayIcon;
+    private TrayIcon _trayIcon = new();
     private readonly DispatcherTimer _notificationTimer = new() { Interval = TimeSpan.FromMinutes(1) };
     public NotificationService Notifications { get; }
 
@@ -67,7 +69,7 @@ public partial class App : Application
         }
         if (MainWindow.WindowState == WindowState.Minimized)
             MainWindow.WindowState = WindowState.Normal;
-        Logger.LogI("Showing main window");
+        _ = Logger.LogI("Showing main window");
         MainWindow.Show();
         MainWindow.Activate();
     }
@@ -86,7 +88,7 @@ public partial class App : Application
 
     public async Task<bool> UpdateRepoAsync(Repo repo, bool reinstall = false, bool checkForUpdates = false)
     {
-        Logger.LogI(reinstall ? "Repository reinstall requested" : "Repository update requested");
+        _ = Logger.LogI(reinstall ? "Repository reinstall requested" : "Repository update requested");
         bool performedUpdate = false;
         bool succeeded = await DownloadStatusViewModel.RunAsync(async cancellationToken =>
         {
@@ -95,8 +97,8 @@ public partial class App : Application
 
             performedUpdate = reinstall || !repo.IsUpToDate;
             return await UpdateManager.UpdateRepo(repo, DownloadStatusViewModel.LogStatus,
-                DownloadStatusViewModel.LogProgress, reinstall, DownloadStatusViewModel.ReportTransfer, cancellationToken,
-                selectArchiveExecutable: SelectRepositoryArchiveExecutableAsync);
+                DownloadStatusViewModel.LogProgress, reinstall, null, cancellationToken,
+                selectArchiveExecutable: SelectRepositoryArchiveExecutableAsync, operationProgress: DownloadStatusViewModel.ReportProgress);
         }, $"{(reinstall ? "Reinstalling" : "Updating")} {repo.Name}");
         if (succeeded && performedUpdate && !DownloadStatusViewModel.CompletionNotificationHandled)
             await Notifications.NotifyDownloadsCompletedAsync(1, repo.Name);
@@ -109,7 +111,7 @@ public partial class App : Application
         Repo[] repositories = UpdateManager.Repos.ToArray();
         if (repositories.Length == 0) return;
 
-        Logger.LogI("Reinstall all repositories confirmed");
+        _ = Logger.LogI("Reinstall all repositories confirmed");
         try
         {
             await RunDownloadsAsync(async cancellationToken =>
@@ -120,7 +122,7 @@ public partial class App : Application
                 return await UpdateManager.UpdateReposAsync(repositories,
                     DownloadStatusViewModel.LogStatus, DownloadStatusViewModel.LogProgress,
                     downloadAnyways: true, respectExclusions: false,
-                    transferProgress: DownloadStatusViewModel.ReportTransfer, cancellationToken: cancellationToken,
+                    operationProgress: DownloadStatusViewModel.ReportProgress, cancellationToken: cancellationToken,
                     selectArchiveExecutable: SelectRepositoryArchiveExecutableAsync);
             }, repositories, "Reinstalling repositories");
         }
@@ -140,20 +142,20 @@ public partial class App : Application
 
     public async Task UninstallRepoAsync(Repo repo)
     {
-        Logger.LogI("Repository uninstall requested");
+        _ = Logger.LogI("Repository uninstall requested");
         if (DownloadStatusViewModel.IsUpdating || !repo.CanUninstall || MainWindow is null)
         {
-            Logger.LogW("Repository uninstall unavailable");
+            _ = Logger.LogW("Repository uninstall unavailable");
             return;
         }
         Views.UninstallRepoDialog dialog = new(repo);
         string? package = await dialog.ShowDialog<string?>(MainWindow);
         if (package is null)
         {
-            Logger.LogI("Repository uninstall cancelled");
+            _ = Logger.LogI("Repository uninstall cancelled");
             return;
         }
-        Logger.LogI("Repository uninstall confirmed");
+        _ = Logger.LogI("Repository uninstall confirmed");
 
         InstallationManager installations = new();
         await DownloadStatusViewModel.RunAsync(() => installations.UninstallAsync(repo,
@@ -163,8 +165,6 @@ public partial class App : Application
     }
     
     private const string ResPath = "avares://Github-Downloader/resources/";
-    private string _appdataPath;
-    private string _reposConfigFilePath;
     
     public override void Initialize()
     {
@@ -180,7 +180,7 @@ public partial class App : Application
             Dispatcher.UIThread.UnhandledException += OnUIThreadUnhandledException;
 
             InitializeTrayIcon();
-            Start();
+            StartApplication();
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -188,12 +188,23 @@ public partial class App : Application
 
     private static void OnUIThreadUnhandledException(object? sender, DispatcherUnhandledExceptionEventArgs e)
     {
-        Logger.LogE($"Unhandled UI exception: {e.Exception.GetType().Name}");
+        _ = Logger.LogE($"Unhandled UI exception: {e.Exception.GetType().Name}");
         if (Application.Current is App app)
         {
             app.MainViewModel.SwitchPage(ViewNames.Home);
         }
         e.Handled = true;
+    }
+
+    // Framework initialization cannot await startup; observe failures at this lifecycle boundary.
+    private async void StartApplication()
+    {
+        try { await Start(); }
+        catch (Exception exception)
+        {
+            if (Logger.HasFileBeenCreated)
+                await Logger.LogE($"Application startup failed ({exception.GetType().Name})");
+        }
     }
 
     private async Task Start()
@@ -203,9 +214,8 @@ public partial class App : Application
             SecretsManager.Initialize("hofinga.gh-downloader.secret");
         }
         
-        _appdataPath = Path.Join(DirectoryHelper.GetAppDataDirPath(), "github-downloader");
-        _reposConfigFilePath = Path.Join(_appdataPath, "repos.json");
-        Logger.LogDir = Path.Join(_appdataPath, "logs");
+        string appdataPath = Path.Join(DirectoryHelper.GetAppDataDirPath(), "github-downloader");
+        Logger.LogDir = Path.Join(appdataPath, "logs");
         Logger.LogToTerminal = true;
         Logger.LogFirstChance = false;
         Logger.LogDebug = false;
@@ -223,8 +233,8 @@ public partial class App : Application
         }
         Logger.KeepLogs = MainViewModel.AppSettings.LogsToKeep;
         await Logger.CreateFileAsync();
-        Logger.LogI("Mode: avalonia-desktop-app");
-        Logger.LogI("Application settings loaded");
+        _ = Logger.LogI("Mode: avalonia-desktop-app");
+        _ = Logger.LogI("Application settings loaded");
         await InitializeRepositoriesAsync(Program.DesktopActivation,
             async () =>
             {
@@ -245,7 +255,7 @@ public partial class App : Application
                 return;
             }
 
-            Logger.LogI("AutoCheckForUpdates");
+            _ = Logger.LogI("AutoCheckForUpdates");
             await DownloadStatusViewModel.RunAsync(() =>
                 UpdateManager.SearchForUpdates(UpdateManager.Repos, DownloadStatusViewModel.LogStatus), showNotification: false);
             
@@ -277,7 +287,7 @@ public partial class App : Application
         }
         catch (Exception exception)
         {
-            Logger.LogE($"Startup repository refresh failed ({exception.GetType().Name})");
+            _ = Logger.LogE($"Startup repository refresh failed ({exception.GetType().Name})");
         }
     }
 
@@ -318,7 +328,7 @@ public partial class App : Application
             switch (MainWindow?.IsVisible)
             {
                 case true: 
-                    Logger.LogI("Hiding main window");
+                    _ = Logger.LogI("Hiding main window");
                     MainWindow.Hide(); 
                     MainViewModel.SwitchPage(ViewNames.Home);
                     break;
@@ -333,7 +343,7 @@ public partial class App : Application
         {
             await RunDownloadsAsync(cancellationToken => UpdateManager.UpdateReposAsync(UpdateManager.Repos,
                 DownloadStatusViewModel.LogStatus, DownloadStatusViewModel.LogProgress,
-                transferProgress: DownloadStatusViewModel.ReportTransfer, cancellationToken: cancellationToken),
+                operationProgress: DownloadStatusViewModel.ReportProgress, cancellationToken: cancellationToken),
                 UpdateManager.Repos.Where(repo => !repo.ExcludedFromDownloadAll && !repo.IsUpToDate));
             FileManager.SaveRepos();
         };

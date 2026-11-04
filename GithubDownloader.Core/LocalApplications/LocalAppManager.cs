@@ -1,8 +1,14 @@
+using GithubDownloader.Core.Operations;
+using GithubDownloader.Core.Installation.Launchers;
+using GithubDownloader.Core.Installation.Archives;
+using GithubDownloader.Core.Installation;
+using GithubDownloader.Core.History;
+using GithubDownloader.Core.Configuration;
 using System.Security.Cryptography;
 using LoggerLib;
 using GithubDownloader.Core.Models;
 
-namespace GithubDownloader.Core;
+namespace GithubDownloader.Core.LocalApplications;
 
 public sealed class LocalAppManager
 {
@@ -19,10 +25,10 @@ public sealed class LocalAppManager
     }
 
     public Task<bool> ReinstallAsync(LocalApp app, Action<string> status, Action<string> progress,
-        Func<string, IReadOnlyList<string>, Task<string?>>? selectExecutable = null) =>
+        Func<string, IReadOnlyList<string>, Task<string?>>? selectExecutable = null, Action<OperationProgress>? operationProgress = null) =>
         LocalFileInstaller.InstallAsync(app.InstallerPath, status, progress,
             app.Kind == LocalAppKind.Archive ? app.ExtractionDirectory : null, null, FileManager.CachePath,
-            LocalInstallerRetention.LoadLimit(), selectExecutable, _launcher, existingAppId: app.Id);
+            LocalInstallerRetention.LoadLimit(), selectExecutable, _launcher, existingAppId: app.Id, operationProgress: operationProgress);
 
     public async Task SetDesktopEntryArgumentsAsync(LocalApp app, string arguments, Action<string> progress)
     {
@@ -70,7 +76,7 @@ public sealed class LocalAppManager
     }
 
     public Task<bool> InstallVersionAsync(LocalApp app, LocalInstallerVersion version, Action<string> status, Action<string> progress,
-        Func<string, IReadOnlyList<string>, Task<string?>>? selectExecutable = null)
+        Func<string, IReadOnlyList<string>, Task<string?>>? selectExecutable = null, Action<OperationProgress>? operationProgress = null)
     {
         LocalApp current = _store.Read().FirstOrDefault(entry => entry.Id == app.Id)
             ?? throw new IOException("The local app entry no longer exists.");
@@ -83,11 +89,11 @@ public sealed class LocalAppManager
         ArchiveExtractor.EnsureNoLinks(selected.Path);
         return LocalFileInstaller.InstallAsync(selected.Path, status, progress,
             current.Kind == LocalAppKind.Archive ? current.ExtractionDirectory : null, null, FileManager.CachePath,
-            LocalInstallerRetention.LoadLimit(), selectExecutable, _launcher, existingAppId: current.Id);
+            LocalInstallerRetention.LoadLimit(), selectExecutable, _launcher, existingAppId: current.Id, operationProgress: operationProgress);
     }
 
     public Task<bool> InstallNewArchiveVersionAsync(LocalApp app, string path, Action<string> status, Action<string> progress,
-        Func<string, IReadOnlyList<string>, Task<string?>>? selectExecutable = null, string? extractionDirectory = null)
+        Func<string, IReadOnlyList<string>, Task<string?>>? selectExecutable = null, string? extractionDirectory = null, Action<OperationProgress>? operationProgress = null)
     {
         LocalApp current = _store.Read().FirstOrDefault(entry => entry.Id == app.Id)
             ?? throw new IOException("The local app entry no longer exists.");
@@ -96,7 +102,7 @@ public sealed class LocalAppManager
         string? destination = string.IsNullOrWhiteSpace(current.ExtractionDirectory)
             ? extractionDirectory : current.ExtractionDirectory;
         return LocalFileInstaller.InstallAsync(path, status, progress, destination, null, FileManager.CachePath,
-            LocalInstallerRetention.LoadLimit(), selectExecutable, _launcher, existingAppId: current.Id);
+            LocalInstallerRetention.LoadLimit(), selectExecutable, _launcher, existingAppId: current.Id, operationProgress: operationProgress);
     }
 
     public string GetUninstallDescription(LocalApp app) => (app.Kind switch
@@ -135,7 +141,7 @@ public sealed class LocalAppManager
             status($"Uninstalling {app.Name}...");
             if (removeEntireDirectory && _store.IsManagedAppDirectory(root))
             {
-                Logger.LogI("Removing managed local archive application folder");
+                _ = Logger.LogI("Removing managed local archive application folder");
                 progress("Removing extracted application files...");
                 // The entire managed folder belongs to this app, including files it creates at runtime.
                 // Directory.Delete removes directory links themselves without following their targets.

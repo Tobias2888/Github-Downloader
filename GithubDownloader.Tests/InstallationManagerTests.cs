@@ -1,3 +1,4 @@
+using GithubDownloader.Core.Installation;
 using System.Diagnostics;
 using System.Text.Json;
 using GithubDownloader.Core;

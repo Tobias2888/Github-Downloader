@@ -1,3 +1,4 @@
+using GithubDownloader.Core.History;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Interactivity;

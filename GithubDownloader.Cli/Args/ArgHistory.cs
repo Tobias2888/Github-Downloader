@@ -1,3 +1,4 @@
+using GithubDownloader.Core.History;
 using System.Globalization;
 using System.Text.Json;
 using GithubDownloader.Core;

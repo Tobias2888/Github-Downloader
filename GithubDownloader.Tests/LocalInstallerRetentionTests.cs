@@ -1,3 +1,7 @@
+using GithubDownloader.Core.LocalApplications;
+using GithubDownloader.Core.Installation;
+using GithubDownloader.Core.History;
+using GithubDownloader.Core.Configuration;
 using System.IO.Compression;
 using GithubDownloader.Core;
 using GithubDownloader.Core.Models;

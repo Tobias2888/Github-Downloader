@@ -1,9 +1,14 @@
+using GithubDownloader.Core.Operations;
+using GithubDownloader.Core.Installation.Launchers;
+using GithubDownloader.Core.Installation.Archives;
+using GithubDownloader.Core.Installation;
+using GithubDownloader.Core.Configuration;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using GithubDownloader.Core.Models;
 
-namespace GithubDownloader.Core;
+namespace GithubDownloader.Core.LocalApplications;
 
 public static class LocalFileInstaller
 {
@@ -14,18 +19,18 @@ public static class LocalFileInstaller
             .Concat(ArchiveExtractor.SupportedExtensions).ToArray());
 
     public static Task<bool> InstallAsync(string path, Action<string> status, Action<string> progress,
-        string? extractionDirectory = null) =>
-        InstallAsync(path, status, progress, extractionDirectory, null, FileManager.CachePath, LocalInstallerRetention.LoadLimit());
+        string? extractionDirectory = null, Action<OperationProgress>? operationProgress = null) =>
+        InstallAsync(path, status, progress, extractionDirectory, null, FileManager.CachePath, LocalInstallerRetention.LoadLimit(), operationProgress: operationProgress);
 
     public static Task<bool> InstallAsync(string path, Action<string> status, Action<string> progress,
-        string? extractionDirectory, Func<string, IReadOnlyList<string>, Task<string?>> selectExecutable) =>
+        string? extractionDirectory, Func<string, IReadOnlyList<string>, Task<string?>> selectExecutable, Action<OperationProgress>? operationProgress = null) =>
         InstallAsync(path, status, progress, extractionDirectory, null, FileManager.CachePath,
-            LocalInstallerRetention.LoadLimit(), selectExecutable);
+            LocalInstallerRetention.LoadLimit(), selectExecutable, operationProgress: operationProgress);
 
     internal static async Task<bool> InstallAsync(string path, Action<string> status, Action<string> progress,
-        string? extractionDirectory, Func<UpdateManager.Asset, Task<bool>>? installer, string cachePath, int? versionsToKeep = LocalInstallerRetention.DefaultVersionsToKeep,
+        string? extractionDirectory, Func<RepositoryAsset, Task<bool>>? installer, string cachePath, int? versionsToKeep = LocalInstallerRetention.DefaultVersionsToKeep,
         Func<string, IReadOnlyList<string>, Task<string?>>? selectExecutable = null, ArchiveAppLauncher? launcher = null,
-        string? existingAppId = null)
+        string? existingAppId = null, Action<OperationProgress>? operationProgress = null)
     {
         if (versionsToKeep < 0) throw new ArgumentOutOfRangeException(nameof(versionsToKeep));
         string source = Path.GetFullPath(path);
@@ -68,7 +73,7 @@ public static class LocalFileInstaller
         local.DesktopEntryArguments = previous?.DesktopEntryArguments ?? "";
         List<string> extracted = [];
         string temporary = Path.Combine(Path.GetFullPath(cachePath), "local-" + Guid.NewGuid().ToString("N"));
-        UpdateManager.Asset asset = new(local, Path.Combine(temporary, filename), "",
+        RepositoryAsset asset = new(local, Path.Combine(temporary, filename), "",
             TemporaryDirectory: temporary, LocalSourcePath: source, ExtractionDirectory: destination,
             ExtractionFileWritten: archive ? (file, _) => extracted.Add(file) : null);
         // Keep the original outside the disposable cache, including for installers that move their input.
@@ -91,7 +96,7 @@ public static class LocalFileInstaller
                 Directory.CreateDirectory(savedDirectory);
                 await Task.Run(() => File.Copy(source, savedPath));
             }
-            bool success = await UpdateManager.ApplyAssetAsync(asset, status, progress, false, installer);
+            bool success = await UpdateManager.ApplyAssetAsync(asset, status, progress, false, installer, operationProgress: operationProgress);
             if (!success) return false;
             // Package identity stays stable when a Debian installer filename changes between versions.
             if (existingAppId is null && kind == LocalAppKind.Debian && local.InstalledDebianPackage.Length > 0) id = "deb:" + local.InstalledDebianPackage;

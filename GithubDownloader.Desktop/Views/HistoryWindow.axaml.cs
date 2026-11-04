@@ -1,3 +1,4 @@
+using GithubDownloader.Core.History;
 using System;
 using System.IO;
 using Avalonia;

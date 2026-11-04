@@ -16,7 +16,7 @@ public partial class SettingsView : UserControl
     public SettingsView()
     {
         InitializeComponent();
-        _mainViewModel = ((App) Application.Current).MainViewModel;
+        _mainViewModel = ((App)Application.Current!).MainViewModel;
         DataContext = new SettingsViewModel();
     }
 

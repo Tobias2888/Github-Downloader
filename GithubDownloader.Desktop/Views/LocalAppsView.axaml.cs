@@ -1,3 +1,5 @@
+using GithubDownloader.Core.LocalApplications;
+using GithubDownloader.Core.Installation.Archives;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -95,7 +97,7 @@ public partial class LocalAppsView : UserControl
         if (application.DownloadStatusViewModel.IsUpdating) { application.DownloadStatusViewModel.Show(); return; }
         await application.DownloadStatusViewModel.RunAsync(() => new LocalAppManager().ReinstallAsync(app,
             application.DownloadStatusViewModel.LogStatus, application.DownloadStatusViewModel.LogProgress,
-            (directory, candidates) => ArchiveExecutablePicker.SelectAsync(this, directory, candidates)), "Reinstall local app");
+            (directory, candidates) => ArchiveExecutablePicker.SelectAsync(this, directory, candidates), operationProgress: application.DownloadStatusViewModel.ReportProgress), "Reinstall local app");
         Refresh();
     }
 
@@ -133,7 +135,7 @@ public partial class LocalAppsView : UserControl
             if (application.DownloadStatusViewModel.IsUpdating) return;
             await application.DownloadStatusViewModel.RunAsync(() => new LocalAppManager().InstallNewArchiveVersionAsync(app, path,
                 application.DownloadStatusViewModel.LogStatus, application.DownloadStatusViewModel.LogProgress,
-                (directory, candidates) => ArchiveExecutablePicker.SelectAsync(this, directory, candidates), destination), "Install new archive version");
+                (directory, candidates) => ArchiveExecutablePicker.SelectAsync(this, directory, candidates), destination, operationProgress: application.DownloadStatusViewModel.ReportProgress), "Install new archive version");
             Refresh();
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
@@ -167,7 +169,7 @@ public partial class LocalAppsView : UserControl
         if (application.DownloadStatusViewModel.IsUpdating) { application.DownloadStatusViewModel.Show(); return; }
         await application.DownloadStatusViewModel.RunAsync(() => new LocalAppManager().InstallVersionAsync(app, version,
             application.DownloadStatusViewModel.LogStatus, application.DownloadStatusViewModel.LogProgress,
-            (directory, candidates) => ArchiveExecutablePicker.SelectAsync(this, directory, candidates)), "Install saved version");
+            (directory, candidates) => ArchiveExecutablePicker.SelectAsync(this, directory, candidates), operationProgress: application.DownloadStatusViewModel.ReportProgress), "Install saved version");
         Refresh();
     }
 

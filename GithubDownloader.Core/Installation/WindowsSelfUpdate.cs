@@ -1,8 +1,9 @@
+using GithubDownloader.Core.Configuration;
 using System.Diagnostics;
 using GithubDownloader.Core.Enums;
 using GithubDownloader.Core.Models;
 
-namespace GithubDownloader.Core;
+namespace GithubDownloader.Core.Installation;
 
 public sealed class WindowsSelfUpdate
 {

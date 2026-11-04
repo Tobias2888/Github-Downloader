@@ -1,10 +1,12 @@
+using GithubDownloader.Core.Operations;
+using GithubDownloader.Core.Installation;
 using SharpCompress.Archives;
 using SharpCompress.Common;
 using SharpCompress.Readers;
 using GithubDownloader.Core.Models;
 using LoggerLib;
 
-namespace GithubDownloader.Core;
+namespace GithubDownloader.Core.Installation.Archives;
 
 public static class ArchiveExtractor
 {
@@ -22,27 +24,27 @@ public static class ArchiveExtractor
         && Extensions.Any(extension => fileName.EndsWith(extension, StringComparison.OrdinalIgnoreCase));
 
     public static async Task ExtractAsync(string archivePath, string destination, Action<string>? progress = null,
-        string? protectedFile = null, Action<string, bool>? fileWritten = null)
+        string? protectedFile = null, Action<string, bool>? fileWritten = null, Action<OperationProgress>? operationProgress = null)
     {
-        Logger.LogI("Archive extraction started");
+        _ = Logger.LogI("Archive extraction started");
         try
         {
-            await Task.Run(() => Extract(archivePath, destination, progress, protectedFile, fileWritten));
-            Logger.LogI("Archive extraction completed");
+            await Task.Run(() => Extract(archivePath, destination, progress, protectedFile, fileWritten, operationProgress));
+            _ = Logger.LogI("Archive extraction completed");
         }
         catch (Exception exception)
         {
-            Logger.LogE($"Archive extraction failed ({exception.GetType().Name})");
+            _ = Logger.LogE($"Archive extraction failed ({exception.GetType().Name})");
             throw;
         }
     }
 
     internal static async Task ExtractDownloadAsync(Repo repo, string archivePath, string tag, Action<string> progress,
-        string? destination = null, string? protectedFile = null, Action<string, bool>? fileWritten = null)
+        string? destination = null, string? protectedFile = null, Action<string, bool>? fileWritten = null, Action<OperationProgress>? operationProgress = null)
     {
         try
         {
-            await ExtractAsync(archivePath, destination ?? repo.ExtractionDirectory, progress, protectedFile, fileWritten);
+            await ExtractAsync(archivePath, destination ?? repo.ExtractionDirectory, progress, protectedFile, fileWritten, operationProgress);
         }
         finally
         {
@@ -52,7 +54,7 @@ public static class ArchiveExtractor
     }
 
     private static void Extract(string archivePath, string destination, Action<string>? progress, string? protectedFile,
-        Action<string, bool>? fileWritten)
+        Action<string, bool>? fileWritten, Action<OperationProgress>? operationProgress)
     {
         destination = Path.GetFullPath(destination);
         EnsureNoLinks(destination);
@@ -70,7 +72,8 @@ public static class ArchiveExtractor
                 int percent = (int)Math.Clamp(value, 0, 100);
                 if (percent <= lastPercent) return;
                 lastPercent = percent;
-                progress?.Invoke($"Extracting: {percent}%");
+                if (operationProgress is not null) operationProgress(new OperationProgress(OperationPhase.Extraction, percent));
+                else progress?.Invoke($"Extracting: {percent}%");
             }
             ReportPercent(0);
             using FileStream source = File.OpenRead(archivePath);

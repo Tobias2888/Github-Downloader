@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace GithubDownloader.Core;
+namespace GithubDownloader.Core.Downloads;
 
 /// <summary>A snapshot of a single file transfer. Unknown totals and estimates remain null.</summary>
 public sealed record DownloadProgress(long DownloadedBytes, long? TotalBytes, double BytesPerSecond,

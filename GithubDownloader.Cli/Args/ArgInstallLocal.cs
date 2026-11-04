@@ -1,5 +1,6 @@
+using GithubDownloader.Core.LocalApplications;
 using GithubDownloader.Core;
-using GithubDownloader.Notifications;
+using GithubDownloader.Core.Notifications;
 
 namespace GithubDownloader.Cli.Args;
 
@@ -19,7 +20,7 @@ internal static class ArgInstallLocal
                 ? await install(args[1], output.WriteLine, output.WriteLine, args.Length == 4 ? args[3] : null)
                 : await KdeOperationNotification.RunAsync("Installing local application",
                     (status, transfer, token) => LocalFileInstaller.InstallAsync(args[1], status,
-                        status, args.Length == 4 ? args[3] : null), output.WriteLine, cancellable: false);
+                        status, args.Length == 4 ? args[3] : null, operationProgress: transfer), output.WriteLine, cancellable: false);
             output.WriteLine(success ? "Local file installed." : "Local file installation failed.");
             return success ? 0 : 1;
         }

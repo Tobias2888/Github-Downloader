@@ -1,8 +1,12 @@
+using GithubDownloader.Core.Installation.Archives;
+using GithubDownloader.Core.Installation;
+using GithubDownloader.Core.Downloads;
+using GithubDownloader.Core.Configuration;
 using System.Collections.ObjectModel;
-using System.Globalization;
 using System.Runtime.InteropServices;
 using GithubDownloader.Core;
 using GithubDownloader.Core.Models;
+using GithubDownloader.Core.Enums;
 using SecretsLib;
 using LoggerLib;
 using DTOs = GithubDownloader.Web.DTOs;
@@ -52,11 +56,7 @@ public class GithubDownloaderService : IGithubDownloaderService
         {
             if (string.IsNullOrEmpty(message)) return;
 
-            if (message.StartsWith("Downloading ") && !message.StartsWith("Downloading updates"))
-            {
-                _tracker.StartItem();
-            }
-            else if (message.StartsWith("Checking for "))
+            if (message.StartsWith("Checking for "))
             {
                 _tracker.StartItem();
             }
@@ -67,24 +67,6 @@ public class GithubDownloaderService : IGithubDownloaderService
         Action<string> progress = new Action<string>(message =>
         {
             if (string.IsNullOrEmpty(message)) return;
-
-            bool extracting = message.StartsWith("Extracting: ", StringComparison.Ordinal);
-            string prefix = extracting ? "Extracting: " : "Downloaded: ";
-            int percentIndex = message.IndexOf('%');
-            if (message.StartsWith(prefix) && percentIndex >= prefix.Length && (extracting || percentIndex == message.Length - 1))
-            {
-                // The library formats this with the current culture (e.g. "45,50" on de-AT), so
-                // parse with the current culture first and fall back to invariant for "45.50".
-                // NumberStyles.Float is used deliberately: Any would treat the decimal comma as a
-                // group separator and parse "45,50" as 4550.
-                string number = message[prefix.Length..percentIndex].Trim();
-                if (double.TryParse(number, NumberStyles.Float, CultureInfo.CurrentCulture, out double percent)
-                    || double.TryParse(number, NumberStyles.Float, CultureInfo.InvariantCulture, out percent))
-                {
-                    _tracker.SetItemPercent(percent, extracting ? message : null);
-                    return;
-                }
-            }
 
             _tracker.Log(message, "detail");
         });
@@ -164,7 +146,7 @@ public class GithubDownloaderService : IGithubDownloaderService
             && (request.DownloadAssetIndex.Value < -1 || request.DownloadAssetIndex.Value >= repo.AssetNames.Count))
             throw new ArgumentOutOfRangeException(nameof(request.DownloadAssetIndex), "Asset index is out of range.");
 
-        Logger.LogI("Repository settings update requested");
+        _ = Logger.LogI("Repository settings update requested");
         if (request.DownloadPath != null) repo.DownloadPath = request.DownloadPath;
         if (request.SaveFileAnyway.HasValue) repo.SaveFileAnyway = request.SaveFileAnyway.Value;
         if (request.AutoExtract.HasValue) repo.AutoExtract = request.AutoExtract.Value;
@@ -189,7 +171,7 @@ public class GithubDownloaderService : IGithubDownloaderService
         Repo? repo = UpdateManager.Repos?.FirstOrDefault(r => r.Url == repoUrl);
         if (repo == null) return false;
 
-        Logger.LogI("Removing repository from tracking");
+        _ = Logger.LogI("Removing repository from tracking");
         UpdateManager.Repos?.Remove(repo);
         FileManager.SaveRepos();
         return true;
@@ -257,7 +239,7 @@ public class GithubDownloaderService : IGithubDownloaderService
         }
         catch (Exception ex)
         {
-            Logger.LogE($"Web operation failed ({ex.GetType().Name})");
+            _ = Logger.LogE($"Web operation failed ({ex.GetType().Name})");
             _tracker.Finish(false, $"Operation failed ({ex.GetType().Name})");
             throw;
         }
@@ -277,7 +259,7 @@ public class GithubDownloaderService : IGithubDownloaderService
                 {
                     outcomes[repo] = result;
                     progress?.Report(new DTOs.DownloadProgress(repo.Url, repo.Name, 100, result.ToString()));
-                }, transferProgress: _tracker.SetTransferProgress);
+                }, operationProgress: _tracker.SetOperationProgress);
             List<DTOs.DownloadedAsset> downloaded = repos
                 .Where(repo => outcomes.GetValueOrDefault(repo) == HistoryStatus.Succeeded)
                 .Select(repo => new DTOs.DownloadedAsset(repo.Url, repo.Name, repo.SelectedAssetName, repo.Tag,
@@ -291,7 +273,7 @@ public class GithubDownloaderService : IGithubDownloaderService
         }
         catch (Exception exception)
         {
-            Logger.LogE($"Web download failed ({exception.GetType().Name})");
+            _ = Logger.LogE($"Web download failed ({exception.GetType().Name})");
             _tracker.Finish(false, "Download failed; see History.");
             throw;
         }
@@ -311,8 +293,6 @@ public class GithubDownloaderService : IGithubDownloaderService
             : repoList.Where(r => r.Tag != "" && !r.IsUpToDate).ToList();
 
         _tracker.Start($"{(downloadAnyways ? "Reinstalling" : "Updating")} {operationItems.Count} repositories", operationItems.Count);
-        string? previousPassword = UpdateManager.RootPassword;
-        UpdateManager.RootPassword = string.IsNullOrEmpty(password) ? previousPassword : password;
         try
         {
             (Action<string> statusAction, Action<string> progressAction) = CreateCallbacks();
@@ -320,7 +300,8 @@ public class GithubDownloaderService : IGithubDownloaderService
             Dictionary<Repo, HistoryStatus> outcomes = [];
             bool installOk = await UpdateManager.UpdateReposAsync(repos, statusAction, progressAction, downloadAnyways,
                 (repo, result) => outcomes[repo] = result, respectExclusions: !downloadAnyways,
-                transferProgress: _tracker.SetTransferProgress);
+                operationProgress: _tracker.SetOperationProgress,
+                installation: new InstallationContext(Platform.Terminal, password));
             FileManager.SaveRepos();
             List<Repo> changedRepos = repos.Where(repo => outcomes.GetValueOrDefault(repo) == HistoryStatus.Succeeded
                 && !repo.IsDownloadOnly).ToList();
@@ -357,13 +338,9 @@ public class GithubDownloaderService : IGithubDownloaderService
         }
         catch (Exception ex)
         {
-            Logger.LogE($"Web operation failed ({ex.GetType().Name})");
+            _ = Logger.LogE($"Web operation failed ({ex.GetType().Name})");
             _tracker.Finish(false, $"Operation failed ({ex.GetType().Name})");
             throw;
-        }
-        finally
-        {
-            UpdateManager.RootPassword = previousPassword;
         }
     }
 
@@ -443,24 +420,24 @@ public class GithubDownloaderService : IGithubDownloaderService
 
     public Task StorePatAsync(string pat)
     {
-        Logger.LogI("Saving personal access token");
+        _ = Logger.LogI("Saving personal access token");
         SecretsManager.StoreSecret("pat", pat);
-        Logger.LogI("Personal access token saved");
+        _ = Logger.LogI("Personal access token saved");
         return Task.CompletedTask;
     }
 
     public Task ClearPatAsync()
     {
-        Logger.LogI("Removing personal access token");
+        _ = Logger.LogI("Removing personal access token");
         SecretsManager.ClearSecret("pat");
-        Logger.LogI("Personal access token removed");
+        _ = Logger.LogI("Personal access token removed");
         return Task.CompletedTask;
     }
 
     public async Task<DTOs.ClearDataResponse> ClearAllDataAsync()
     {
         await InitializeAsync();
-        Logger.LogI("Clearing application data");
+        _ = Logger.LogI("Clearing application data");
         try
         {
             if (UpdateManager.Repos != null)
@@ -482,12 +459,12 @@ public class GithubDownloaderService : IGithubDownloaderService
                 }
             }
 
-            Logger.LogI("Application data cleared");
+            _ = Logger.LogI("Application data cleared");
             return new DTOs.ClearDataResponse(true, "All data cleared successfully");
         }
         catch (Exception ex)
         {
-            Logger.LogE($"Application data clear failed ({ex.GetType().Name})");
+            _ = Logger.LogE($"Application data clear failed ({ex.GetType().Name})");
             return new DTOs.ClearDataResponse(false, $"Failed to clear data ({ex.GetType().Name})");
         }
     }

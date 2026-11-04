@@ -1,5 +1,4 @@
 <Solution>
-  <Project Path="GithubDownloader.Notifications/GithubDownloader.Notifications.csproj" />
   <Project Path="GithubDownloader.Cli/GithubDownloader.Cli.csproj" />
   <Project Path="GithubDownloader.Core/GithubDownloader.Core.csproj" />
   <Project Path="GithubDownloader.Desktop/GithubDownloader.Desktop.csproj" />

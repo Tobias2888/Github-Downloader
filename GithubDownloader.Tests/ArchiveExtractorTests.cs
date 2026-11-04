@@ -1,3 +1,5 @@
+using GithubDownloader.Core.Operations;
+using GithubDownloader.Core.Installation.Archives;
 using System.Formats.Tar;
 using System.IO.Compression;
 using System.Text;
@@ -54,7 +56,7 @@ public sealed class ArchiveExtractorTests : IDisposable
         await LoggerLib.Logger.CreateFileAsync();
 
         bool success = await UpdateManager.UpdateReposAsync(
-            [new UpdateManager.Asset(repo, archive, "v2")], _ => { }, _ => { });
+            [new RepositoryAsset(repo, archive, "v2")], _ => { }, _ => { });
 
         Assert.True(success);
         Assert.Equal(autoExtract ? "v2" : "v1", repo.CurrentInstallTag);
@@ -87,7 +89,7 @@ public sealed class ArchiveExtractorTests : IDisposable
         await LoggerLib.Logger.CreateFileAsync();
 
         bool success = await UpdateManager.UpdateReposAsync(
-            [new UpdateManager.Asset(repo, archive, "v2", cache)], _ => { }, messages.Add);
+            [new RepositoryAsset(repo, archive, "v2", cache)], _ => { }, messages.Add);
 
         Assert.False(success);
         Assert.Equal("v1", repo.CurrentInstallTag);
@@ -120,6 +122,22 @@ public sealed class ArchiveExtractorTests : IDisposable
         Assert.Equal(100, percentages[^1]);
         Assert.Equal(percentages.Order().ToArray(), percentages);
         AssertNoStagingDirectories();
+    }
+
+    [Fact]
+    public async Task StructuredExtractionProgressDoesNotDependOnStatusText()
+    {
+        List<OperationProgress> progress = [];
+        List<string> text = [];
+        string destination = Path.Combine(_root, "structured");
+        await ArchiveExtractor.ExtractAsync(CreateArchive("zip"), destination, text.Add,
+            operationProgress: progress.Add);
+        Assert.Empty(text);
+        Assert.NotEmpty(progress);
+        Assert.All(progress, update => Assert.Equal(OperationPhase.Extraction, update.Phase));
+        Assert.Equal(0, progress[0].Percent);
+        Assert.Equal(100, progress[^1].Percent);
+        Assert.Equal(Payload, File.ReadAllText(Path.Combine(destination, "nested", "file.txt")));
     }
 
     [Fact]

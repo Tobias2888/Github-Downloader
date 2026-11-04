@@ -1,3 +1,6 @@
+using GithubDownloader.Core.LocalApplications;
+using GithubDownloader.Core.Installation.Archives;
+using GithubDownloader.Core.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -154,7 +157,7 @@ public partial class HomeView : UserControl
                 {
                     bool succeeded = await LocalFileInstaller.InstallAsync(path,
                         _downloadStatusViewModel.LogStatus, _downloadStatusViewModel.LogProgress, destination,
-                        (directory, candidates) => ArchiveExecutablePicker.SelectAsync(this, directory, candidates));
+                        (directory, candidates) => ArchiveExecutablePicker.SelectAsync(this, directory, candidates), operationProgress: _downloadStatusViewModel.ReportProgress);
                     allInstalled &= succeeded;
                 }
                 return allInstalled;
@@ -220,14 +223,14 @@ public partial class HomeView : UserControl
 
     private async void BtnAddRepo_OnClick(object? sender, RoutedEventArgs e)
     {
-        Repo repo;
+        Repo? repo;
         if (!string.IsNullOrEmpty(TbxUrl.Text))
         {
             repo = await UpdateManager.AddRepo(TbxUrl.Text);
         }
         else
         {
-            repo = await UpdateManager.AddRepo(TbxOwner.Text, TbxRepo.Text);
+            repo = await UpdateManager.AddRepo(TbxOwner.Text ?? "", TbxRepo.Text ?? "");
         }
 
         if (repo == null)
@@ -268,7 +271,7 @@ public partial class HomeView : UserControl
     {
         await ((App)Application.Current!).RunDownloadsAsync(cancellationToken => UpdateManager.UpdateReposAsync(UpdateManager.Repos,
             _downloadStatusViewModel.LogStatus, _downloadStatusViewModel.LogProgress,
-            transferProgress: _downloadStatusViewModel.ReportTransfer, cancellationToken: cancellationToken,
+            operationProgress: _downloadStatusViewModel.ReportProgress, cancellationToken: cancellationToken,
             selectArchiveExecutable: ((App)Application.Current!).SelectRepositoryArchiveExecutableAsync),
             UpdateManager.Repos.Where(repo => !repo.ExcludedFromDownloadAll && !repo.IsUpToDate));
         
@@ -292,9 +295,9 @@ public partial class HomeView : UserControl
 
     private async void BtnSetPat_OnClick(object? sender, RoutedEventArgs e)
     {
-        Logger.LogI("Saving personal access token");
-        SecretsManager.StoreSecret("pat", TbxPat.Text);
-        Logger.LogI("Personal access token saved");
+        _ = Logger.LogI("Saving personal access token");
+        SecretsManager.StoreSecret("pat", TbxPat.Text ?? "");
+        _ = Logger.LogI("Personal access token saved");
         TbxPat.Text = "";
         ToastText.Text = "Personal access token saved successfully!";
         ToastPopup.IsOpen = true;
@@ -304,15 +307,15 @@ public partial class HomeView : UserControl
 
     private void PgbDownloading_OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        Logger.LogD("Opening operation status");
+        _ = Logger.LogD("Opening operation status");
         _downloadStatusViewModel.Show();
     }
 
     private void BtnRemovePat_OnClick(object? sender, RoutedEventArgs e)
     {
-        Logger.LogI("Removing personal access token");
+        _ = Logger.LogI("Removing personal access token");
         SecretsManager.ClearSecret("pat");
-        Logger.LogI("Personal access token removed");
+        _ = Logger.LogI("Personal access token removed");
     }
 
     private void InputElement_OnPointerPressed(object? sender, PointerPressedEventArgs e)

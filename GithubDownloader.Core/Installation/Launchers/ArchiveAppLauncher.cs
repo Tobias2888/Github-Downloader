@@ -1,3 +1,5 @@
+using GithubDownloader.Core.LocalApplications;
+using GithubDownloader.Core.Installation.Archives;
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text;
@@ -5,7 +7,7 @@ using System.Text.RegularExpressions;
 using GithubDownloader.Core.Models;
 using LoggerLib;
 
-namespace GithubDownloader.Core;
+namespace GithubDownloader.Core.Installation.Launchers;
 
 internal sealed class ArchiveAppLauncher
 {
@@ -111,7 +113,7 @@ internal sealed class ArchiveAppLauncher
         IEnumerable<string> oldEntries = EntryPaths(app).Concat(previous is null ? [] : EntryPaths(previous));
         foreach (string oldEntry in oldEntries.Distinct(StringComparer.Ordinal))
             if (oldEntry != entry) RemoveEntry(oldEntry, previousHash);
-        Logger.LogI("Local archive application-menu entry created");
+        _ = Logger.LogI("Local archive application-menu entry created");
         progress("Added the extracted application to the application menu.");
         return app with { ExecutablePath = executable, DesktopEntryHash = entryHash };
     }
@@ -128,11 +130,11 @@ internal sealed class ArchiveAppLauncher
         if (!File.Exists(entry)) return;
         if (LocalAppManager.FileHash(entry) != expectedHash)
         {
-            Logger.LogW("Changed local archive application-menu entry was kept");
+            _ = Logger.LogW("Changed local archive application-menu entry was kept");
             return;
         }
         File.Delete(entry);
-        Logger.LogI("Local archive application-menu entry removed");
+        _ = Logger.LogI("Local archive application-menu entry removed");
     }
 
     internal static string EscapeValue(string value) => value.Replace("\\", "\\\\")

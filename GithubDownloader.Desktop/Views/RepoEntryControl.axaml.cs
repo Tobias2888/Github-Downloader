@@ -1,3 +1,4 @@
+using GithubDownloader.Core.Configuration;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -59,9 +60,9 @@ public partial class RepoEntryControl : UserControl
     {
         if (DataContext is not Repo repo) return;
         
-        Logger.LogI("Removing repository from tracking");
+        _ = Logger.LogI("Removing repository from tracking");
         UpdateManager.Repos.Remove(repo);
-        Logger.LogI("Repository removed from tracking");
+        _ = Logger.LogI("Repository removed from tracking");
         FileManager.SaveRepos();
     }
 

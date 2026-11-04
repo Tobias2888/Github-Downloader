@@ -29,7 +29,7 @@ public class ConfigController : ControllerBase
         }
         catch (Exception ex)
         {
-            Logger.LogE($"Failed to export configuration ({ex.GetType().Name})");
+            _ = Logger.LogE($"Failed to export configuration ({ex.GetType().Name})");
             return BadRequest(new ErrorResponse("Failed to export configuration", ex.Message));
         }
     }
@@ -46,7 +46,7 @@ public class ConfigController : ControllerBase
         }
         catch (Exception ex)
         {
-            Logger.LogE($"Failed to import configuration ({ex.GetType().Name})");
+            _ = Logger.LogE($"Failed to import configuration ({ex.GetType().Name})");
             return BadRequest(new ErrorResponse("Failed to import configuration", ex.Message));
         }
     }

@@ -1,10 +1,10 @@
-using System.Globalization;
+using GithubDownloader.Core.Operations;
+using GithubDownloader.Core.Downloads;
 using System.Threading.Channels;
-using GithubDownloader.Core;
 using KdeNotificationDBusLib;
 using LoggerLib;
 
-namespace GithubDownloader.Notifications;
+namespace GithubDownloader.Core.Notifications;
 
 /// <summary>Best-effort desktop reporting; a slow or unavailable bus never blocks application work.</summary>
 public sealed class KdeOperationNotification
@@ -63,24 +63,15 @@ public sealed class KdeOperationNotification
         double.IsFinite(progress.BytesPerSecond) && progress.BytesPerSecond > 0
             ? (ulong)Math.Min(progress.BytesPerSecond, long.MaxValue) : 0));
 
+    public void ReportProgress(OperationProgress progress)
+    {
+        if (progress.Transfer is DownloadProgress transfer) ReportTransfer(transfer);
+        else Report(new Snapshot(progress.DisplayText, 0, null, 0, progress.Percent));
+    }
+
     public void ReportStatus(string message)
     {
         if (string.IsNullOrWhiteSpace(message)) return;
-        // Extraction and legacy download callbacks provide percentages as text.
-        int percentIndex = message.IndexOf('%');
-        string? prefix = message.StartsWith("Extracting: ", StringComparison.Ordinal) ? "Extracting: "
-            : message.StartsWith("Downloaded: ", StringComparison.Ordinal) ? "Downloaded: " : null;
-        if (prefix is not null && percentIndex > prefix.Length)
-        {
-            string number = message[prefix.Length..percentIndex];
-            if ((double.TryParse(number, NumberStyles.Float, CultureInfo.CurrentCulture, out double percent)
-                || double.TryParse(number, NumberStyles.Float, CultureInfo.InvariantCulture, out percent))
-                && double.IsFinite(percent))
-            {
-                Report(new Snapshot(message, (ulong)(Math.Clamp(percent, 0, 100) * 100), 10_000, 0));
-                return;
-            }
-        }
         Report(new Snapshot(message, 0, null, 0));
     }
 
@@ -103,7 +94,7 @@ public sealed class KdeOperationNotification
     }
 
     public static async Task<bool> RunAsync(string title,
-        Func<Action<string>, Action<DownloadProgress>, CancellationToken, Task<bool>> operation,
+        Func<Action<string>, Action<OperationProgress>, CancellationToken, Task<bool>> operation,
         Action<string> output, bool cancellable = true)
     {
         using CancellationTokenSource cancellation = new CancellationTokenSource();
@@ -112,10 +103,10 @@ public sealed class KdeOperationNotification
         bool cancelled = false;
         string? failure = null;
         void Status(string message) { output(message); notification?.ReportStatus(message); }
-        void Transfer(DownloadProgress progress) { output(progress.DisplayText); notification?.ReportTransfer(progress); }
+        void Progress(OperationProgress progress) { output(progress.DisplayText); notification?.ReportProgress(progress); }
         try
         {
-            success = await operation(Status, Transfer, cancellation.Token);
+            success = await operation(Status, Progress, cancellation.Token);
             cancellation.Token.ThrowIfCancellationRequested();
             return success;
         }
@@ -132,7 +123,7 @@ public sealed class KdeOperationNotification
         }
     }
 
-    internal sealed record Snapshot(string Description, ulong Processed, ulong? Total, ulong Speed);
+    internal sealed record Snapshot(string Description, ulong Processed, ulong? Total, ulong Speed, double? Percent = null);
 
     internal interface INotificationJob : IAsyncDisposable
     {
@@ -168,7 +159,9 @@ public sealed class KdeOperationNotification
         public async Task ReportAsync(Snapshot snapshot)
         {
             await job.SetDescriptionAsync(snapshot.Description);
-            await job.ReportAsync(snapshot.Processed, snapshot.Total, snapshot.Speed);
+            if (snapshot.Percent is double percent && double.IsFinite(percent))
+                await job.ReportPercentAsync((uint)Math.Clamp(percent, 0, 100));
+            else await job.ReportAsync(snapshot.Processed, snapshot.Total, snapshot.Speed);
         }
 
         public Task FinishAsync(bool success, bool cancelled, string failure) =>

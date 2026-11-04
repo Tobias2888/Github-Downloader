@@ -1,9 +1,10 @@
+using GithubDownloader.Core.Downloads;
 using System.Diagnostics;
 using System.Net.Http.Headers;
 using FileLib;
 using LoggerLib;
 
-namespace GithubDownloader.Core;
+namespace GithubDownloader.Core.GitHub;
 
 public static class Api
 {
@@ -40,7 +41,7 @@ public static class Api
                     || (int)response.StatusCode >= 500))
                 {
                     response.Dispose();
-                    Logger.LogD("Retrying a temporary GitHub API failure");
+                    _ = Logger.LogD("Retrying a temporary GitHub API failure");
                     await Task.Delay(250, cancellationToken).ConfigureAwait(false);
                     continue;
                 }
@@ -53,12 +54,12 @@ public static class Api
             catch (Exception exception) when (attempt < attempts
                 && exception is OperationCanceledException or HttpRequestException)
             {
-                Logger.LogD("Retrying a GitHub API request after a timeout or connection failure");
+                _ = Logger.LogD("Retrying a GitHub API request after a timeout or connection failure");
                 await Task.Delay(250, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception exception)
             {
-                Logger.LogE(exception is OperationCanceledException
+                _ = Logger.LogE(exception is OperationCanceledException
                     ? "GitHub API request timed out after retry"
                     : $"GitHub API request failed ({exception.GetType().Name})");
                 return null;
@@ -70,7 +71,7 @@ public static class Api
     public static async Task DownloadFileAsync(string url, string outputPath, string token = "", IProgress<double>? progress = null,
         Action<DownloadProgress>? transferProgress = null, CancellationToken cancellationToken = default)
     {
-        Logger.LogI("Asset download started");
+        _ = Logger.LogI("Asset download started");
         try
         {
             using HttpClient client = new();
@@ -99,16 +100,16 @@ public static class Api
             Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         
             await CopyDownloadAsync(stream, fs, totalBytes, progress, transferProgress, cancellationToken);
-            Logger.LogI("Asset download completed");
+            _ = Logger.LogI("Asset download completed");
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            Logger.LogI("Asset download cancelled");
+            _ = Logger.LogI("Asset download cancelled");
             throw;
         }
         catch (Exception exception)
         {
-            Logger.LogE($"Asset download failed ({exception.GetType().Name})");
+            _ = Logger.LogE($"Asset download failed ({exception.GetType().Name})");
             throw;
         }
     }

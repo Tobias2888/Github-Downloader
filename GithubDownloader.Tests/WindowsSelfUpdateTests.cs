@@ -1,3 +1,4 @@
+using GithubDownloader.Core.Installation;
 using System.ComponentModel;
 using System.Diagnostics;
 using GithubDownloader.Core.Enums;

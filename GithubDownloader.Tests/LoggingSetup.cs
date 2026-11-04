@@ -1,3 +1,5 @@
+using GithubDownloader.Core.LocalApplications;
+using GithubDownloader.Core.History;
 using System.Runtime.CompilerServices;
 using LoggerLib;
 using Xunit;
@@ -19,8 +21,8 @@ internal static class LoggingSetup
         Logger.LogToTerminal = false;
         string directory = Path.Combine(Path.GetTempPath(), "ghd-test-logs-" + Guid.NewGuid().ToString("N"));
         Logger.LogDir = directory;
-        GithubDownloader.Core.OperationHistory.Store = new(Path.Combine(directory, "history.json"));
-        GithubDownloader.Core.LocalApps.Store = new(Path.Combine(directory, "local-apps.json"));
+        GithubDownloader.Core.History.OperationHistory.Store = new(Path.Combine(directory, "history.json"));
+        GithubDownloader.Core.LocalApplications.LocalApps.Store = new(Path.Combine(directory, "local-apps.json"));
         Task.Run(Logger.CreateFileAsync).GetAwaiter().GetResult();
         AppDomain.CurrentDomain.ProcessExit += (_, _) =>
         {

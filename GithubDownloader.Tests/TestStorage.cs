@@ -1,3 +1,4 @@
+using GithubDownloader.Core.Configuration;
 using GithubDownloader.Core;
 using Xunit;
 

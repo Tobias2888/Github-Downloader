@@ -1,3 +1,6 @@
+using GithubDownloader.Core.Repositories;
+using GithubDownloader.Core.Installation.Archives;
+using GithubDownloader.Core.Installation;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;

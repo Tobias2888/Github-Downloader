@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace GithubDownloader.Core;
+namespace GithubDownloader.Core.Repositories;
 
 public static class AssetSelection
 {

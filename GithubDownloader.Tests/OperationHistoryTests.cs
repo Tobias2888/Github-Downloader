@@ -1,3 +1,6 @@
+using GithubDownloader.Core.Operations;
+using GithubDownloader.Core.Installation;
+using GithubDownloader.Core.History;
 using System.Diagnostics;
 using System.Text.Json;
 using GithubDownloader.Cli.Args;
@@ -325,7 +328,7 @@ public sealed class OperationHistoryTests : IDisposable
                 Assert.Equal(reinstall ? 3 : 2, assets.Count);
                 paths = assets.Select(asset => asset.TempAssetPath).ToArray();
                 Assert.Equal(assets.Count, paths.Distinct().Count());
-                foreach (UpdateManager.Asset asset in assets)
+                foreach (RepositoryAsset asset in assets)
                     Assert.Equal(asset.Repo.Name, await File.ReadAllTextAsync(asset.TempAssetPath));
                 return installSucceeds;
             });
@@ -465,7 +468,7 @@ public sealed class OperationHistoryTests : IDisposable
         Assert.False(Directory.Exists(config));
     }
 
-    private Task<HistoryStatus> Run(Repo repo, Func<UpdateManager.Asset, Task<bool>>? install = null) =>
+    private Task<HistoryStatus> Run(Repo repo, Func<RepositoryAsset, Task<bool>>? install = null) =>
         UpdateManager.RunRepositoryAsync(repo, _ => { }, _ => { }, downloadFile: WriteDownload,
             installAsset: install ?? (_ => Task.FromResult(true)), cachePath: _root);
 

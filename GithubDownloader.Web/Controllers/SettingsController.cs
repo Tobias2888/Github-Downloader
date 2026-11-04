@@ -48,7 +48,7 @@ public class SettingsController : ControllerBase
         }
         catch (Exception ex)
         {
-            Logger.LogE($"Failed to store personal access token ({ex.GetType().Name})");
+            _ = Logger.LogE($"Failed to store personal access token ({ex.GetType().Name})");
             return BadRequest(new ErrorResponse("Failed to store personal access token", ex.Message));
         }
     }

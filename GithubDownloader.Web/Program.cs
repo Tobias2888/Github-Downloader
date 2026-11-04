@@ -19,7 +19,7 @@ Logger.LogFirstChance = false;
 Logger.LogDebug = false;
 Logger.LogLevel = LoggerLib.LogLevel.Info;
 await Logger.CreateFileAsync();
-Logger.LogI("Mode: web");
+_ = Logger.LogI("Mode: web");
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>

@@ -1,9 +1,11 @@
+using GithubDownloader.Core.Operations;
+using GithubDownloader.Core.Downloads;
 using System.Text.Json;
 using GithubDownloader.Desktop.ViewModels;
 using GithubDownloader.Web.DTOs;
 using GithubDownloader.Web.Services;
 using Xunit;
-using TransferProgress = GithubDownloader.Core.DownloadProgress;
+using TransferProgress = GithubDownloader.Core.Downloads.DownloadProgress;
 
 namespace GithubDownloader.Tests;
 
@@ -14,7 +16,7 @@ public sealed class WebTransferProgressTests
     {
         OperationTracker tracker = new();
         tracker.Start("Download", 2);
-        tracker.StartItem();
+        tracker.SetOperationProgress(new GithubDownloader.Core.Operations.OperationProgress(GithubDownloader.Core.Operations.OperationPhase.Download, null, StartsItem: true));
         TransferProgress transfer = new(125_000_000, 500_000_000, 8_200_000, TimeSpan.FromSeconds(46));
         tracker.SetTransferProgress(transfer);
         OperationProgressResponse snapshot = tracker.Snapshot();
@@ -28,11 +30,11 @@ public sealed class WebTransferProgressTests
         tracker.Log("Extracting archive");
         Assert.Null(tracker.Snapshot().Transfer);
         int logCount = tracker.Snapshot().Logs.Count;
-        tracker.SetItemPercent(35, "Extracting: 35%");
+        tracker.SetOperationProgress(new GithubDownloader.Core.Operations.OperationProgress(GithubDownloader.Core.Operations.OperationPhase.Extraction, 35));
         Assert.Equal("Extracting: 35%", tracker.Snapshot().Status);
         Assert.Equal(17.5, tracker.Snapshot().Percent);
         Assert.Equal(logCount, tracker.Snapshot().Logs.Count);
-        tracker.StartItem();
+        tracker.SetOperationProgress(new GithubDownloader.Core.Operations.OperationProgress(GithubDownloader.Core.Operations.OperationPhase.Download, null, StartsItem: true));
         tracker.SetTransferProgress(new TransferProgress(1000, null, 500, null));
         Assert.True(tracker.Snapshot().Indeterminate);
         Assert.Null(tracker.Snapshot().Percent);
@@ -58,7 +60,7 @@ public sealed class DesktopTransferProgressTests(RepositoryDragApplication appli
                 model.LogStatus("Extracting application");
                 await Task.Run(() =>
                 {
-                    for (int percent = 0; percent <= 100; percent++) model.LogProgress($"Extracting: {percent}%");
+                    for (int percent = 0; percent <= 100; percent++) model.ReportProgress(new GithubDownloader.Core.Operations.OperationProgress(GithubDownloader.Core.Operations.OperationPhase.Extraction, percent));
                 });
                 await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => { }, Avalonia.Threading.DispatcherPriority.Background);
                 Assert.Equal(100, model.Percent);

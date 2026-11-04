@@ -1,3 +1,5 @@
+using GithubDownloader.Core.GitHub;
+using GithubDownloader.Core.Downloads;
 using System.Globalization;
 using GithubDownloader.Core;
 using Xunit;

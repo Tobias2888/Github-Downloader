@@ -1,3 +1,8 @@
+using GithubDownloader.Core.Operations;
+using GithubDownloader.Core.LocalApplications;
+using GithubDownloader.Core.Installation.Archives;
+using GithubDownloader.Core.Installation;
+using GithubDownloader.Core.History;
 using GithubDownloader.Core;
 using GithubDownloader.Core.Models;
 using GithubDownloader.Core.Enums;
@@ -7,6 +12,20 @@ namespace GithubDownloader.Tests;
 
 public sealed class PackageManagerTests
 {
+    [Fact]
+    public void InstallerAuthorizationIsIsolatedBetweenInstances()
+    {
+        PackageInstaller desktop = new(Platform.Avalonia, null);
+        PackageInstaller terminal = new(Platform.Terminal, "test-password");
+        System.Diagnostics.ProcessStartInfo desktopStart = desktop.CreatePackageInstallStartInfo("apt-get");
+        System.Diagnostics.ProcessStartInfo terminalStart = terminal.CreatePackageInstallStartInfo("apt-get");
+        Assert.Equal("/usr/bin/pkexec", desktopStart.FileName);
+        Assert.False(desktopStart.RedirectStandardInput);
+        Assert.Equal("/usr/bin/sudo", terminalStart.FileName);
+        Assert.True(terminalStart.RedirectStandardInput);
+        Assert.DoesNotContain("test-password", terminalStart.ArgumentList);
+    }
+
     [Theory]
     [InlineData("app.pkg.tar.zst", true, true, true)]
     [InlineData("app.PKG.TAR.ZST", true, true, true)]
@@ -166,7 +185,7 @@ public sealed class PackageManagerTests
             Assert.False(repo.NeedsDebianPackageName);
             bool installerCalled = false;
             Task Download(string url, string path, IProgress<double> progress) => File.WriteAllTextAsync(path, "package content");
-            Task<bool> Install(UpdateManager.Asset asset)
+            Task<bool> Install(RepositoryAsset asset)
             {
                 installerCalled = true;
                 return Task.FromResult(false);

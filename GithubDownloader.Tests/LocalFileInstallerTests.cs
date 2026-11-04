@@ -1,3 +1,6 @@
+using GithubDownloader.Core.LocalApplications;
+using GithubDownloader.Core.Installation;
+using GithubDownloader.Core.History;
 using System.IO.Compression;
 using GithubDownloader.Cli.Args;
 using GithubDownloader.Core;

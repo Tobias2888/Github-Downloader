@@ -1,6 +1,7 @@
+using GithubDownloader.Core.Configuration;
 using System.Text.Json;
 
-namespace GithubDownloader.Core;
+namespace GithubDownloader.Core.LocalApplications;
 
 public static class LocalInstallerRetention
 {

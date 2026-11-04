@@ -1,3 +1,4 @@
+using GithubDownloader.Core.History;
 using GithubDownloader.Core;
 using GithubDownloader.Core.Models;
 using Microsoft.AspNetCore.Mvc;

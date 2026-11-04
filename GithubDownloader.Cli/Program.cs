@@ -1,10 +1,11 @@
+using GithubDownloader.Core.Configuration;
 using FileLib;
 using GithubDownloader.Cli.Args;
 using GithubDownloader.Core;
 using GithubDownloader.Core.Models;
 using GithubDownloader.Core.Enums;
 using LoggerLib;
-using GithubDownloader.Notifications;
+using GithubDownloader.Core.Notifications;
 using SecretsLib;
 
 namespace GithubDownloader.Cli;
@@ -39,7 +40,7 @@ public static class Program
         Logger.LogDebug = false;
         Logger.LogLevel = LogLevel.Info;
         await Logger.CreateFileAsync();
-        Logger.LogI("Mode: cli");
+        _ = Logger.LogI("Mode: cli");
         
         // Local installs need neither repository refresh nor shared-cache clearing.
         if (args.Length > 0 && args[0] == "install-local")
@@ -78,14 +79,14 @@ public static class Program
 
             case "list":
             {
-                Logger.LogI("CLI action: list");
+                _ = Logger.LogI("CLI action: list");
                 ArgList.Execute(args);
                 break;
             }
 
             case "add":
             {
-                Logger.LogI("CLI action: add");
+                _ = Logger.LogI("CLI action: add");
                 Repo? repo;
                 switch (args.Length)
                 {
@@ -122,7 +123,7 @@ public static class Program
 
             case "check":
             {
-                Logger.LogI("CLI action: check");
+                _ = Logger.LogI("CLI action: check");
                 int repoId = -1;
                 if (args.Length > 1)
                 {
@@ -159,7 +160,7 @@ public static class Program
 
             case "update":
             {
-                Logger.LogI("CLI action: update");
+                _ = Logger.LogI("CLI action: update");
                 if (args.Length <= 1)
                 {
                     return;
@@ -170,7 +171,7 @@ public static class Program
                     await UpdateManager.SearchForUpdates(UpdateManager.Repos, Console.WriteLine);
                     await KdeOperationNotification.RunAsync("Updating repositories",
                         (status, transfer, token) => UpdateManager.UpdateReposAsync(UpdateManager.Repos,
-                            status, status, transferProgress: transfer, cancellationToken: token), Console.WriteLine);
+                            status, status, operationProgress: transfer, cancellationToken: token), Console.WriteLine);
                     FileManager.SaveRepos();
                     return;
                 }
@@ -180,7 +181,7 @@ public static class Program
                 await UpdateManager.SearchForUpdates(UpdateManager.Repos[repoId], Console.WriteLine);
                 await KdeOperationNotification.RunAsync($"Updating {UpdateManager.Repos[repoId].Name}",
                     (status, transfer, token) => UpdateManager.UpdateRepo(UpdateManager.Repos[repoId],
-                        status, status, transferProgress: transfer, cancellationToken: token), Console.WriteLine);
+                        status, status, operationProgress: transfer, cancellationToken: token), Console.WriteLine);
                 FileManager.SaveRepos();
 
                 break;
@@ -188,7 +189,7 @@ public static class Program
             
             case "reinstall":
             {
-                Logger.LogI("CLI action: reinstall");
+                _ = Logger.LogI("CLI action: reinstall");
                 if (args.Length <= 1)
                 {
                     return;
@@ -199,7 +200,7 @@ public static class Program
                     await UpdateManager.SearchForUpdates(UpdateManager.Repos, Console.WriteLine);
                     await KdeOperationNotification.RunAsync("Reinstalling repositories",
                         (status, transfer, token) => UpdateManager.UpdateReposAsync(UpdateManager.Repos,
-                            status, status, true, transferProgress: transfer, cancellationToken: token), Console.WriteLine);
+                            status, status, true, operationProgress: transfer, cancellationToken: token), Console.WriteLine);
                     FileManager.SaveRepos();
                     return;
                 }
@@ -209,7 +210,7 @@ public static class Program
                 await UpdateManager.SearchForUpdates(UpdateManager.Repos[repoId], Console.WriteLine);
                 await KdeOperationNotification.RunAsync($"Reinstalling {UpdateManager.Repos[repoId].Name}",
                     (status, transfer, token) => UpdateManager.UpdateRepo(UpdateManager.Repos[repoId],
-                        status, status, true, transferProgress: transfer, cancellationToken: token), Console.WriteLine);
+                        status, status, true, operationProgress: transfer, cancellationToken: token), Console.WriteLine);
                 FileManager.SaveRepos();
 
                 break;
@@ -217,14 +218,14 @@ public static class Program
                 
             case "repo":
             {
-                Logger.LogI("CLI action: repo");
+                _ = Logger.LogI("CLI action: repo");
                 ArgRepo.Execute(args);
                 break;
             }
 
             case "remove":
             {
-                Logger.LogI("CLI action: remove");
+                _ = Logger.LogI("CLI action: remove");
                 if (args.Length <= 1)
                 {
                     return;
@@ -258,12 +259,12 @@ public static class Program
                             return;
                         }
                         
-                        Logger.LogI("Saving personal access token");
+                        _ = Logger.LogI("Saving personal access token");
                         SecretsManager.StoreSecret("pat", args[2]);
                         break;
                     
                     case "remove":
-                        Logger.LogI("Removing personal access token");
+                        _ = Logger.LogI("Removing personal access token");
                         SecretsManager.ClearSecret("pat");
                         break;
                 }

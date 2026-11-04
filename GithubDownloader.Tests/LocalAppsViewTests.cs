@@ -1,3 +1,5 @@
+using GithubDownloader.Core.LocalApplications;
+using GithubDownloader.Core.Installation;
 using GithubDownloader.Desktop;
 using Avalonia;
 using System.IO.Compression;

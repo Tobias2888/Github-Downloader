@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Net;
 using System.Text.Json;
 
-namespace GithubDownloader.Core;
+namespace GithubDownloader.Core.GitHub;
 
 /// <summary>Creates actionable diagnostics without exposing response bodies, URLs, or credentials.</summary>
 internal static class GitHubApiError

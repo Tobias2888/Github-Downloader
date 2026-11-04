@@ -1,3 +1,4 @@
+using GithubDownloader.Core.Configuration;
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
@@ -5,7 +6,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using GithubDownloader.Core.Models;
 
-namespace GithubDownloader.Core;
+namespace GithubDownloader.Core.History;
 
 public static class OperationHistory
 {

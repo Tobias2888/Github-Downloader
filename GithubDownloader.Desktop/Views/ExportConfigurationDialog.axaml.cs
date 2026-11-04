@@ -1,3 +1,4 @@
+using GithubDownloader.Core.Configuration;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using GithubDownloader.Core;

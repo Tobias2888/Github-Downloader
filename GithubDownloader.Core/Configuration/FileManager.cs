@@ -5,7 +5,7 @@ using GithubDownloader.Core.Models;
 using GithubDownloader.Core.Enums;
 using LoggerLib;
 
-namespace GithubDownloader.Core;
+namespace GithubDownloader.Core.Configuration;
 
 public static class FileManager
 {
@@ -21,7 +21,7 @@ public static class FileManager
 
     public static void SaveRepos()
     {
-        Logger.LogD("Repository configuration save started");
+        _ = Logger.LogD("Repository configuration save started");
         try
         {
             if (!File.Exists(ReposConfigFilePath))
@@ -35,18 +35,18 @@ public static class FileManager
             });
 
             File.WriteAllText(ReposConfigFilePath, jsonString);
-            Logger.LogD("Repository configuration save completed");
+            _ = Logger.LogD("Repository configuration save completed");
         }
         catch (Exception exception)
         {
-            Logger.LogE($"Repository configuration save failed ({exception.GetType().Name})");
+            _ = Logger.LogE($"Repository configuration save failed ({exception.GetType().Name})");
             throw;
         }
     }
 
     public static async Task LoadRepos(bool refreshDetails = true)
     {
-        Logger.LogI("Repository configuration load started");
+        _ = Logger.LogI("Repository configuration load started");
         try
         {
             DirectoryHelper.CreateDir(AppdataPath);
@@ -58,7 +58,7 @@ public static class FileManager
             if (File.Exists(ReposConfigFilePath))
             {
                 string jsonString = await File.ReadAllTextAsync(ReposConfigFilePath);
-                UpdateManager.Repos = JsonSerializer.Deserialize<ObservableCollection<Repo>>(jsonString);
+                UpdateManager.Repos = JsonSerializer.Deserialize<ObservableCollection<Repo>>(jsonString) ?? [];
             }
 
             UpdateManager.Repos ??= [];
@@ -66,24 +66,24 @@ public static class FileManager
 
             if (!refreshDetails || UpdateManager.CurPlatform != Platform.Avalonia)
             {
-                Logger.LogI("Repository configuration loaded");
+                _ = Logger.LogI("Repository configuration loaded");
                 return;
             }
 
             await UpdateManager.UpdateRepoDetails(UpdateManager.Repos);
             SaveRepos();
-            Logger.LogI("Repository configuration loaded");
+            _ = Logger.LogI("Repository configuration loaded");
         }
         catch (Exception exception)
         {
-            Logger.LogE($"Repository configuration load failed ({exception.GetType().Name})");
+            _ = Logger.LogE($"Repository configuration load failed ({exception.GetType().Name})");
             throw;
         }
     }
 
     private static void ClearCache()
     {
-        Logger.LogD("Clearing cache");
+        _ = Logger.LogD("Clearing cache");
 
         foreach (string file in Directory.GetFiles(CachePath))
         {
@@ -94,38 +94,38 @@ public static class FileManager
         {
             Directory.Delete(dir, true);
         }
-        Logger.LogD("Cache cleared");
+        _ = Logger.LogD("Cache cleared");
     }
 
     public static void ExportRepoConfig(string destFile)
     {
-        Logger.LogI("Configuration export started");
+        _ = Logger.LogI("Configuration export started");
         try
         {
             if (!File.Exists(ReposConfigFilePath))
             {
-                Logger.LogW("Configuration export skipped: configuration does not exist");
+                _ = Logger.LogW("Configuration export skipped: configuration does not exist");
                 return;
             }
 
             File.Copy(ReposConfigFilePath, destFile, true);
-            Logger.LogI("Configuration export completed");
+            _ = Logger.LogI("Configuration export completed");
         }
         catch (Exception exception)
         {
-            Logger.LogE($"Configuration export failed ({exception.GetType().Name})");
+            _ = Logger.LogE($"Configuration export failed ({exception.GetType().Name})");
             throw;
         }
     }
 
     public static async Task ImportRepoConfig(string sourceFile)
     {
-        Logger.LogI("Configuration import started");
+        _ = Logger.LogI("Configuration import started");
         try
         {
             if (!File.Exists(sourceFile))
             {
-                Logger.LogW("Configuration import skipped: source does not exist");
+                _ = Logger.LogW("Configuration import skipped: source does not exist");
                 return;
             }
 
@@ -141,11 +141,11 @@ public static class FileManager
                 repo.InstalledAppImageId = "";
                 repo.ArchiveInstallation = null;
             }
-            Logger.LogI("Configuration import completed");
+            _ = Logger.LogI("Configuration import completed");
         }
         catch (Exception exception)
         {
-            Logger.LogE($"Configuration import failed ({exception.GetType().Name})");
+            _ = Logger.LogE($"Configuration import failed ({exception.GetType().Name})");
             throw;
         }
     }

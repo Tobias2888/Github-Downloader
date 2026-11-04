@@ -1,3 +1,5 @@
+using GithubDownloader.Core.Installation;
+using GithubDownloader.Core.GitHub;
 using System.Diagnostics;
 using GithubDownloader.Desktop.Services;
 using GithubDownloader.Core;

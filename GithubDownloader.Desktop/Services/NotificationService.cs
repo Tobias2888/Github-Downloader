@@ -52,14 +52,14 @@ public class NotificationService
             else if (!available.Except(_announced).Any()) return;
 
             string message = available.Count == 1 ? "1 update is available" : $"{available.Count} updates are available";
-            Logger.LogD($"Requesting update-available notification (count {available.Count})");
+            _ = Logger.LogD($"Requesting update-available notification (count {available.Count})");
             if (await _send(message))
             {
                 _announced.UnionWith(available);
                 _lastUpdateNotification = _now();
-                Logger.LogI("Update-available notification accepted by sender");
+                _ = Logger.LogI("Update-available notification accepted by sender");
             }
-            else Logger.LogW("Update-available notification was not delivered");
+            else _ = Logger.LogW("Update-available notification was not delivered");
         }
         finally
         {
@@ -75,8 +75,8 @@ public class NotificationService
         string message = count == 1
             ? $"Update completed for {repositoryName ?? "1 repository"}"
             : $"Updates completed for {count} repositories";
-        Logger.LogD($"Requesting update-completed notification (count {count})");
-        if (await _send(message)) Logger.LogI("Update-completed notification accepted by sender");
-        else Logger.LogW("Update-completed notification was not delivered");
+        _ = Logger.LogD($"Requesting update-completed notification (count {count})");
+        if (await _send(message)) _ = Logger.LogI("Update-completed notification accepted by sender");
+        else _ = Logger.LogW("Update-completed notification was not delivered");
     }
 }

@@ -1,9 +1,12 @@
+using GithubDownloader.Core.Operations;
+using GithubDownloader.Core.LocalApplications;
+using GithubDownloader.Core.Installation.Launchers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using GithubDownloader.Core.Models;
 
-namespace GithubDownloader.Core;
+namespace GithubDownloader.Core.Installation.Archives;
 
 internal static class RepositoryArchiveInstaller
 {
@@ -41,7 +44,7 @@ internal static class RepositoryArchiveInstaller
     }
 
     internal static async Task InstallAsync(Repo repo, string archivePath, string tag, Action<string> progress,
-        Func<string, IReadOnlyList<string>, Task<string?>>? selectExecutable = null, ArchiveAppLauncher? launcher = null)
+        Func<string, IReadOnlyList<string>, Task<string?>>? selectExecutable = null, ArchiveAppLauncher? launcher = null, Action<OperationProgress>? operationProgress = null)
     {
         try
         {
@@ -55,7 +58,7 @@ internal static class RepositoryArchiveInstaller
                 string relative = Path.GetRelativePath(destination, path);
                 if (!existed || owned.ContainsKey(relative)) owned[relative] = LocalAppManager.FileHash(path);
             }
-            await ArchiveExtractor.ExtractAsync(archivePath, destination, progress, fileWritten: FileWritten);
+            await ArchiveExtractor.ExtractAsync(archivePath, destination, progress, fileWritten: FileWritten, operationProgress: operationProgress);
             LocalApp installed = new()
             {
                 Id = previous?.Id ?? "repository:" + repo.Name,

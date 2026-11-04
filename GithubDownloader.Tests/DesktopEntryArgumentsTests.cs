@@ -1,3 +1,5 @@
+using GithubDownloader.Core.Installation.Launchers;
+using GithubDownloader.Core.Installation;
 using GithubDownloader.Core;
 using GithubDownloader.Core.Models;
 using Xunit;

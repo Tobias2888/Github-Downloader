@@ -1,9 +1,11 @@
+using GithubDownloader.Core.Installation.Archives;
+using GithubDownloader.Core.Configuration;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using GithubDownloader.Core.Models;
 
-namespace GithubDownloader.Core;
+namespace GithubDownloader.Core.LocalApplications;
 
 public static class LocalApps
 {

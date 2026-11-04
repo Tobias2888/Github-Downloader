@@ -1,6 +1,9 @@
+using GithubDownloader.Core.Operations;
+using GithubDownloader.Core.Downloads;
 using GithubDownloader.Web.DTOs;
 using LoggerLib;
-using DownloadProgress = GithubDownloader.Core.DownloadProgress;
+using OperationProgress = GithubDownloader.Core.Operations.OperationProgress;
+using DownloadProgress = GithubDownloader.Core.Downloads.DownloadProgress;
 
 namespace GithubDownloader.Web.Services;
 
@@ -27,7 +30,7 @@ public sealed class OperationTracker
 
     public void Start(string title, int totalItems)
     {
-        Logger.LogI($"Web operation started (items {totalItems})");
+        _ = Logger.LogI($"Web operation started (items {totalItems})");
         lock (_lock)
         {
             _logs.Clear();
@@ -73,6 +76,25 @@ public sealed class OperationTracker
         }
     }
 
+    public void SetOperationProgress(OperationProgress progress)
+    {
+        if (progress.StartsItem)
+        {
+            StartItem();
+            return;
+        }
+        if (progress.Transfer is DownloadProgress transfer) SetTransferProgress(transfer);
+        else
+        {
+            lock (_lock)
+            {
+                _transfer = null;
+                _itemPercent = progress.Percent.HasValue ? Math.Clamp(progress.Percent.Value, 0, 100) : null;
+                _status = progress.DisplayText;
+            }
+        }
+    }
+
     public void SetTransferProgress(DownloadProgress progress)
     {
         lock (_lock)
@@ -97,8 +119,8 @@ public sealed class OperationTracker
 
     public void Finish(bool success, string? error = null)
     {
-        if (success) Logger.LogI("Web operation completed");
-        else Logger.LogE("Web operation failed");
+        if (success) _ = Logger.LogI("Web operation completed");
+        else _ = Logger.LogE("Web operation failed");
         lock (_lock)
         {
             _isRunning = false;

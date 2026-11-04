@@ -1,3 +1,4 @@
+using GithubDownloader.Core.Downloads;
 using System.ComponentModel.DataAnnotations;
 
 namespace GithubDownloader.Web.DTOs;
@@ -199,5 +200,5 @@ public record OperationProgressResponse(
     bool? Success,
     string? Error,
     List<OperationLogEntry> Logs,
-    GithubDownloader.Core.DownloadProgress? Transfer = null
+    GithubDownloader.Core.Downloads.DownloadProgress? Transfer = null
 );

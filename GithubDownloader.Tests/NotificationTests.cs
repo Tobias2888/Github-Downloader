@@ -48,7 +48,8 @@ public class NotificationTests
     public void SettingsRoundTripAndOldFilesGetDefaults()
     {
         AppSettings oldSettings = JsonSerializer.Deserialize<AppSettings>("{\"AutoCheckForUpdates\":false}")!;
-        Assert.Equal(-1, oldSettings.LogsToKeep);
+        Assert.Equal(30, oldSettings.LogsToKeep);
+        Assert.Equal(-1, JsonSerializer.Deserialize<AppSettings>("{\"LogsToKeep\":-1}")!.LogsToKeep);
         oldSettings.LogsToKeep = 7;
         Assert.True(oldSettings.Notifications.Enabled);
         Assert.True(oldSettings.Notifications.KdeProgress);

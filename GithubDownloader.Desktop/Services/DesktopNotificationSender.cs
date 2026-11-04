@@ -20,18 +20,18 @@ public static class DesktopNotificationSender
         catch (Exception exception)
         {
             // Notification failures must never turn a completed download into a failed operation.
-            Logger.LogE($"Unable to show desktop notification: {exception.GetType().Name}");
+            _ = Logger.LogE($"Unable to show desktop notification: {exception.GetType().Name}");
         }
         return false;
     }
 
     internal static async Task<bool> SendAsync(ProcessStartInfo start, Action? openWindow)
     {
-        Logger.LogD("Desktop notification sender started");
+        _ = Logger.LogD("Desktop notification sender started");
         Process? process = Process.Start(start);
         if (process is null)
         {
-            Logger.LogE("Desktop notification sender could not start");
+            _ = Logger.LogE("Desktop notification sender could not start");
             return false;
         }
 
@@ -56,28 +56,28 @@ public static class DesktopNotificationSender
                 await errors;
                 if (process.ExitCode != 0)
                 {
-                    Logger.LogE($"Desktop notification failed (exit code {process.ExitCode})");
+                    _ = Logger.LogE($"Desktop notification failed (exit code {process.ExitCode})");
                     return false;
                 }
                 foreach (string action in response.Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
                 {
                     if (action is not ("open" or "default")) continue;
-                    Logger.LogI("Desktop notification Open action selected");
+                    _ = Logger.LogI("Desktop notification Open action selected");
                     openWindow?.Invoke();
                     break;
                 }
-                Logger.LogD("Desktop notification sender completed");
+                _ = Logger.LogD("Desktop notification sender completed");
                 return true;
             }
             catch (OperationCanceledException)
             {
-                Logger.LogW("Desktop notification sender timed out");
+                _ = Logger.LogW("Desktop notification sender timed out");
                 if (!process.HasExited) process.Kill(true);
                 return false;
             }
             catch (Exception exception)
             {
-                Logger.LogE($"Unable to handle desktop notification: {exception.GetType().Name}");
+                _ = Logger.LogE($"Unable to handle desktop notification: {exception.GetType().Name}");
                 return false;
             }
         }

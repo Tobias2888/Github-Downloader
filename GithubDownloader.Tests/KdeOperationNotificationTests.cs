@@ -1,5 +1,7 @@
+using GithubDownloader.Core.Operations;
+using GithubDownloader.Core.Downloads;
 using GithubDownloader.Core;
-using GithubDownloader.Notifications;
+using GithubDownloader.Core.Notifications;
 using Xunit;
 
 namespace GithubDownloader.Tests;
@@ -34,22 +36,23 @@ public sealed class KdeOperationNotificationTests
     }
 
     [Theory]
-    [InlineData("Installing package", 0UL, null)]
-    [InlineData("Extracting: 35%", 3500UL, 10000UL)]
-    [InlineData("Downloaded: 45.50%", 4550UL, 10000UL)]
-    public async Task PhaseChangesClearTransferDataAndExtractionReportsPercent(string message, ulong processed, ulong? total)
+    [InlineData(null)]
+    [InlineData(35.0)]
+    [InlineData(45.5)]
+    public async Task PhaseChangesClearTransferDataAndExtractionReportsPercent(double? percent)
     {
         TaskCompletionSource<KdeOperationNotification.INotificationJob> connection = new(TaskCreationOptions.RunContinuationsAsynchronously);
         FakeJob job = new();
         KdeOperationNotification notification = KdeOperationNotification.StartForTest(() => connection.Task);
         notification.ReportTransfer(new DownloadProgress(99, 100, 50, null));
-        notification.ReportStatus(message);
+        if (percent.HasValue) notification.ReportProgress(new OperationProgress(OperationPhase.Extraction, percent));
+        else notification.ReportStatus("Installing package");
         connection.SetResult(job);
         Assert.True(await notification.FinishAsync(true));
         KdeOperationNotification.Snapshot snapshot = Assert.Single(job.Updates);
-        Assert.Equal(message, snapshot.Description);
-        Assert.Equal(processed, snapshot.Processed);
-        Assert.Equal(total, snapshot.Total);
+        Assert.Equal(percent, snapshot.Percent);
+        Assert.Equal(0UL, snapshot.Processed);
+        Assert.Null(snapshot.Total);
         Assert.Equal(0UL, snapshot.Speed);
     }
 

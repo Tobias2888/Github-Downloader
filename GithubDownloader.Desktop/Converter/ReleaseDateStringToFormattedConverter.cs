@@ -4,7 +4,7 @@ using System.Globalization;
 
 public class ReleaseDateStringToFormattedConverter : IValueConverter
 {
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (value is not string s || string.IsNullOrWhiteSpace(s)) return "Released on: unknown";
         
@@ -16,7 +16,7 @@ public class ReleaseDateStringToFormattedConverter : IValueConverter
         return "Released on: unknown";
     }
 
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         throw new NotImplementedException();
     }

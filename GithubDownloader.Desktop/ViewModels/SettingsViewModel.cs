@@ -1,3 +1,5 @@
+using GithubDownloader.Core.LocalApplications;
+using GithubDownloader.Core.Configuration;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -106,12 +108,12 @@ public class SettingsViewModel : ViewModelBase
             OnPropertyChanged(nameof(IsReducingLocalInstallerRetention));
             LocalApps.Store.ApplyInstallerRetention(_settings.LocalInstallerVersionsToKeep);
             LocalInstallerRetentionStatus = "Saved. The limit applies to existing and future installers.";
-            Logger.LogI("Setting changed: LocalInstallerVersionsToKeep");
+            _ = Logger.LogI("Setting changed: LocalInstallerVersionsToKeep");
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             LocalInstallerRetentionStatus = "Could not apply the limit to all saved installers. Check file access and try again.";
-            Logger.LogE($"Local installer retention failed ({exception.GetType().Name})");
+            _ = Logger.LogE($"Local installer retention failed ({exception.GetType().Name})");
         }
     }
 
@@ -146,7 +148,7 @@ public class SettingsViewModel : ViewModelBase
     {
         _settings.Save();
         Logger.KeepLogs = _settings.LogsToKeep;
-        Logger.LogI("Setting changed: LogsToKeep");
+        _ = Logger.LogI("Setting changed: LogsToKeep");
     }
 
     public string LogsStatus
@@ -165,12 +167,12 @@ public class SettingsViewModel : ViewModelBase
             DirectoryInfo directory = Directory.CreateDirectory(LogsFolder);
             bool opened = await topLevel.Launcher.LaunchDirectoryInfoAsync(directory);
             LogsStatus = opened ? "" : "Could not open the logs folder with your file manager.";
-            if (!opened) Logger.LogW("Could not open logs folder");
+            if (!opened) _ = Logger.LogW("Could not open logs folder");
         }
         catch (Exception exception)
         {
             LogsStatus = "Could not open the logs folder. Check folder access and your file manager.";
-            Logger.LogE($"Could not open logs folder ({exception.GetType().Name})");
+            _ = Logger.LogE($"Could not open logs folder ({exception.GetType().Name})");
         }
     }
 
@@ -180,7 +182,7 @@ public class SettingsViewModel : ViewModelBase
         set
         {
             if (_settings.WindowState == value) return;
-            Logger.LogI("Setting changed: WindowState");
+            _ = Logger.LogI("Setting changed: WindowState");
             _settings.WindowState = value;
             OnPropertyChanged();
             _settings.Save();
@@ -193,7 +195,7 @@ public class SettingsViewModel : ViewModelBase
         set
         {
             if (_settings.Notifications.Enabled == value) return;
-            Logger.LogI("Setting changed: NotificationsEnabled");
+            _ = Logger.LogI("Setting changed: NotificationsEnabled");
             _settings.Notifications.Enabled = value;
             OnPropertyChanged();
             _settings.Save();
@@ -206,7 +208,7 @@ public class SettingsViewModel : ViewModelBase
         set
         {
             if (_settings.Notifications.UpdatesAvailable == value) return;
-            Logger.LogI("Setting changed: NotifyUpdatesAvailable");
+            _ = Logger.LogI("Setting changed: NotifyUpdatesAvailable");
             _settings.Notifications.UpdatesAvailable = value;
             OnPropertyChanged();
             _settings.Save();
@@ -220,7 +222,7 @@ public class SettingsViewModel : ViewModelBase
         {
             if (value is < 0 or > 1 || UpdateNotificationMode == value) return;
             _settings.Notifications.RepeatUpdateNotifications = value == 1;
-            Logger.LogI("Setting changed: UpdateNotificationMode");
+            _ = Logger.LogI("Setting changed: UpdateNotificationMode");
             OnPropertyChanged();
             OnPropertyChanged(nameof(RepeatUpdateNotifications));
             _settings.Save();
@@ -236,7 +238,7 @@ public class SettingsViewModel : ViewModelBase
         {
             if (UpdateReminderIntervalMinutes == value) return;
             _settings.Notifications.UpdateReminderIntervalMinutes = value;
-            Logger.LogI("Setting changed: UpdateReminderIntervalMinutes");
+            _ = Logger.LogI("Setting changed: UpdateReminderIntervalMinutes");
             OnPropertyChanged();
             _settings.Save();
         }
@@ -248,7 +250,7 @@ public class SettingsViewModel : ViewModelBase
         set
         {
             if (_settings.Notifications.DownloadsCompleted == value) return;
-            Logger.LogI("Setting changed: NotifyDownloadsCompleted");
+            _ = Logger.LogI("Setting changed: NotifyDownloadsCompleted");
             _settings.Notifications.DownloadsCompleted = value;
             OnPropertyChanged();
             _settings.Save();
@@ -261,7 +263,7 @@ public class SettingsViewModel : ViewModelBase
         set
         {
             if (_settings.Notifications.KdeProgress == value) return;
-            Logger.LogI("Setting changed: NotifyKdeProgress");
+            _ = Logger.LogI("Setting changed: NotifyKdeProgress");
             _settings.Notifications.KdeProgress = value;
             OnPropertyChanged();
             _settings.Save();
@@ -274,7 +276,7 @@ public class SettingsViewModel : ViewModelBase
         set
         {
             if (_settings.Notifications.LimitToTimeWindow == value) return;
-            Logger.LogI("Setting changed: LimitNotificationTimes");
+            _ = Logger.LogI("Setting changed: LimitNotificationTimes");
             _settings.Notifications.LimitToTimeWindow = value;
             OnPropertyChanged();
             _settings.Save();
@@ -288,7 +290,7 @@ public class SettingsViewModel : ViewModelBase
         {
             if (!value.HasValue) return;
             if (_settings.Notifications.StartTime == value.Value) return;
-            Logger.LogI("Setting changed: NotificationStartTime");
+            _ = Logger.LogI("Setting changed: NotificationStartTime");
             _settings.Notifications.StartTime = value.Value;
             OnPropertyChanged();
             _settings.Save();
@@ -302,7 +304,7 @@ public class SettingsViewModel : ViewModelBase
         {
             if (!value.HasValue) return;
             if (_settings.Notifications.EndTime == value.Value) return;
-            Logger.LogI("Setting changed: NotificationEndTime");
+            _ = Logger.LogI("Setting changed: NotificationEndTime");
             _settings.Notifications.EndTime = value.Value;
             OnPropertyChanged();
             _settings.Save();
@@ -315,7 +317,7 @@ public class SettingsViewModel : ViewModelBase
         set
         {
             if (_settings.AutoCheckForUpdates == value) return;
-            Logger.LogI("Setting changed: AutoCheckForUpdates");
+            _ = Logger.LogI("Setting changed: AutoCheckForUpdates");
             _settings.AutoCheckForUpdates = value;
             OnPropertyChanged();
             _settings.Save();
@@ -333,7 +335,7 @@ public class SettingsViewModel : ViewModelBase
         set
         {
             if (_settings.CheckForUpdatesInterval == value) return;
-            Logger.LogI("Setting changed: CheckForUpdatesInterval");
+            _ = Logger.LogI("Setting changed: CheckForUpdatesInterval");
             _settings.CheckForUpdatesInterval = value;
             OnPropertyChanged();
             _settings.Save();
@@ -347,7 +349,7 @@ public class SettingsViewModel : ViewModelBase
         set
         {
             if (_settings.GlobalDownloadPath == value) return;
-            Logger.LogI("Setting changed: GlobalDownloadPath");
+            _ = Logger.LogI("Setting changed: GlobalDownloadPath");
             _settings.GlobalDownloadPath = value;
             OnPropertyChanged();
             _settings.Save();
@@ -361,7 +363,7 @@ public class SettingsViewModel : ViewModelBase
         {
             string rule = value ?? "";
             if (_settings.DefaultAssetRule == rule) return;
-            Logger.LogI("Setting changed: DefaultAssetRule");
+            _ = Logger.LogI("Setting changed: DefaultAssetRule");
             _settings.DefaultAssetRule = rule;
             OnPropertyChanged();
             _settings.Save();
@@ -375,7 +377,7 @@ public class SettingsViewModel : ViewModelBase
 
     public async Task BrowseDownloadPath(Visual visual)
     {
-        Logger.LogI("Download folder selection requested");
+        _ = Logger.LogI("Download folder selection requested");
         TopLevel? topLevel = TopLevel.GetTopLevel(visual);
         if (topLevel is null) return;
 
@@ -386,7 +388,7 @@ public class SettingsViewModel : ViewModelBase
                 AllowMultiple = false
             });
 
-        if (folders.Count == 0) Logger.LogI("Download folder selection cancelled");
+        if (folders.Count == 0) _ = Logger.LogI("Download folder selection cancelled");
         if (folders.Count > 0)
         {
             GlobalDownloadPath = folders[0].Path.LocalPath;
@@ -408,7 +410,7 @@ public class SettingsViewModel : ViewModelBase
 
     public async Task ExportConfig(Visual visual)
     {
-        Logger.LogI("Configuration export requested");
+        _ = Logger.LogI("Configuration export requested");
         if (TopLevel.GetTopLevel(visual) is not Window owner) return;
         ConfigurationStatus = "";
         InstallerExportMode? mode = await new ExportConfigurationDialog().ShowDialog<InstallerExportMode?>(owner);
@@ -428,18 +430,18 @@ public class SettingsViewModel : ViewModelBase
             FileManager.SaveRepos();
             await Task.Run(() => ConfigurationArchive.Export(file.Path.LocalPath, mode.Value, FileManager.AppdataPath));
             ConfigurationStatus = "Configuration exported.";
-            Logger.LogI("Configuration export completed");
+            _ = Logger.LogI("Configuration export completed");
         }
         catch (Exception exception)
         {
             ConfigurationStatus = $"Export failed: {exception.Message}";
-            Logger.LogE($"Configuration export failed ({exception.GetType().Name})");
+            _ = Logger.LogE($"Configuration export failed ({exception.GetType().Name})");
         }
     }
 
     public async Task ImportConfig(Visual visual)
     {
-        Logger.LogI("Configuration import requested");
+        _ = Logger.LogI("Configuration import requested");
         TopLevel? topLevel = TopLevel.GetTopLevel(visual);
         if (topLevel is null) return;
         ConfigurationStatus = "";
@@ -484,12 +486,12 @@ public class SettingsViewModel : ViewModelBase
                 OnPropertyChanged(string.Empty);
             }
             ConfigurationStatus = "Configuration imported.";
-            Logger.LogI("Configuration import completed");
+            _ = Logger.LogI("Configuration import completed");
         }
         catch (Exception exception)
         {
             ConfigurationStatus = $"Import failed: {exception.Message}";
-            Logger.LogE($"Configuration import failed ({exception.GetType().Name})");
+            _ = Logger.LogE($"Configuration import failed ({exception.GetType().Name})");
         }
     }
 }

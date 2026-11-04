@@ -1,3 +1,6 @@
+using GithubDownloader.Core.Repositories;
+using GithubDownloader.Core.LocalApplications;
+using GithubDownloader.Core.Configuration;
 using GithubDownloader.Desktop;
 using System.Reflection;
 using System.Text.Json;
@@ -289,7 +292,10 @@ public sealed class SettingsViewTests
                 NumericUpDown count = view.FindControl<NumericUpDown>("SavedLogLimit")!;
                 Button open = view.FindControl<Button>("OpenLogsFolderButton")!;
                 Assert.NotNull(open.Command);
-                Assert.False(limit.IsChecked);
+                Assert.True(limit.IsChecked);
+                Assert.Equal(30m, count.Value);
+                Assert.True(count.IsEffectivelyEnabled);
+                limit.IsChecked = false;
                 Assert.False(count.IsEffectivelyEnabled);
                 limit.IsChecked = true;
                 count.Value = 7;

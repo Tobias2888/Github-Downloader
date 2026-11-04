@@ -1,3 +1,5 @@
+using GithubDownloader.Core.Repositories;
+using GithubDownloader.Core.Installation;
 using System.Net;
 using System.Runtime.InteropServices;
 using System.Text.Json;

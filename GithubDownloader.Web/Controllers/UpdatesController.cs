@@ -45,7 +45,7 @@ public class UpdatesController : ControllerBase
         }
         catch (Exception ex)
         {
-            Logger.LogE($"Failed to search for updates ({ex.GetType().Name})");
+            _ = Logger.LogE($"Failed to search for updates ({ex.GetType().Name})");
             return BadRequest(new ErrorResponse("Failed to search for updates", ex.Message));
         }
     }
@@ -62,7 +62,7 @@ public class UpdatesController : ControllerBase
         }
         catch (Exception ex)
         {
-            Logger.LogE($"Failed to download assets ({ex.GetType().Name})");
+            _ = Logger.LogE($"Failed to download assets ({ex.GetType().Name})");
             return BadRequest(new ErrorResponse("Failed to download assets", ex.Message));
         }
     }
@@ -79,7 +79,7 @@ public class UpdatesController : ControllerBase
         }
         catch (Exception ex)
         {
-            Logger.LogE($"Failed to install assets ({ex.GetType().Name})");
+            _ = Logger.LogE($"Failed to install assets ({ex.GetType().Name})");
             return BadRequest(new ErrorResponse("Failed to install assets", ex.Message));
         }
     }

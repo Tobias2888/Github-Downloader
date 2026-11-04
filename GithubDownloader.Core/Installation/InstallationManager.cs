@@ -1,3 +1,8 @@
+using GithubDownloader.Core.LocalApplications;
+using GithubDownloader.Core.Installation.Launchers;
+using GithubDownloader.Core.Installation.Archives;
+using GithubDownloader.Core.History;
+using GithubDownloader.Core.Configuration;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 using FileLib;
@@ -5,7 +10,7 @@ using LoggerLib;
 using GithubDownloader.Core.Enums;
 using GithubDownloader.Core.Models;
 
-namespace GithubDownloader.Core;
+namespace GithubDownloader.Core.Installation;
 
 public sealed class InstallationManager
 {
@@ -44,7 +49,7 @@ public sealed class InstallationManager
 
     public async Task<string> ReadArchPackageNameAsync(string path)
     {
-        Logger.LogI("Arch package metadata read started");
+        _ = Logger.LogI("Arch package metadata read started");
         ProcessStartInfo start = CreateStartInfo(ArchInstallerPath);
         foreach (string argument in new[] { "-Qp", "--quiet", "--", Path.GetFullPath(path) })
             start.ArgumentList.Add(argument);
@@ -52,7 +57,7 @@ public sealed class InstallationManager
         if (result.ExitCode != 0) throw new InvalidOperationException("Could not read the Arch package metadata.");
         string package = result.Output.Trim();
         if (!IsValidArchPackageName(package)) throw new InvalidOperationException("The Arch package name is invalid.");
-        Logger.LogI("Arch package metadata read completed");
+        _ = Logger.LogI("Arch package metadata read completed");
         return package;
     }
 
@@ -71,7 +76,7 @@ public sealed class InstallationManager
 
     public async Task<string> ReadDebianPackageNameAsync(string debPath)
     {
-        Logger.LogI("Debian package metadata read started");
+        _ = Logger.LogI("Debian package metadata read started");
         try
         {
             ProcessStartInfo start = CreateStartInfo("/usr/bin/dpkg-deb");
@@ -93,12 +98,12 @@ public sealed class InstallationManager
                 throw new InvalidOperationException("The Debian package architecture is invalid.");
             string name = architecture == "all" ? package : $"{package}:{architecture}";
             if (!IsValidDebianPackageName(name)) throw new InvalidOperationException("The Debian package name is invalid.");
-            Logger.LogI("Debian package metadata read completed");
+            _ = Logger.LogI("Debian package metadata read completed");
             return name;
         }
         catch (Exception exception)
         {
-            Logger.LogE($"Debian package metadata read failed ({exception.GetType().Name})");
+            _ = Logger.LogE($"Debian package metadata read failed ({exception.GetType().Name})");
             throw;
         }
     }
@@ -106,7 +111,7 @@ public sealed class InstallationManager
     public async Task<bool> UninstallAsync(Repo repo, Action<string> status, Action<string> progress,
         string? legacyDebianPackage = null, string? localFileName = null)
     {
-        Logger.LogI("Repository uninstall started");
+        _ = Logger.LogI("Repository uninstall started");
         using HistoryScope history = OperationHistory.Store.Begin(HistoryAction.Uninstall, repo, localFileName: localFileName);
         try
         {
@@ -146,57 +151,57 @@ public sealed class InstallationManager
             status($"Uninstalling {repo.Name}...");
             if (package.Length > 0)
             {
-                Logger.LogI("Removing Debian package");
+                _ = Logger.LogI("Removing Debian package");
                 progress("Removing Debian package");
                 ProcessStartInfo start = CreateDebianRemovalStartInfo(package);
                 // Command output can contain user paths; do not put it in activity logs.
                 CommandResult result = await _run(start, _ => { });
                 if (result.ExitCode != 0)
                 {
-                    Logger.LogE($"Debian package removal failed (exit code {result.ExitCode})");
+                    _ = Logger.LogE($"Debian package removal failed (exit code {result.ExitCode})");
                     progress($"Uninstall failed (exit code {result.ExitCode}). Check authorization and package dependencies.");
                     history.Finish(HistoryStatus.Failed, HistoryOutcome.UninstallFailed);
                     return false;
                 }
-                Logger.LogI("Debian package removed");
+                _ = Logger.LogI("Debian package removed");
                 repo.InstalledDebianPackage = string.Empty;
             }
 
             if (archPackage.Length > 0)
             {
-                Logger.LogI("Removing Arch package");
+                _ = Logger.LogI("Removing Arch package");
                 progress("Removing Arch package");
                 CommandResult result = await _run(CreateArchRemovalStartInfo(archPackage), _ => { });
                 if (result.ExitCode != 0)
                 {
-                    Logger.LogE($"Arch package removal failed (exit code {result.ExitCode})");
+                    _ = Logger.LogE($"Arch package removal failed (exit code {result.ExitCode})");
                     progress($"Uninstall failed (exit code {result.ExitCode}). Check authorization and package dependencies.");
                     history.Finish(HistoryStatus.Failed, HistoryOutcome.UninstallFailed);
                     return false;
                 }
                 repo.InstalledArchPackage = string.Empty;
-                Logger.LogI("Arch package removed");
+                _ = Logger.LogI("Arch package removed");
             }
 
             if (appImageId.Length > 0)
             {
-                Logger.LogI("Removing AppImage installation");
+                _ = Logger.LogI("Removing AppImage installation");
                 progress("Removing the AppImage and its application-menu entry");
                 RemoveAppImage(appImageId);
-                Logger.LogI("AppImage installation removed");
+                _ = Logger.LogI("AppImage installation removed");
                 repo.InstalledAppImageId = string.Empty;
             }
 
             repo.CurrentInstallTag = string.Empty;
             repo.ExcludedFromDownloadAll = true;
             status($"Uninstalled {repo.Name}");
-            Logger.LogI("Repository uninstall completed");
+            _ = Logger.LogI("Repository uninstall completed");
             history.Complete(HistoryOutcome.Uninstalled);
             return true;
         }
         catch (Exception exception)
         {
-            Logger.LogE($"Repository uninstall failed ({exception.GetType().Name})");
+            _ = Logger.LogE($"Repository uninstall failed ({exception.GetType().Name})");
             history.Finish(HistoryStatus.Failed, HistoryOutcome.UninstallFailed);
             throw;
         }

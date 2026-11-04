@@ -94,7 +94,7 @@ internal sealed class RepositoryReorderController
     private void StartPreview()
     {
         _started = true;
-        Logger.LogD("Repository drag started");
+        _ = Logger.LogD("Repository drag started");
         _preview = new RepoEntryControl
         {
             DataContext = _dragged!.Repo,
@@ -216,9 +216,9 @@ internal sealed class RepositoryReorderController
             int oldIndex = repos.IndexOf(dragged.Repo);
             if (oldIndex >= 0 && oldIndex != _targetIndex)
             {
-                Logger.LogD("Applying repository order");
+                _ = Logger.LogD("Applying repository order");
                 repos.Move(oldIndex, _targetIndex);
-                Logger.LogI("Repository order applied");
+                _ = Logger.LogI("Repository order applied");
             }
             else Logger.LogD("Repository drag finished without an order change");
         }

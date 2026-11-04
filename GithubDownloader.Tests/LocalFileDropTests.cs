@@ -1,3 +1,4 @@
+using GithubDownloader.Core.LocalApplications;
 using GithubDownloader.Desktop;
 using System.IO.Compression;
 using System.Reflection;

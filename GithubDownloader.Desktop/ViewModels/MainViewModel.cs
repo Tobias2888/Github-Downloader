@@ -20,7 +20,7 @@ public class MainViewModel : ViewModelBase
 
     public void SwitchPage(ViewNames viewName)
     {
-        Logger.LogI($"Switch Page to {viewName}");
+        _ = Logger.LogI($"Switch Page to {viewName}");
         CurrentPage = viewName switch
         {
             ViewNames.RepoDetails => new RepoDetailsViewModel(),
@@ -42,7 +42,7 @@ public class MainViewModel : ViewModelBase
         }
     }
     
-    private AppSettings _appSettings;
+    private AppSettings _appSettings = new();
 
     public AppSettings AppSettings
     {

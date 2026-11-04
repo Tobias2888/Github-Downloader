@@ -26,4 +26,4 @@ For private repositories or authenticated requests, configure a personal access 
 
 ## Logs
 
-In **Settings → Logs**, use **Open logs folder** to open the application logs in your file manager. Enable **Limit saved log files** and choose a positive file count, including the current log. Leave the limit off to keep all logs. Changes save automatically; LoggerLib removes older files beyond the limit when the next desktop log is created, usually on the next application start.
+In **Settings → Logs**, use **Open logs folder** to open the application logs in your file manager. **Limit saved log files** is enabled by default and keeps **30 files**, including the current log. You can choose a different positive file count. Leave the limit off to keep all logs. Changes save automatically; LoggerLib removes older files beyond the limit when the next desktop log is created, usually on the next application start.
