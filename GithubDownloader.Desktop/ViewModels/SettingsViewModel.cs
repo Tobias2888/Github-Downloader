@@ -115,6 +115,65 @@ public class SettingsViewModel : ViewModelBase
         }
     }
 
+    public string LogsFolder => Logger.LogDir ?? Path.Combine(FileManager.AppdataPath, "logs");
+
+    public bool LimitSavedLogs
+    {
+        get => _settings.LogsToKeep != -1;
+        set
+        {
+            if (LimitSavedLogs == value) return;
+            _settings.LogsToKeep = value ? 30 : -1;
+            SaveLogRetention();
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(LogsToKeep));
+        }
+    }
+
+    public int LogsToKeep
+    {
+        get => LimitSavedLogs ? _settings.LogsToKeep : 30;
+        set
+        {
+            if (value < 1 || !LimitSavedLogs || _settings.LogsToKeep == value) return;
+            _settings.LogsToKeep = value;
+            SaveLogRetention();
+            OnPropertyChanged();
+        }
+    }
+
+    private void SaveLogRetention()
+    {
+        _settings.Save();
+        Logger.KeepLogs = _settings.LogsToKeep;
+        Logger.LogI("Setting changed: LogsToKeep");
+    }
+
+    public string LogsStatus
+    {
+        get => _logsStatus;
+        private set { _logsStatus = value; OnPropertyChanged(); }
+    }
+    private string _logsStatus = "";
+
+    public async Task OpenLogsFolder(Visual visual)
+    {
+        TopLevel? topLevel = TopLevel.GetTopLevel(visual);
+        if (topLevel is null) return;
+        try
+        {
+            DirectoryInfo directory = Directory.CreateDirectory(LogsFolder);
+            bool opened = await topLevel.Launcher.LaunchDirectoryInfoAsync(directory);
+            LogsStatus = opened ? "" : "Could not open the logs folder with your file manager.";
+            if (!opened) Logger.LogW("Could not open logs folder");
+        }
+        catch (Exception exception)
+        {
+            LogsStatus = "Could not open the logs folder. Check folder access and your file manager.";
+            Logger.LogE($"Could not open logs folder ({exception.GetType().Name})");
+        }
+    }
+
     public WindowState WindowState
     {
         get => _settings.WindowState;
@@ -191,6 +250,19 @@ public class SettingsViewModel : ViewModelBase
             if (_settings.Notifications.DownloadsCompleted == value) return;
             Logger.LogI("Setting changed: NotifyDownloadsCompleted");
             _settings.Notifications.DownloadsCompleted = value;
+            OnPropertyChanged();
+            _settings.Save();
+        }
+    }
+
+    public bool NotifyKdeProgress
+    {
+        get => _settings.Notifications.KdeProgress;
+        set
+        {
+            if (_settings.Notifications.KdeProgress == value) return;
+            Logger.LogI("Setting changed: NotifyKdeProgress");
+            _settings.Notifications.KdeProgress = value;
             OnPropertyChanged();
             _settings.Save();
         }

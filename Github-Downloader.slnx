@@ -1,10 +1,12 @@
 <Solution>
+  <Project Path="GithubDownloader.Notifications/GithubDownloader.Notifications.csproj" />
   <Project Path="GithubDownloader.Cli/GithubDownloader.Cli.csproj" />
   <Project Path="GithubDownloader.Core/GithubDownloader.Core.csproj" />
   <Project Path="GithubDownloader.Desktop/GithubDownloader.Desktop.csproj" />
   <Project Path="GithubDownloader.Web/GithubDownloader.Web.csproj" />
   <Project Path="GithubDownloader.Tests/GithubDownloader.Tests.csproj" />
   <Folder Name="/libs/">
+    <Project Path="libs/KdeNotificationDBusLib/KdeNotificationDBusLib/KdeNotificationDBusLib.csproj" />
     <Project Path="libs/FileLib/FileLib/FileLib.csproj" />
     <Project Path="libs/LoggerLib/LoggerLib/LoggerLib.csproj" />
     <Project Path="libs/SecretsLib/SecretsLib/SecretsLib.csproj" />

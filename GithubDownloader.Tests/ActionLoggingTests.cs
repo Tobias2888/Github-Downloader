@@ -137,6 +137,41 @@ public sealed class ActionLoggingTests : IAsyncLifetime
             && line.Contains(PrivateData + "/stderr", StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RateLimitDetailsReachUserAndLogForListsAndPinnedReleases(bool pinned)
+    {
+        Repo repo = new() { Name = "owner/repository", Url = "https://api.github.com/repos/owner/repository", TargetTag = pinned ? "v1" : "latest", Tag = "cached" };
+        List<string> messages = [];
+        Assert.False(await UpdateManager.SearchForUpdates(repo, messages.Add, url =>
+        {
+            if (pinned && !url.Contains("/tags/", StringComparison.Ordinal))
+                return Task.FromResult<HttpResponseMessage?>(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+                {
+                    Content = new StringContent("[]")
+                });
+            HttpResponseMessage response = new(System.Net.HttpStatusCode.Forbidden)
+            {
+                Content = new StringContent("{\"message\":\"API rate limit exceeded for private-user-marker\"}")
+            };
+            response.Headers.Add("x-ratelimit-remaining", "0");
+            response.Headers.Add("x-ratelimit-limit", "60");
+            response.Headers.Add("Retry-After", "120");
+            return Task.FromResult<HttpResponseMessage?>(response);
+        }));
+        string userError = Assert.Single(messages, message => message.StartsWith("Failed to check releases", StringComparison.Ordinal));
+        Assert.Contains("GitHub API rate limit exceeded (HTTP 403; 0 of 60 requests remaining)", userError);
+        Assert.Contains("Retry after 120 seconds", userError);
+        Assert.Contains("Previous release information was kept", userError);
+        Assert.Equal("cached", repo.Tag);
+        string log = await ReadLogAsync();
+        Assert.Contains("GitHub API rate limit exceeded (HTTP 403; 0 of 60 requests remaining)", log);
+        Assert.Contains("Retry after 120 seconds", log);
+        Assert.DoesNotContain(PrivateData, log);
+        Assert.DoesNotContain(PrivateData, userError);
+    }
+
     private async Task<string> ReadLogAsync()
     {
         // Await a final write so all earlier LoggerLib writes have flushed before reading.

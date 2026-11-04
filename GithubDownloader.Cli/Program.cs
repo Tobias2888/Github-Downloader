@@ -4,6 +4,7 @@ using GithubDownloader.Core;
 using GithubDownloader.Core.Models;
 using GithubDownloader.Core.Enums;
 using LoggerLib;
+using GithubDownloader.Notifications;
 using SecretsLib;
 
 namespace GithubDownloader.Cli;
@@ -167,9 +168,9 @@ public static class Program
                 if (args[1] == "--all")
                 {
                     await UpdateManager.SearchForUpdates(UpdateManager.Repos, Console.WriteLine);
-                    await UpdateManager.UpdateReposAsync(UpdateManager.Repos,
-                        Console.WriteLine,
-                        Console.WriteLine);
+                    await KdeOperationNotification.RunAsync("Updating repositories",
+                        (status, transfer, token) => UpdateManager.UpdateReposAsync(UpdateManager.Repos,
+                            status, status, transferProgress: transfer, cancellationToken: token), Console.WriteLine);
                     FileManager.SaveRepos();
                     return;
                 }
@@ -177,9 +178,9 @@ public static class Program
                 int repoId = int.Parse(args[1]);
 
                 await UpdateManager.SearchForUpdates(UpdateManager.Repos[repoId], Console.WriteLine);
-                await UpdateManager.UpdateRepo(UpdateManager.Repos[repoId],
-                    Console.WriteLine,
-                    Console.WriteLine);
+                await KdeOperationNotification.RunAsync($"Updating {UpdateManager.Repos[repoId].Name}",
+                    (status, transfer, token) => UpdateManager.UpdateRepo(UpdateManager.Repos[repoId],
+                        status, status, transferProgress: transfer, cancellationToken: token), Console.WriteLine);
                 FileManager.SaveRepos();
 
                 break;
@@ -196,10 +197,9 @@ public static class Program
                 if (args[1] == "--all")
                 {
                     await UpdateManager.SearchForUpdates(UpdateManager.Repos, Console.WriteLine);
-                    await UpdateManager.UpdateReposAsync(UpdateManager.Repos,
-                        Console.WriteLine,
-                        Console.WriteLine, 
-                        true);
+                    await KdeOperationNotification.RunAsync("Reinstalling repositories",
+                        (status, transfer, token) => UpdateManager.UpdateReposAsync(UpdateManager.Repos,
+                            status, status, true, transferProgress: transfer, cancellationToken: token), Console.WriteLine);
                     FileManager.SaveRepos();
                     return;
                 }
@@ -207,10 +207,9 @@ public static class Program
                 int repoId = int.Parse(args[1]);
 
                 await UpdateManager.SearchForUpdates(UpdateManager.Repos[repoId], Console.WriteLine);
-                await UpdateManager.UpdateRepo(UpdateManager.Repos[repoId],
-                    Console.WriteLine,
-                    Console.WriteLine,
-                    true);
+                await KdeOperationNotification.RunAsync($"Reinstalling {UpdateManager.Repos[repoId].Name}",
+                    (status, transfer, token) => UpdateManager.UpdateRepo(UpdateManager.Repos[repoId],
+                        status, status, true, transferProgress: transfer, cancellationToken: token), Console.WriteLine);
                 FileManager.SaveRepos();
 
                 break;

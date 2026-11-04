@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../GithubDownloader.Core/GithubDownloader.Core.csproj" />
+    <ProjectReference Include="../libs/KdeNotificationDBusLib/KdeNotificationDBusLib/KdeNotificationDBusLib.csproj" />
+    <InternalsVisibleTo Include="GithubDownloader.Tests" />
+  </ItemGroup>
+</Project>

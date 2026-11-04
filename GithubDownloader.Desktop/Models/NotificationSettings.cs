@@ -14,6 +14,7 @@ public class NotificationSettings
         set => _updateReminderIntervalMinutes = Math.Clamp(value, 1, 10080);
     }
     public bool DownloadsCompleted { get; set; } = true;
+    public bool KdeProgress { get; set; } = true;
     public bool LimitToTimeWindow { get; set; }
     public TimeSpan StartTime { get; set; } = TimeSpan.FromHours(8);
     public TimeSpan EndTime { get; set; } = TimeSpan.FromHours(22);

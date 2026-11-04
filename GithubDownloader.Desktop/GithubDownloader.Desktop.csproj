@@ -54,4 +54,7 @@
       <ProjectReference Include="../libs/LoggerLib/LoggerLib/LoggerLib.csproj" />
       <ProjectReference Include="../libs/SecretsLib/SecretsLib/SecretsLib.csproj" />
     </ItemGroup>
+    <ItemGroup>
+      <ProjectReference Include="../GithubDownloader.Notifications/GithubDownloader.Notifications.csproj" />
+    </ItemGroup>
 </Project>

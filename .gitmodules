@@ -10,3 +10,6 @@
 [submodule "libs/MetadataGenerator"]
 	path = libs/MetadataGenerator
 	url = https://github.com/BonitoCat/MetadataGenerator.git
+[submodule "libs/KdeNotificationDBusLib"]
+	path = libs/KdeNotificationDBusLib
+	url = https://github.com/Tobias2888/KdeNotificationDBusLib.git

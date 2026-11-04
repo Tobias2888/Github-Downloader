@@ -31,4 +31,17 @@ systemctl --user enable --now github-downloader-web.service
 
 The web service downloads and installs on the **server**. It has no authentication and the packaged service listens on all network interfaces. Restrict access; use an authenticated HTTPS reverse proxy for remote access.
 
+## Building from source
+
+Install the .NET 10 SDK and clone with submodules:
+
+```sh
+git clone --recurse-submodules https://github.com/Tobias2888/Github-Downloader.git
+cd Github-Downloader
+dotnet build Github-Downloader.slnx
+dotnet test GithubDownloader.Tests/GithubDownloader.Tests.csproj
+```
+
+For an existing checkout, run `git submodule update --init --recursive` before building. The projects under `libs/` build FileLib, LoggerLib, SecretsLib, the MetadataGenerator source generator, and KdeNotificationDBusLib from their pinned repositories. Access to private submodules requires GitHub authentication. After pulling changes to submodule versions, run the update command again.
+
 [Usage guide](usage.md) · [CLI reference](cli.md) · [Back to README](../README.md)

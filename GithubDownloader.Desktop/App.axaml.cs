@@ -72,11 +72,11 @@ public partial class App : Application
         MainWindow.Activate();
     }
 
-    public async Task<bool> RunDownloadsAsync(Func<CancellationToken, Task<bool>> operation, IEnumerable<Repo> repositories)
+    public async Task<bool> RunDownloadsAsync(Func<CancellationToken, Task<bool>> operation, IEnumerable<Repo> repositories, string title = "Downloading updates")
     {
         Repo[] downloads = repositories.ToArray();
-        bool succeeded = await DownloadStatusViewModel.RunAsync(operation);
-        if (succeeded)
+        bool succeeded = await DownloadStatusViewModel.RunAsync(operation, title);
+        if (succeeded && !DownloadStatusViewModel.CompletionNotificationHandled)
         {
             await Notifications.NotifyDownloadsCompletedAsync(downloads.Length,
                 downloads.Length == 1 ? downloads[0].Name : null);
@@ -97,8 +97,8 @@ public partial class App : Application
             return await UpdateManager.UpdateRepo(repo, DownloadStatusViewModel.LogStatus,
                 DownloadStatusViewModel.LogProgress, reinstall, DownloadStatusViewModel.ReportTransfer, cancellationToken,
                 selectArchiveExecutable: SelectRepositoryArchiveExecutableAsync);
-        });
-        if (succeeded && performedUpdate)
+        }, $"{(reinstall ? "Reinstalling" : "Updating")} {repo.Name}");
+        if (succeeded && performedUpdate && !DownloadStatusViewModel.CompletionNotificationHandled)
             await Notifications.NotifyDownloadsCompletedAsync(1, repo.Name);
         return succeeded;
     }
@@ -122,7 +122,7 @@ public partial class App : Application
                     downloadAnyways: true, respectExclusions: false,
                     transferProgress: DownloadStatusViewModel.ReportTransfer, cancellationToken: cancellationToken,
                     selectArchiveExecutable: SelectRepositoryArchiveExecutableAsync);
-            }, repositories);
+            }, repositories, "Reinstalling repositories");
         }
         finally
         {
@@ -210,9 +210,21 @@ public partial class App : Application
         Logger.LogFirstChance = false;
         Logger.LogDebug = false;
         Logger.LogLevel = LogLevel.Info;
+        // Retention must be configured before LoggerLib creates (and prunes) the session log.
+        try
+        {
+            MainViewModel.AppSettings = AppSettings.Load(writeLogs: false);
+        }
+        catch (Exception exception)
+        {
+            await Logger.CreateFileAsync();
+            await Logger.LogE($"Application settings load failed ({exception.GetType().Name})");
+            throw;
+        }
+        Logger.KeepLogs = MainViewModel.AppSettings.LogsToKeep;
         await Logger.CreateFileAsync();
         Logger.LogI("Mode: avalonia-desktop-app");
-        MainViewModel.AppSettings = AppSettings.Load();
+        Logger.LogI("Application settings loaded");
         await InitializeRepositoriesAsync(Program.DesktopActivation,
             async () =>
             {
@@ -235,7 +247,7 @@ public partial class App : Application
 
             Logger.LogI("AutoCheckForUpdates");
             await DownloadStatusViewModel.RunAsync(() =>
-                UpdateManager.SearchForUpdates(UpdateManager.Repos, DownloadStatusViewModel.LogStatus));
+                UpdateManager.SearchForUpdates(UpdateManager.Repos, DownloadStatusViewModel.LogStatus), showNotification: false);
             
             UpdateIcon();
             FileManager.SaveRepos();

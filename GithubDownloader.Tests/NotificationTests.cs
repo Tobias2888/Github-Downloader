@@ -48,22 +48,27 @@ public class NotificationTests
     public void SettingsRoundTripAndOldFilesGetDefaults()
     {
         AppSettings oldSettings = JsonSerializer.Deserialize<AppSettings>("{\"AutoCheckForUpdates\":false}")!;
+        Assert.Equal(-1, oldSettings.LogsToKeep);
+        oldSettings.LogsToKeep = 7;
         Assert.True(oldSettings.Notifications.Enabled);
+        Assert.True(oldSettings.Notifications.KdeProgress);
         Assert.False(oldSettings.Notifications.LimitToTimeWindow);
         Assert.False(oldSettings.Notifications.RepeatUpdateNotifications);
         Assert.Equal(15, oldSettings.Notifications.UpdateReminderIntervalMinutes);
         oldSettings.Notifications = new()
         {
-            Enabled = false, UpdatesAvailable = false, DownloadsCompleted = false,
+            Enabled = false, UpdatesAvailable = false, DownloadsCompleted = false, KdeProgress = false,
             RepeatUpdateNotifications = true, UpdateReminderIntervalMinutes = 15,
             LimitToTimeWindow = true, StartTime = TimeSpan.FromHours(23), EndTime = TimeSpan.FromHours(6)
         };
         AppSettings reloaded = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(oldSettings))!;
+        Assert.Equal(7, reloaded.LogsToKeep);
         Assert.True(reloaded.Notifications.RepeatUpdateNotifications);
         Assert.Equal(15, reloaded.Notifications.UpdateReminderIntervalMinutes);
         Assert.False(reloaded.Notifications.Enabled);
         Assert.False(reloaded.Notifications.UpdatesAvailable);
         Assert.False(reloaded.Notifications.DownloadsCompleted);
+        Assert.False(reloaded.Notifications.KdeProgress);
         Assert.True(reloaded.Notifications.LimitToTimeWindow);
         Assert.Equal(TimeSpan.FromHours(23), reloaded.Notifications.StartTime);
         Assert.Equal(TimeSpan.FromHours(6), reloaded.Notifications.EndTime);

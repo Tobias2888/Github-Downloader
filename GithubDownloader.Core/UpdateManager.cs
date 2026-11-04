@@ -188,12 +188,14 @@ public static class UpdateManager
         Repo[] snapshot = repos.ToArray();
         Logger.LogI($"Checking for updates (repositories {snapshot.Length})");
         int failed = 0;
+        string? firstFailure = null;
         foreach (Repo repo in snapshot)
         {
             statusText($"Checking for {repo.Name}");
-            if (!await SearchForUpdates(repo, statusText, request, true)) failed++;
+            if (!await SearchForUpdates(repo, statusText, request, true, reason => firstFailure ??= reason)) failed++;
         }
         string summary = $"Update check finished: {snapshot.Length - failed} succeeded, {failed} failed.";
+        if (firstFailure is not null) summary += $" First error: {firstFailure}";
         if (failed > 0)
         {
             await Logger.LogW(summary);
@@ -218,7 +220,7 @@ public static class UpdateManager
         SearchForUpdates(repo, statusText, RequestRepositoryData, multiDownload);
 
     internal static async Task<bool> SearchForUpdates(Repo repo, Action<string> statusText,
-        Func<string, Task<HttpResponseMessage?>> request, bool multiDownload = false)
+        Func<string, Task<HttpResponseMessage?>> request, bool multiDownload = false, Action<string>? requestFailure = null)
     {
         Logger.LogD("Checking repository for updates");
         
@@ -227,12 +229,14 @@ public static class UpdateManager
             statusText.Invoke($"Checking for {repo.Name}");
         }
 
-        List<Response>? releases = await GetReleaseList(repo, request);
-        if (releases == null)
+        void ReportFailure(string reason)
         {
-            statusText($"Failed to check releases for {repo.Name}. Previous release information was kept.");
-            return false;
+            requestFailure?.Invoke(reason);
+            statusText($"Failed to check releases for {repo.Name}. {reason} Previous release information was kept.");
         }
+
+        List<Response>? releases = await GetReleaseList(repo, request, ReportFailure);
+        if (releases == null) return false;
 
         List<string> tags = ["latest"];
         tags.AddRange(releases.Where(release => !release.draft
@@ -242,16 +246,12 @@ public static class UpdateManager
         repo.Tags = tags;
 
         (ReleaseLookup lookup, Response? response) = repo.TargetTag != "latest"
-            ? await GetReleaseByUrl($"https://api.github.com/repos/{repo.Name}/releases/tags/{Uri.EscapeDataString(repo.TargetTag)}", request)
+            ? await GetReleaseByUrl($"https://api.github.com/repos/{repo.Name}/releases/tags/{Uri.EscapeDataString(repo.TargetTag)}", request, ReportFailure)
             : (ReleaseLookup.Found, releases.Where(release => !release.draft
                 && (repo.IncludePrereleases || !release.prerelease))
                 .OrderByDescending(release => DateTimeOffset.TryParse(release.published_at, out DateTimeOffset published)
                     ? published : DateTimeOffset.MinValue).FirstOrDefault());
-        if (lookup == ReleaseLookup.Failed)
-        {
-            statusText.Invoke($"Failed to check releases for {repo.Name}. The request failed; previous release information was kept.");
-            return false;
-        }
+        if (lookup == ReleaseLookup.Failed) return false;
 
         if (response == null || response.draft)
         {
@@ -280,11 +280,12 @@ public static class UpdateManager
         return true;
     }
 
-    private static async Task<(ReleaseLookup Lookup, Response? Response)> GetReleaseByUrl(string url, Func<string, Task<HttpResponseMessage?>> request)
+    private static async Task<(ReleaseLookup Lookup, Response? Response)> GetReleaseByUrl(string url, Func<string, Task<HttpResponseMessage?>> request, Action<string> reportFailure)
     {
         using HttpResponseMessage? httpResponse = await request(url);
         if (httpResponse == null)
         {
+            await ReportReleaseFailureAsync(httpResponse, reportFailure);
             return (ReleaseLookup.Failed, null);
         }
 
@@ -295,7 +296,7 @@ public static class UpdateManager
 
         if (!httpResponse.IsSuccessStatusCode)
         {
-            Logger.LogE($"Release check failed (HTTP {(int)httpResponse.StatusCode})");
+            await ReportReleaseFailureAsync(httpResponse, reportFailure);
             return (ReleaseLookup.Failed, null);
         }
 
@@ -303,7 +304,7 @@ public static class UpdateManager
             JsonSerializer.Deserialize<Response>(await httpResponse.Content.ReadAsStringAsync()));
     }
 
-    private static async Task<List<Response>?> GetReleaseList(Repo repo, Func<string, Task<HttpResponseMessage?>> request)
+    private static async Task<List<Response>?> GetReleaseList(Repo repo, Func<string, Task<HttpResponseMessage?>> request, Action<string> reportFailure)
     {
         List<Response> releases = [];
         for (int page = 1; ; page++)
@@ -313,18 +314,31 @@ public static class UpdateManager
             using HttpResponseMessage? httpResponse = await request(releasesUrl);
             if (httpResponse is not { IsSuccessStatusCode: true })
             {
-                Logger.LogW("Release list could not be refreshed");
+                await ReportReleaseFailureAsync(httpResponse, reportFailure);
                 return null;
             }
 
             List<Response>? items = JsonSerializer.Deserialize<List<Response>>(await httpResponse.Content.ReadAsStringAsync());
-            if (items == null) return null;
+            if (items == null)
+            {
+                const string reason = "GitHub returned an invalid release list.";
+                await Logger.LogW(reason);
+                reportFailure(reason);
+                return null;
+            }
             releases.AddRange(items);
             // Search every page: GitHub's list order does not guarantee publication order.
             bool hasNext = httpResponse.Headers.TryGetValues("Link", out IEnumerable<string>? links)
                 && links.Any(link => link.Contains("rel=\"next\"", StringComparison.Ordinal));
             if (!hasNext && items.Count < 100) return releases;
         }
+    }
+
+    private static async Task ReportReleaseFailureAsync(HttpResponseMessage? response, Action<string> reportFailure)
+    {
+        string reason = await GitHubApiError.DescribeAsync(response);
+        await Logger.LogW($"Release check failed: {reason} Previous release information was kept.");
+        reportFailure(reason);
     }
 
     public static bool IsInstallerAsset(string name) =>

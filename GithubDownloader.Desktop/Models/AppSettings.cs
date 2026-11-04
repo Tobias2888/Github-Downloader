@@ -19,10 +19,16 @@ public class AppSettings
     public string DefaultAssetRule { get; set; } = AssetSelection.GetDefaultRule();
     public int? LocalInstallerVersionsToKeep { get; set; } = LocalInstallerRetention.DefaultVersionsToKeep;
     public NotificationSettings Notifications { get; set; } = new();
-    
-    public static AppSettings Load()
+    private int _logsToKeep = -1;
+    public int LogsToKeep
     {
-        Logger.LogI("Loading application settings");
+        get => _logsToKeep;
+        set => _logsToKeep = value == -1 || value >= 1 ? value : -1;
+    }
+    
+    public static AppSettings Load(bool writeLogs = true)
+    {
+        if (writeLogs) Logger.LogI("Loading application settings");
         try
         {
             if (File.Exists(_appSettingsFilePath))
@@ -32,16 +38,16 @@ public class AppSettings
                 settings.DefaultAssetRule ??= AssetSelection.GetDefaultRule();
                 settings.Notifications ??= new();
                 if (settings.LocalInstallerVersionsToKeep < 0) settings.LocalInstallerVersionsToKeep = LocalInstallerRetention.DefaultVersionsToKeep;
-                Logger.LogI("Application settings loaded");
+                if (writeLogs) Logger.LogI("Application settings loaded");
                 return settings;
             }
 
-            Logger.LogI("Using default application settings");
+            if (writeLogs) Logger.LogI("Using default application settings");
             return new();
         }
         catch (Exception exception)
         {
-            Logger.LogE($"Application settings load failed ({exception.GetType().Name})");
+            if (writeLogs) Logger.LogE($"Application settings load failed ({exception.GetType().Name})");
             throw;
         }
     }

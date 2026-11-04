@@ -406,6 +406,15 @@
                                            TextWrapping="Wrap" Opacity="0.7" FontSize="12"/>
                             </StackPanel>
                             <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Spacing="4" VerticalAlignment="Center" Margin="0,0,15,0">
+                                    <TextBlock Text="KDE progress notifications" TextWrapping="Wrap"/>
+                                    <TextBlock Text="Show progress for downloads, installations, and other operations in KDE Plasma."
+                                               TextWrapping="Wrap" Opacity="0.7" FontSize="12"/>
+                                </StackPanel>
+                                <ToggleSwitch Name="TglKdeProgress" Grid.Column="1"
+                                              IsChecked="{Binding NotifyKdeProgress, Mode=TwoWay}" OnContent="" OffContent=""/>
+                            </Grid>
+                            <Grid ColumnDefinitions="*,Auto">
                                 <TextBlock Text="Downloads completed" VerticalAlignment="Center"/>
                                 <ToggleSwitch Grid.Column="1" IsChecked="{Binding NotifyDownloadsCompleted, Mode=TwoWay}"
                                               OnContent="" OffContent=""/>
@@ -440,6 +449,28 @@
                 </Border>
                 
 
+
+                <Border CornerRadius="12" Padding="16" Background="#2B2B35">
+                    <StackPanel Spacing="15">
+                        <TextBlock Text="Logs" Classes="SubTitle"/>
+                        <TextBlock Text="{Binding LogsFolder}" TextWrapping="Wrap" Opacity="0.7" FontSize="12"/>
+                        <Button Name="OpenLogsFolderButton" Content="Open logs folder" HorizontalAlignment="Stretch"
+                                Command="{Binding OpenLogsFolder}" CommandParameter="{Binding $parent[UserControl]}"/>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="Limit saved log files" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                            <ToggleSwitch Name="TglLimitSavedLogs" Grid.Column="1"
+                                          IsChecked="{Binding LimitSavedLogs, Mode=TwoWay}" OnContent="" OffContent=""/>
+                        </Grid>
+                        <StackPanel Spacing="5" IsEnabled="{Binding LimitSavedLogs}">
+                            <TextBlock Text="Log files to keep (including the current log)" TextWrapping="Wrap"/>
+                            <NumericUpDown Name="SavedLogLimit" Minimum="1" Maximum="2147483647" Increment="1" FormatString="0"
+                                           Value="{Binding LogsToKeep, Mode=TwoWay}"/>
+                        </StackPanel>
+                        <TextBlock Text="Off keeps all logs. Changes are saved automatically. Older files beyond the limit are deleted when the next log file is created, usually at the next app start."
+                                   TextWrapping="Wrap" Opacity="0.7" FontSize="12"/>
+                        <TextBlock Text="{Binding LogsStatus}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
 
                 <Border CornerRadius="12"
                         Padding="16">

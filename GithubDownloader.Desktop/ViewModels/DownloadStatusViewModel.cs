@@ -10,6 +10,7 @@ using Avalonia.Threading;
 using GithubDownloader.Desktop.Models;
 using GithubDownloader.Core;
 using LoggerLib;
+using GithubDownloader.Notifications;
 
 namespace GithubDownloader.Desktop.ViewModels;
 
@@ -17,6 +18,8 @@ public class DownloadStatusViewModel : ViewModelBase
 {
     private const int MaxLogs = 1000;
     private CancellationTokenSource? _cancellation;
+    private KdeOperationNotification? _notification;
+    internal bool CompletionNotificationHandled { get; private set; }
 
     public bool CanCancel => IsUpdating && _cancellation is { IsCancellationRequested: false };
 
@@ -93,13 +96,13 @@ public class DownloadStatusViewModel : ViewModelBase
         }
     }
 
-    public Task<bool> RunAsync(Func<CancellationToken, Task<bool>> operation, string title = "Download Status")
-        => RunCoreAsync(operation, title, cancellable: true);
+    public Task<bool> RunAsync(Func<CancellationToken, Task<bool>> operation, string title = "Download Status", bool showNotification = true)
+        => RunCoreAsync(operation, title, cancellable: true, showNotification);
 
-    public Task<bool> RunAsync(Func<Task<bool>> operation, string title = "Download Status")
-        => RunCoreAsync(_ => operation(), title, cancellable: false);
+    public Task<bool> RunAsync(Func<Task<bool>> operation, string title = "Download Status", bool showNotification = true)
+        => RunCoreAsync(_ => operation(), title, cancellable: false, showNotification);
 
-    private async Task<bool> RunCoreAsync(Func<CancellationToken, Task<bool>> operation, string title, bool cancellable)
+    private async Task<bool> RunCoreAsync(Func<CancellationToken, Task<bool>> operation, string title, bool cancellable, bool showNotification)
     {
         if (IsUpdating)
         {
@@ -109,12 +112,20 @@ public class DownloadStatusViewModel : ViewModelBase
 
         Logger.LogD("Operation started");
 
+        CompletionNotificationHandled = false;
         _operationTitle = title;
         using CancellationTokenSource cancellation = new();
         _cancellation = cancellable ? cancellation : null;
         IsUpdating = true;
         bool succeeded = false;
         bool cancelled = false;
+        string? failure = null;
+        _notification = KdeOperationNotification.Start(title,
+            cancellable ? () => Dispatcher.UIThread.Post(Cancel) : null,
+            enabled: showNotification
+                && Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime
+                && Application.Current is App app && app.MainViewModel.AppSettings.Notifications.KdeProgress
+                && app.MainViewModel.AppSettings.Notifications.AllowsNotifications(DateTime.Now));
         try
         {
             succeeded = await operation(cancellation.Token);
@@ -127,11 +138,16 @@ public class DownloadStatusViewModel : ViewModelBase
         }
         catch (Exception exception)
         {
+            failure = exception.Message;
             Logger.LogE($"Operation failed ({exception.GetType().Name})");
             Log($"Operation failed ({exception.GetType().Name}): {exception.Message}", "error");
         }
         finally
         {
+            KdeOperationNotification? notification = _notification;
+            _notification = null;
+            CompletionNotificationHandled = notification is not null
+                && await notification.FinishAsync(succeeded, cancelled, failure);
             if (Dispatcher.UIThread.CheckAccess()) ProgressText = "";
             else Dispatcher.UIThread.Post(() => ProgressText = "");
             _cancellation = null;
@@ -171,6 +187,7 @@ public class DownloadStatusViewModel : ViewModelBase
 
     public void ReportTransfer(DownloadProgress progress)
     {
+        _notification?.ReportTransfer(progress);
         void Update()
         {
             ProgressText = progress.DisplayText;
@@ -188,6 +205,7 @@ public class DownloadStatusViewModel : ViewModelBase
     public void LogProgress(string message)
     {
         if (string.IsNullOrEmpty(message)) return;
+        _notification?.ReportStatus(message);
 
         bool extracting = message.StartsWith("Extracting: ", StringComparison.Ordinal);
         string prefix = extracting ? "Extracting: " : "Downloaded: ";
@@ -217,6 +235,7 @@ public class DownloadStatusViewModel : ViewModelBase
     public void Log(string message, string level = "info")
     {
         if (string.IsNullOrWhiteSpace(message)) return;
+        _notification?.ReportStatus(message);
 
         void Add()
         {

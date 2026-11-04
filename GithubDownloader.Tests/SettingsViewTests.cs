@@ -222,7 +222,7 @@ public sealed class SettingsViewTests
     }
 
     [Fact]
-    public async Task NotificationFrequencyEditorPersistsModeAndInterval()
+    public async Task NotificationEditorsPersistModeIntervalAndKdeProgress()
     {
         await _application.Dispatch(() =>
         {
@@ -236,6 +236,12 @@ public sealed class SettingsViewTests
                 settingsPath.SetValue(null, temporaryPath);
                 app.MainViewModel.AppSettings = new();
                 SettingsView view = new();
+                ToggleSwitch kdeProgress = view.FindControl<ToggleSwitch>("TglKdeProgress")!;
+                Assert.True(kdeProgress.IsChecked);
+                kdeProgress.IsChecked = false;
+                Assert.False(AppSettings.Load().Notifications.KdeProgress);
+                Assert.True(AppSettings.Load().Notifications.DownloadsCompleted);
+                Assert.True(AppSettings.Load().Notifications.UpdatesAvailable);
                 ComboBox mode = view.FindControl<ComboBox>("UpdateNotificationModeSelector")!;
                 NumericUpDown interval = view.FindControl<NumericUpDown>("UpdateReminderInterval")!;
                 Assert.Equal(0, mode.SelectedIndex);
@@ -246,6 +252,7 @@ public sealed class SettingsViewTests
                 Assert.True(AppSettings.Load().Notifications.RepeatUpdateNotifications);
                 Assert.Equal(30, AppSettings.Load().Notifications.UpdateReminderIntervalMinutes);
                 SettingsView restored = new();
+                Assert.False(restored.FindControl<ToggleSwitch>("TglKdeProgress")!.IsChecked);
                 Assert.Equal(1, restored.FindControl<ComboBox>("UpdateNotificationModeSelector")!.SelectedIndex);
                 Assert.Equal(30m, restored.FindControl<NumericUpDown>("UpdateReminderInterval")!.Value);
                 mode.SelectedIndex = 0;
@@ -255,6 +262,52 @@ public sealed class SettingsViewTests
             finally
             {
                 app.MainViewModel.AppSettings = previousSettings;
+                settingsPath.SetValue(null, previousPath);
+                File.Delete(temporaryPath);
+            }
+            return Task.CompletedTask;
+        }, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task LogSettingsPersistAndConfigureLoggerLib()
+    {
+        await _application.Dispatch(() =>
+        {
+            App app = (App)Application.Current!;
+            AppSettings previousSettings = app.MainViewModel.AppSettings;
+            int previousRetention = LoggerLib.Logger.KeepLogs;
+            FieldInfo settingsPath = typeof(AppSettings).GetField("_appSettingsFilePath", BindingFlags.NonPublic | BindingFlags.Static)!;
+            string previousPath = (string)settingsPath.GetValue(null)!;
+            string temporaryPath = Path.Combine(Path.GetTempPath(), $"log-settings-{Guid.NewGuid()}.json");
+            try
+            {
+                settingsPath.SetValue(null, temporaryPath);
+                app.MainViewModel.AppSettings = new();
+                SettingsView view = new();
+                ToggleSwitch limit = view.FindControl<ToggleSwitch>("TglLimitSavedLogs")!;
+                NumericUpDown count = view.FindControl<NumericUpDown>("SavedLogLimit")!;
+                Button open = view.FindControl<Button>("OpenLogsFolderButton")!;
+                Assert.NotNull(open.Command);
+                Assert.False(limit.IsChecked);
+                Assert.False(count.IsEffectivelyEnabled);
+                limit.IsChecked = true;
+                count.Value = 7;
+                Assert.True(count.IsEffectivelyEnabled);
+                Assert.Equal(7, AppSettings.Load().LogsToKeep);
+                Assert.Equal(7, LoggerLib.Logger.KeepLogs);
+                app.MainViewModel.AppSettings = AppSettings.Load();
+                SettingsView restored = new();
+                Assert.True(restored.FindControl<ToggleSwitch>("TglLimitSavedLogs")!.IsChecked);
+                Assert.Equal(7m, restored.FindControl<NumericUpDown>("SavedLogLimit")!.Value);
+                restored.FindControl<ToggleSwitch>("TglLimitSavedLogs")!.IsChecked = false;
+                Assert.Equal(-1, AppSettings.Load().LogsToKeep);
+                Assert.Equal(-1, LoggerLib.Logger.KeepLogs);
+            }
+            finally
+            {
+                app.MainViewModel.AppSettings = previousSettings;
+                LoggerLib.Logger.KeepLogs = previousRetention;
                 settingsPath.SetValue(null, previousPath);
                 File.Delete(temporaryPath);
             }

@@ -169,7 +169,7 @@ public partial class RepoDetailsView : UserControl
     private async Task RefreshReleaseAsync()
     {
         await _downloadStatusViewModel.RunAsync(() =>
-            UpdateManager.SearchForUpdates(_repoDetailsViewModel.Repo, _downloadStatusViewModel.LogStatus));
+            UpdateManager.SearchForUpdates(_repoDetailsViewModel.Repo, _downloadStatusViewModel.LogStatus), showNotification: false);
         _refreshingVersion = true;
         try
         {

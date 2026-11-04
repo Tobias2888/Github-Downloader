@@ -243,7 +243,7 @@ public partial class HomeView : UserControl
         repo.DownloadPath = _mainViewModel.AppSettings.GlobalDownloadPath;
 
         await _downloadStatusViewModel.RunAsync(() =>
-            UpdateManager.SearchForUpdates(repo, _downloadStatusViewModel.LogStatus));
+            UpdateManager.SearchForUpdates(repo, _downloadStatusViewModel.LogStatus), showNotification: false);
         
         UpdateManager.Repos.Add(repo);
         FileManager.SaveRepos();
@@ -257,7 +257,7 @@ public partial class HomeView : UserControl
     private async void BtnSearchForUpdates_OnClick(object? sender, RoutedEventArgs e)
     {
         await _downloadStatusViewModel.RunAsync(() =>
-            UpdateManager.SearchForUpdates(UpdateManager.Repos, _downloadStatusViewModel.LogStatus));
+            UpdateManager.SearchForUpdates(UpdateManager.Repos, _downloadStatusViewModel.LogStatus), showNotification: false);
 
         CheckForGlobalUpdates();
         FileManager.SaveRepos();
