@@ -1,0 +1,61 @@
+name: Feature request
+description: Propose an improvement to GitHub Downloader and explain the workflow it would help.
+title: "[Feature] "
+labels: [enhancement]
+assignees: [Tobias2888]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Search existing requests before submitting, and keep each issue focused on one improvement.
+        Use the bug report form for existing behavior that is broken. Do not include tokens, passwords, or private configuration.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part should change?
+      multiple: true
+      options:
+        - Desktop app
+        - CLI (ghd)
+        - Web interface
+        - Shared download or installation behavior
+        - Release packages or build tooling
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: Describe what you are trying to do, what currently gets in the way, and who would benefit. Include a concrete example.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe how the feature should work from the user's perspective. Include example commands, settings, or UI behavior where useful. Implementation details are optional.
+    validations:
+      required: true
+  - type: textarea
+    id: success
+    attributes:
+      label: What would a successful result look like?
+      description: Give one or two observable examples of the result you want, including important edge cases or limits.
+      placeholder: "When I ..., I can ..., and the app ..."
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives or current workaround
+      description: Explain how you handle this today and why that is insufficient. Mention existing settings or tools you considered, if any.
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Platform or compatibility requirements
+      description: If relevant, specify the OS/distribution, desktop environment, package format, architecture, or affected interfaces. Mention whether existing behavior must stay available.
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add mockups, screenshots, public examples, or related issue links that clarify the request.

@@ -1,0 +1,92 @@
+name: Bug report
+description: Report a problem with the desktop app, CLI, web interface, or a release package.
+title: "[Bug] "
+labels: [bug]
+assignees: [Tobias2888]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Search existing issues before submitting, and report one problem per issue.
+        Never include personal access tokens, passwords, authorization headers, or unredacted configuration files. Redact private repository names and personal paths from logs and screenshots.
+  - type: dropdown
+    id: interface
+    attributes:
+      label: Where does the problem occur?
+      multiple: true
+      options:
+        - Desktop app
+        - CLI (ghd)
+        - Web interface
+        - Building from source
+        - Release package or installer
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: GitHub Downloader version
+      description: Copy the version from the desktop window title or `ghd --version`. For source builds, include the commit hash. If the app cannot start, give the downloaded package filename.
+      placeholder: "App version, commit hash, or package filename"
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include OS/distribution and version, CPU architecture, and installation method. For desktop problems, add the desktop environment and Wayland/X11 if applicable. For web problems, describe the server OS separately from the browser and client OS. For build problems, include `dotnet --version`.
+      placeholder: |
+        OS/distribution and version:
+        Architecture (x64/ARM64):
+        Installed using (Windows installer, .deb, Arch package, AppImage, archive, source):
+        Desktop environment / Wayland or X11 (if applicable):
+        Web server OS and browser/version (if applicable):
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened?
+      description: Describe the actual result and include the exact error message. Say whether this happens every time or intermittently.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include the buttons/settings used or the exact CLI command, with secrets removed. Mention whether you were checking, updating, reinstalling, downloading only, or installing a local file.
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should have happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: asset
+    attributes:
+      label: Affected repository, release, or local file
+      description: If relevant, provide a public repository/release URL, release tag, asset filename, asset rule or manual selection, and relevant settings such as auto-extract or download-only. For local installs, give the file type and filename if shareable. Do not disclose private URLs or file contents.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or command output
+      description: Use Settings → Logs → Open logs folder in the desktop app, or copy relevant CLI/web service output. Include the lines around the failure, HTTP status/retry details, or package-manager exit code. Remove tokens, passwords, private names, and personal paths. No Markdown backticks are needed here.
+      render: text
+  - type: textarea
+    id: regression
+    attributes:
+      label: Previous working version or workaround
+      description: If known, state the last working version, what changed, and whether another interface works. Leave blank if unknown.
+  - type: textarea
+    id: context
+    attributes:
+      label: Screenshots and additional context
+      description: Attach screenshots or recordings if useful. For settings or configuration, share only the relevant redacted fields. If installation fails, mention whether the application was partially installed or still starts.

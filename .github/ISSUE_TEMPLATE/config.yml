@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Installation and building from source
+    url: https://github.com/Tobias2888/Github-Downloader/blob/main/docs/installation.md
+    about: Platform setup, source builds, and web service configuration.
+  - name: Usage guide
+    url: https://github.com/Tobias2888/Github-Downloader/blob/main/docs/usage.md
+    about: Asset selection, installation behavior, notifications, and logs.
+  - name: CLI reference
+    url: https://github.com/Tobias2888/Github-Downloader/blob/main/docs/cli.md
+    about: Command examples for ghd.
