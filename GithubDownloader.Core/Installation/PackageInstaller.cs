@@ -225,8 +225,8 @@ internal sealed class PackageInstaller(Platform platform, string? rootPassword)
     {
         using Process process = new() { StartInfo = start };
         process.Start();
-        Task output = ForwardInstallationOutputAsync(process.StandardOutput, progressText, isError: false);
-        Task errors = ForwardInstallationOutputAsync(process.StandardError, progressText, isError: true);
+        Task output = ForwardInstallationOutputAsync(process.StandardOutput, progressText, isStandardError: false);
+        Task errors = ForwardInstallationOutputAsync(process.StandardError, progressText, isStandardError: true);
         if (start.RedirectStandardInput)
         {
             await process.StandardInput.WriteLineAsync(_rootPassword);
@@ -234,15 +234,31 @@ internal sealed class PackageInstaller(Platform platform, string? rootPassword)
         }
         await process.WaitForExitAsync();
         await Task.WhenAll(output, errors);
+        if (process.ExitCode != 0)
+            await Logger.LogE($"Package manager exited with code {process.ExitCode}");
         return process.ExitCode;
     }
 
-    private async Task ForwardInstallationOutputAsync(StreamReader reader, Action<string> progressText, bool isError)
+    // stderr is also used for warnings and status messages; the exit code determines failure.
+    internal static LogLevel ClassifyOutput(string line, bool isStandardError)
+    {
+        string message = line.TrimStart();
+        foreach (string prefix in new[] { "error:", "fehler:", "fatal:", "E:" })
+            if (message.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return LogLevel.Error;
+        foreach (string prefix in new[] { "warning:", "warnung:", "W:" })
+            if (message.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return LogLevel.Warning;
+        return isStandardError ? LogLevel.Warning : LogLevel.Info;
+    }
+
+    private static async Task ForwardInstallationOutputAsync(StreamReader reader, Action<string> progressText, bool isStandardError)
     {
         while (await reader.ReadLineAsync() is string line)
         {
-            if (isError) await Logger.LogE($"Package manager: {line}");
-            else await Logger.LogI($"Package manager: {line}");
+            LogLevel level = ClassifyOutput(line, isStandardError);
+            string message = $"Package manager: {line}";
+            if (level == LogLevel.Error) await Logger.LogE(message);
+            else if (level == LogLevel.Warning) await Logger.LogW(message);
+            else await Logger.LogI(message);
             progressText(line);
         }
     }

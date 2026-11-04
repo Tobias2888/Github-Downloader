@@ -135,8 +135,12 @@ public sealed class ActionLoggingTests : IAsyncLifetime
         string log = await ReadLogAsync();
         Assert.Contains("Package manager: " + PrivateData + "/stdout", log);
         Assert.Contains("Package manager: " + PrivateData + "/stderr", log);
-        Assert.Contains(log.Split('\n'), line => line.Contains("[Error]", StringComparison.Ordinal)
+        Assert.Contains(log.Split('\n'), line => line.Contains("[Warning]", StringComparison.Ordinal)
             && line.Contains(PrivateData + "/stderr", StringComparison.Ordinal));
+        Assert.DoesNotContain(log.Split('\n'), line => line.Contains("[Error]", StringComparison.Ordinal)
+            && line.Contains(PrivateData + "/stderr", StringComparison.Ordinal));
+        if (exitCode != 0) Assert.Contains($"Package manager exited with code {exitCode}", log);
+        else Assert.DoesNotContain("Package manager exited with code", log);
     }
 
     [Theory]

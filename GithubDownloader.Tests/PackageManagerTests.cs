@@ -12,6 +12,22 @@ namespace GithubDownloader.Tests;
 
 public sealed class PackageManagerTests
 {
+    [Theory]
+    [InlineData("Warnung: komi-store: unknown key 'conflicts' in package description", true, LoggerLib.LogLevel.Warning)]
+    [InlineData("Warnung: komi-store-1.9.4-1 ist aktuell -- Reinstalliere", true, LoggerLib.LogLevel.Warning)]
+    [InlineData("warning: package is up to date", false, LoggerLib.LogLevel.Warning)]
+    [InlineData(" W: package warning", true, LoggerLib.LogLevel.Warning)]
+    [InlineData("error: failed to commit transaction", true, LoggerLib.LogLevel.Error)]
+    [InlineData("Fehler: Installation fehlgeschlagen", true, LoggerLib.LogLevel.Error)]
+    [InlineData("E: Could not get lock", false, LoggerLib.LogLevel.Error)]
+    [InlineData("fatal: command failed", true, LoggerLib.LogLevel.Error)]
+    [InlineData("Package manager diagnostic", true, LoggerLib.LogLevel.Warning)]
+    [InlineData("Installing package", false, LoggerLib.LogLevel.Info)]
+    public void PackageOutputUsesMessageSeverityRatherThanStderrAlone(string line, bool stderr, LoggerLib.LogLevel expected)
+    {
+        Assert.Equal(expected, PackageInstaller.ClassifyOutput(line, stderr));
+    }
+
     [Fact]
     public void InstallerAuthorizationIsIsolatedBetweenInstances()
     {
