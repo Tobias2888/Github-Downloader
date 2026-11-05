@@ -1,11 +1,12 @@
 using System.Diagnostics;
-using Generated;
+using System.Reflection;
 
 namespace GithubDownloader.Core;
 
 public static class AppInfo
 {
-    public const string Version = BuildInfo.Version;
+    public static readonly string Version = typeof(AppInfo).Assembly
+        .GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion;
     public static readonly string CliName;
 
     static AppInfo()

@@ -9,6 +9,5 @@
     <Project Path="libs/FileLib/FileLib/FileLib.csproj" />
     <Project Path="libs/LoggerLib/LoggerLib/LoggerLib.csproj" />
     <Project Path="libs/SecretsLib/SecretsLib/SecretsLib.csproj" />
-    <Project Path="libs/MetadataGenerator/MetadataGenerator/MetadataGenerator.csproj" />
   </Folder>
 </Solution>

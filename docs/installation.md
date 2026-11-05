@@ -42,6 +42,8 @@ dotnet build Github-Downloader.slnx
 dotnet test GithubDownloader.Tests/GithubDownloader.Tests.csproj
 ```
 
-For an existing checkout, run `git submodule update --init --recursive` before building. The projects under `libs/` build FileLib, LoggerLib, SecretsLib, the MetadataGenerator source generator, and KdeNotificationDBusLib from their pinned repositories. Access to private submodules requires GitHub authentication. After pulling changes to submodule versions, run the update command again.
+For an existing checkout, run `git submodule update --init --recursive` before building. The projects under `libs/` build FileLib, LoggerLib, SecretsLib, and KdeNotificationDBusLib from their pinned repositories. Access to private submodules requires GitHub authentication. After pulling changes to submodule versions, run the update command again.
+
+The application version is defined in `Directory.Build.props`. Run `bash build-releases.sh` from `builds/` to prepare a release; it prompts for the new version and updates the shared version and package metadata before publishing.
 
 [Usage guide](usage.md) · [CLI reference](cli.md) · [Back to README](../README.md)
