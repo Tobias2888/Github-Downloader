@@ -43,7 +43,8 @@ public record RepoResponse(
     bool IncludePrereleases = false,
     bool HasRelease = true,
     string ReleaseStatus = "",
-    int SavedDownloadAssetIndex = -1
+    int SavedDownloadAssetIndex = -1,
+    string DefaultAssetRule = ""
 );
 
 public record UpdateRepoRequest(

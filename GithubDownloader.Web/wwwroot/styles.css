@@ -226,6 +226,11 @@ body {
     background: transparent;
 }
 
+.btn-small {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
 .btn-success {
     background: var(--green);
     border-color: var(--green);

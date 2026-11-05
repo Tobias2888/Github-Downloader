@@ -88,7 +88,12 @@
                         <StackPanel Spacing="15">
                             <TextBlock Text="Download Settings" Classes="SubTitle"/>
 
-                            <TextBlock Text="Asset rule" FontWeight="SemiBold"/>
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="Asset rule" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                <Button Name="BtnResetAssetRule" Grid.Column="1" Content="Reset to default"
+                                        FontSize="12" Padding="8,4" Click="ResetAssetRule_OnClick"
+                                        ToolTip.Tip="Restore the default asset rule from Settings"/>
+                            </Grid>
                             <TextBox Name="TbxAssetRule" Text="{Binding Repo.AssetRule, Mode=TwoWay}"
                                      PlaceholderText="e.g. *linux*x64*.AppImage" AcceptsReturn="True" MinLines="3" TextWrapping="Wrap"/>
                             <TextBlock Text="Separate case-sensitive globs with spaces or newlines: * matches any text, ? one character, {x64,amd64} either alias. Prefix a pattern with ! to exclude assets. Every inclusion must match; exclusions always win. At least one inclusion is required. Clear the rule to select a file manually."

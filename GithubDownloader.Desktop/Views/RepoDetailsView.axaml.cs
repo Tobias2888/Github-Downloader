@@ -158,6 +158,13 @@ public partial class RepoDetailsView : UserControl
             && (extension is ".deb" or ".appimage" || InstallationManager.IsArchPackageFile(repo.SelectedAssetName));
         StpDownloadPath.IsVisible = !installsLinuxPackage || repo.SaveFileAnyway;
     }
+    private void ResetAssetRule_OnClick(object? sender, RoutedEventArgs e)
+    {
+        if (_repoDetailsViewModel.Repo is not Repo repo) return;
+        repo.AssetRule = _mainViewModel.AppSettings.DefaultAssetRule;
+        FileManager.SaveRepos();
+    }
+
     private async void Arguments_OnClick(object? sender, RoutedEventArgs e)
     {
         if (_repoDetailsViewModel.Repo is not Repo repo || TopLevel.GetTopLevel(this) is not Window owner) return;

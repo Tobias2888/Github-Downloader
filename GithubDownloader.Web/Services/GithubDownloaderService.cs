@@ -1,4 +1,5 @@
 using GithubDownloader.Core.Installation.Archives;
+using GithubDownloader.Core.Repositories;
 using GithubDownloader.Core.Installation;
 using GithubDownloader.Core.Downloads;
 using GithubDownloader.Core.Configuration;
@@ -502,7 +503,8 @@ public class GithubDownloaderService : IGithubDownloaderService
             repo.IncludePrereleases,
             repo.HasRelease,
             repo.ReleaseStatus,
-            repo.SavedDownloadAssetIndex
+            repo.SavedDownloadAssetIndex,
+            AssetSelection.GetDefaultRule()
         );
     }
 }

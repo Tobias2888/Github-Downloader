@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Interactivity;
 using GithubDownloader.Desktop;
 using GithubDownloader.Desktop.Views;
 using GithubDownloader.Core;
@@ -475,6 +476,43 @@ public sealed class AssetSelectionTests
                 Assert.Equal("windows.zip", repo.AssetName);
             }
             finally { window.Close(); }
+        }, CancellationToken.None);
+    }
+
+    [Theory]
+    [InlineData("*linux*\n! *arm64*")]
+    [InlineData("")]
+    public async Task DesktopDetailsResetsRuleToConfiguredDefault(string defaultRule)
+    {
+        await _application.Dispatch(async () =>
+        {
+            App app = (App)Application.Current!;
+            string previousDefault = app.MainViewModel.AppSettings.DefaultAssetRule;
+            Repo repo = NewRepo();
+            repo.ReplaceAssets(["linux-x64.zip", "linux-arm64.zip", "windows.zip"], ["x64", "arm64", "windows"]);
+            repo.DownloadAssetIndex = 2;
+            repo.AssetRule = "*arm64*";
+            app.RepoDetailsViewModel.Repo = repo;
+            app.MainViewModel.AppSettings.DefaultAssetRule = defaultRule;
+            RepoDetailsView details = new();
+            Window window = new() { Width = 1100, Height = 850, Content = details };
+            window.Show();
+            try
+            {
+                details.FindControl<Button>("BtnResetAssetRule")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                window.UpdateLayout();
+                await Task.Delay(50);
+                Assert.Equal(defaultRule, repo.AssetRule);
+                Assert.Equal(defaultRule, details.FindControl<TextBox>("TbxAssetRule")!.Text);
+                Assert.Equal(defaultRule.Length == 0, details.FindControl<ComboBox>("CobAsset")!.IsEnabled);
+                Assert.Equal(defaultRule.Length == 0 ? "windows.zip" : "linux-x64.zip", repo.SelectedAssetName);
+                Assert.Equal(2, repo.SavedDownloadAssetIndex);
+            }
+            finally
+            {
+                window.Close();
+                app.MainViewModel.AppSettings.DefaultAssetRule = previousDefault;
+            }
         }, CancellationToken.None);
     }
 
