@@ -22,6 +22,7 @@ public partial class RepoEntryControl : UserControl
     public RepoEntryControl()
     {
         InitializeComponent();
+        this.FindControl<Border>("DragHandle")!.Cursor = SystemDragCursors.OpenHand;
         _mainViewModel = ((App)Application.Current!).MainViewModel;
         _repoDetailsViewModel = ((App)Application.Current!).RepoDetailsViewModel;
         _downloadStatusViewModel = ((App)Application.Current!).DownloadStatusViewModel;

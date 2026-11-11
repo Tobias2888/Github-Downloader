@@ -83,6 +83,7 @@ public sealed class RepositoryDragTests
             {
                 RepoEntryControl[] rows = Rows(home);
                 Border handle = rows[from].FindControl<Border>("DragHandle")!;
+                Assert.Same(SystemDragCursors.OpenHand, handle.Cursor);
                 Point start = handle.TranslatePoint(new Point(14, 21), window)!.Value;
                 Assert.True(window.InputHitTest(start) is Visual hit && (ReferenceEquals(hit, handle)
                     || hit.GetVisualAncestors().Contains(handle)), $"Drag handle hit test at {start}: {window.InputHitTest(start)}");
@@ -90,14 +91,15 @@ public sealed class RepositoryDragTests
                 // Keep the same grab offset while crossing the target row's midpoint.
                 Point destination = new(start.X + 20, finish.Y + (from < to ? 10 : -10));
                 window.MouseDown(start, MouseButton.Left);
+                Assert.Same(SystemDragCursors.ClosedHand, home.Cursor);
                 window.MouseMove(destination, RawInputModifiers.LeftMouseButton);
                 window.UpdateLayout();
 
                 Canvas overlay = home.FindControl<Canvas>("RepoDragOverlay")!;
                 RepoEntryControl preview = Assert.IsType<RepoEntryControl>(Assert.Single(overlay.Children));
                 Assert.Same(dragged, preview.DataContext);
-                Assert.Equal("Hand", handle.Cursor!.ToString());
-                Assert.Equal("Hand", home.Cursor!.ToString());
+                Assert.Same(SystemDragCursors.OpenHand, handle.Cursor);
+                Assert.Same(SystemDragCursors.ClosedHand, home.Cursor);
                 Point previewPosition = preview.TranslatePoint(default, window)!.Value;
                 Assert.Equal(destination.X - start.X,
                     previewPosition.X - rows[from].TranslatePoint(default, window)!.Value.X, 2);
@@ -142,6 +144,7 @@ public sealed class RepositoryDragTests
                 Point destination = new(start.X, start.Y + rows[0].Bounds.Height * 3);
                 window.MouseDown(start, MouseButton.Left);
                 window.MouseUp(start, MouseButton.Left);
+                Assert.Null(home.Cursor);
                 Assert.Equal(original, repos);
                 window.MouseDown(start, MouseButton.Left);
                 window.MouseMove(destination, RawInputModifiers.LeftMouseButton);
@@ -151,6 +154,7 @@ public sealed class RepositoryDragTests
                 await Task.Delay(220);
                 Assert.Equal(original, repos);
                 Assert.Empty(home.FindControl<Canvas>("RepoDragOverlay")!.Children);
+                Assert.Null(home.Cursor);
                 Assert.All(Rows(home), row => Assert.Null(row.RenderTransform));
             }
             finally

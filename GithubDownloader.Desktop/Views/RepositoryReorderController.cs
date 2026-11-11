@@ -70,6 +70,7 @@ internal sealed class RepositoryReorderController
         if (_root is not null) _root.AddHandler(InputElement.KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel);
         repos.CollectionChanged += OnCollectionChanged;
         _pointer.Capture(_host);
+        _host.Cursor = SystemDragCursors.ClosedHand;
         e.Handled = true;
     }
 
@@ -110,7 +111,6 @@ internal sealed class RepositoryReorderController
         _overlay.Children.Add(_preview);
         _dragged.Control.Opacity = 0.2;
         _dragged.Control.IsHitTestVisible = false;
-        _host.Cursor = new Cursor(StandardCursorType.Hand);
         _ticks.Restart();
         _timer.Start();
     }
