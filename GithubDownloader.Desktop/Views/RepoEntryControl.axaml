@@ -71,6 +71,7 @@
             </StackPanel>
             
             <ComboBox Grid.Column="3"
+                      Name="AssetSelection"
                       ItemsSource="{Binding AssetNames}" 
                       SelectedIndex="{Binding DownloadAssetIndex}" 
                       IsEnabled="{Binding !HasAssetRule}"

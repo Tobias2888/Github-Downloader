@@ -1,10 +1,12 @@
 using System;
+using System.ComponentModel;
 using GithubDownloader.Core.Configuration;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using GithubDownloader.Desktop.Enums;
 using GithubDownloader.Desktop.ViewModels;
@@ -20,6 +22,7 @@ public partial class RepoEntryControl : UserControl
     private readonly MainViewModel _mainViewModel;
     private readonly RepoDetailsViewModel _repoDetailsViewModel;
     private readonly DownloadStatusViewModel _downloadStatusViewModel;
+    private Repo? _boundRepo;
 
     public RepoEntryControl()
     {
@@ -28,8 +31,8 @@ public partial class RepoEntryControl : UserControl
         _mainViewModel = ((App)Application.Current!).MainViewModel;
         _repoDetailsViewModel = ((App)Application.Current!).RepoDetailsViewModel;
         _downloadStatusViewModel = ((App)Application.Current!).DownloadStatusViewModel;
-        DataContextChanged += (_, _) => UpdateLauncherButtons();
-        UpdateLauncherButtons();
+        DataContextChanged += (_, _) => BindRepo(DataContext as Repo);
+        BindRepo(DataContext as Repo);
     }
 
     private void InitializeComponent()
@@ -70,6 +73,25 @@ public partial class RepoEntryControl : UserControl
         open.IsEnabled = available;
         ToolTip.SetTip(open, available ? "Open installed app" : "No supported application-menu launcher is available.");
         this.FindControl<Button>("BtnLogs")!.IsVisible = OperatingSystem.IsLinux() && available;
+    }
+
+    private void BindRepo(Repo? repo)
+    {
+        if (_boundRepo is not null) _boundRepo.PropertyChanged -= RepoOnPropertyChanged;
+        _boundRepo = repo;
+        if (_boundRepo is not null) _boundRepo.PropertyChanged += RepoOnPropertyChanged;
+        UpdateLauncherButtons();
+    }
+
+    private void RepoOnPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(Repo.AssetNames) || sender is not Repo repo) return;
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (!ReferenceEquals(DataContext, repo)) return;
+            ComboBox? selection = this.FindControl<ComboBox>("AssetSelection");
+            if (selection is not null) selection.SelectedIndex = repo.DownloadAssetIndex;
+        }, DispatcherPriority.Background);
     }
 
     private void BtnOpen_OnClick(object? sender, RoutedEventArgs e)
