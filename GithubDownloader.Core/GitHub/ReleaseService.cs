@@ -157,22 +157,18 @@ internal sealed class ReleaseService(Func<string, Task<HttpResponseMessage?>> re
             statusText($"Failed to check releases for {repo.Name}. {reason} Previous release information was kept.");
         }
 
-        List<Response>? releases = await GetReleaseList(repo, request, ReportFailure);
-        if (releases == null) return false;
+        ReleaseList? releaseList = await GetReleaseList(repo, request, ReportFailure);
+        if (releaseList == null) return false;
 
         List<string> tags = ["latest"];
-        tags.AddRange(releases.Where(release => !release.draft
-            && (repo.IncludePrereleases || !release.prerelease)).Select(release => release.tag_name).Distinct());
+        tags.AddRange(releaseList.Tags);
         // A pin remains selectable even when it is outside the channel or no longer published.
         if (!tags.Contains(repo.TargetTag)) tags.Add(repo.TargetTag);
         repo.Tags = tags;
 
         (ReleaseLookup lookup, Response? response) = repo.TargetTag != "latest"
             ? await GetReleaseByUrl($"https://api.github.com/repos/{repo.Name}/releases/tags/{Uri.EscapeDataString(repo.TargetTag)}", request, ReportFailure)
-            : (ReleaseLookup.Found, releases.Where(release => !release.draft
-                && (repo.IncludePrereleases || !release.prerelease))
-                .OrderByDescending(release => DateTimeOffset.TryParse(release.published_at, out DateTimeOffset published)
-                    ? published : DateTimeOffset.MinValue).FirstOrDefault());
+            : (ReleaseLookup.Found, releaseList.Latest);
         if (lookup == ReleaseLookup.Failed) return false;
 
         if (response == null || response.draft)
@@ -226,9 +222,13 @@ internal sealed class ReleaseService(Func<string, Task<HttpResponseMessage?>> re
             JsonSerializer.Deserialize<Response>(await httpResponse.Content.ReadAsStringAsync()));
     }
 
-    private async Task<List<Response>?> GetReleaseList(Repo repo, Func<string, Task<HttpResponseMessage?>> request, Action<string> reportFailure)
+    private sealed record ReleaseList(List<string> Tags, Response? Latest);
+
+    private async Task<ReleaseList?> GetReleaseList(Repo repo, Func<string, Task<HttpResponseMessage?>> request, Action<string> reportFailure)
     {
-        List<Response> releases = [];
+        List<string> tags = [];
+        Response? latest = null;
+        DateTimeOffset latestPublished = DateTimeOffset.MinValue;
         for (int page = 1; ; page++)
         {
             string releasesUrl = $"https://api.github.com/repos/{repo.Name}/releases?per_page=100"
@@ -248,11 +248,28 @@ internal sealed class ReleaseService(Func<string, Task<HttpResponseMessage?>> re
                 reportFailure(reason);
                 return null;
             }
-            releases.AddRange(items);
+            bool fullPage = items.Count == 100;
+            foreach (Response release in items)
+            {
+                if (release.draft || (!repo.IncludePrereleases && release.prerelease)) continue;
+
+                tags.Add(release.tag_name);
+                DateTimeOffset published = DateTimeOffset.TryParse(release.published_at, out DateTimeOffset parsedPublished)
+                    ? parsedPublished : DateTimeOffset.MinValue;
+                if (latest is null || published > latestPublished)
+                {
+                    latest = release;
+                    latestPublished = published;
+                }
+            }
+
+            // Keep only selectable tags and the newest release while traversing pages. Release
+            // descriptions can be large, and retaining every full response can exhaust memory.
+            items.Clear();
             // Search every page: GitHub's list order does not guarantee publication order.
             bool hasNext = httpResponse.Headers.TryGetValues("Link", out IEnumerable<string>? links)
                 && links.Any(link => link.Contains("rel=\"next\"", StringComparison.Ordinal));
-            if (!hasNext && items.Count < 100) return releases;
+            if (!hasNext && !fullPage) return new ReleaseList(tags.Distinct().ToList(), latest);
         }
     }
 

@@ -104,6 +104,7 @@ public static class LocalFileInstaller
             LocalApp installedApp = new()
             {
                 DesktopEntryArguments = local.DesktopEntryArguments,
+                DesktopEntryName = previous?.DesktopEntryName ?? "",
                 Id = id, FileName = filename, InstallationName = local.Name, Kind = kind,
                 InstalledAt = DateTimeOffset.UtcNow, DebianPackage = local.InstalledDebianPackage, ArchPackage = local.InstalledArchPackage,
                 AppImageId = local.InstalledAppImageId, ExtractionDirectory = destination ?? "",

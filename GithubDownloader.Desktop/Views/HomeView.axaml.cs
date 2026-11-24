@@ -213,6 +213,14 @@ public partial class HomeView : UserControl
 
     internal void BeginRepoDrag(RepoEntryControl row, PointerPressedEventArgs e) => _repoReordering.Begin(row, e);
 
+    internal async void ShowToast(string message)
+    {
+        ToastText.Text = message;
+        ToastPopup.IsOpen = true;
+        await Task.Delay(3000);
+        ToastPopup.IsOpen = false;
+    }
+
     private void Control_OnLoaded(object? sender, RoutedEventArgs e)
     {
         PgbDownloading.DataContext = _downloadStatusViewModel;

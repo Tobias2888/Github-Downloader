@@ -74,6 +74,8 @@
                       MaxDropDownHeight="300"/>
             
             <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Button Name="BtnOpen" Content="Open" Click="BtnOpen_OnClick"/>
+                <Button Name="BtnLogs" Content="Logs" Click="BtnLogs_OnClick"/>
                 <Button Name="BtnUpdate" Content="Update" IsEnabled="{Binding !IsUpToDate}" Click="BtnUpdate_OnClick"/>
                 <Button Name="BtnMore" Content="More" Click="BtnMore_OnClick"/>
             </StackPanel>

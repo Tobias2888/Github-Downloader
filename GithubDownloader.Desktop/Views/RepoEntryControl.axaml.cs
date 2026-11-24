@@ -9,6 +9,7 @@ using GithubDownloader.Desktop.Enums;
 using GithubDownloader.Desktop.ViewModels;
 using GithubDownloader.Core;
 using GithubDownloader.Core.Models;
+using GithubDownloader.Desktop.Services;
 using LoggerLib;
 
 namespace GithubDownloader.Desktop.Views;
@@ -26,6 +27,8 @@ public partial class RepoEntryControl : UserControl
         _mainViewModel = ((App)Application.Current!).MainViewModel;
         _repoDetailsViewModel = ((App)Application.Current!).RepoDetailsViewModel;
         _downloadStatusViewModel = ((App)Application.Current!).DownloadStatusViewModel;
+        DataContextChanged += (_, _) => UpdateLauncherButtons();
+        UpdateLauncherButtons();
     }
 
     private void InitializeComponent()
@@ -55,6 +58,33 @@ public partial class RepoEntryControl : UserControl
         
         _repoDetailsViewModel.Repo = repo;
         _mainViewModel.SwitchPage(ViewNames.RepoDetails);
+    }
+
+    private void UpdateLauncherButtons()
+    {
+        bool available = DataContext is Repo repo && RepoAppRuntime.CanOpen(repo);
+        this.FindControl<Button>("BtnOpen")!.IsVisible = available;
+        this.FindControl<Button>("BtnLogs")!.IsVisible = available;
+    }
+
+    private void BtnOpen_OnClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not Repo repo) return;
+        if (!RepoAppRuntime.TryOpen(repo, out RepoAppLogSession? session, out string error) || session is null)
+        {
+            _ = Logger.LogW(error);
+            this.FindAncestorOfType<HomeView>()?.ShowToast(error);
+        }
+    }
+
+    private void BtnLogs_OnClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not Repo repo) return;
+        RepoAppLogSession session = RepoAppRuntime.GetSession(repo) ?? new RepoAppLogSession(repo.Name);
+        if (!session.HasOutput) session.Add("ghd", "No output has been captured. Use Open to start this app from GHD.");
+        RepoAppLogsWindow window = new(session);
+        if (TopLevel.GetTopLevel(this) is Window owner) window.Show(owner);
+        else window.Show();
     }
 
     private void BtnRemove_OnClick(object? sender, RoutedEventArgs e)

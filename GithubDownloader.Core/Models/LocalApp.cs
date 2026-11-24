@@ -27,6 +27,7 @@ public sealed record LocalApp
     public string InstallerPath { get; init; } = "";
     public string ExecutablePath { get; init; } = "";
     public string DesktopEntryArguments { get; init; } = "";
+    public string DesktopEntryName { get; init; } = "";
     public string DesktopEntryHash { get; init; } = "";
     public string DesktopIconPath { get; init; } = "";
     public List<LocalInstallerVersion> InstallerVersions { get; init; } = new();
@@ -42,6 +43,7 @@ public sealed record LocalApp
     [JsonIgnore] public bool CanAddArchiveVersion => Kind == LocalAppKind.Archive;
     [JsonIgnore] public bool CanEditDesktopEntryArguments => OperatingSystem.IsLinux() && IsInstalled
         && (Kind == LocalAppKind.AppImage || Kind == LocalAppKind.Archive && DesktopEntryHash.Length > 0);
+    [JsonIgnore] public bool CanConfigureDesktopEntry => CanEditDesktopEntryArguments || CanSetArchiveIcon;
     [JsonIgnore] public bool CanSetArchiveIcon => OperatingSystem.IsLinux() && Kind == LocalAppKind.Archive
         && IsInstalled && ExecutablePath.Length > 0 && DesktopEntryHash.Length > 0;
     [JsonIgnore] public string Type => Kind switch
