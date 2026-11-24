@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:services="clr-namespace:GithubDownloader.Desktop.Services"
+        xmlns:views="clr-namespace:GithubDownloader.Desktop.Views"
         x:Class="GithubDownloader.Desktop.Views.RepoAppLogsWindow"
         x:DataType="services:RepoAppLogSession"
         Title="Application Logs"
@@ -18,8 +19,8 @@
                 <ItemsControl ItemsSource="{Binding Lines}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <TextBlock Text="{Binding}" Foreground="#C7C7C7" FontSize="11"
-                                       FontFamily="Cascadia Code, Consolas, monospace" TextWrapping="Wrap" Margin="0,1"/>
+                            <views:AnsiTextBlock AnsiText="{Binding}" Foreground="#C7C7C7" FontSize="11"
+                                                 FontFamily="Cascadia Code, Consolas, monospace" TextWrapping="Wrap" Margin="0,1"/>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
