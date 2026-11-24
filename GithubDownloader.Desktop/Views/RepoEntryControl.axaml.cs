@@ -1,3 +1,4 @@
+using System;
 using GithubDownloader.Core.Configuration;
 using Avalonia;
 using Avalonia.Controls;
@@ -62,9 +63,13 @@ public partial class RepoEntryControl : UserControl
 
     private void UpdateLauncherButtons()
     {
+        bool isRepository = DataContext is Repo;
         bool available = DataContext is Repo repo && RepoAppRuntime.CanOpen(repo);
-        this.FindControl<Button>("BtnOpen")!.IsVisible = available;
-        this.FindControl<Button>("BtnLogs")!.IsVisible = available;
+        Button open = this.FindControl<Button>("BtnOpen")!;
+        open.IsVisible = OperatingSystem.IsLinux() && isRepository;
+        open.IsEnabled = available;
+        ToolTip.SetTip(open, available ? "Open installed app" : "No supported application-menu launcher is available.");
+        this.FindControl<Button>("BtnLogs")!.IsVisible = OperatingSystem.IsLinux() && available;
     }
 
     private void BtnOpen_OnClick(object? sender, RoutedEventArgs e)

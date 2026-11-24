@@ -66,6 +66,7 @@ internal sealed record RepoDesktopEntry(string FilePath, string Executable, IRea
         if (package.Length == 0) return null;
         IReadOnlyList<string> packageFiles = ListPackageFiles(package, repo.InstalledDebianPackage.Length > 0);
         string[] candidates = packageFiles.Where(path => path.EndsWith(".desktop", StringComparison.OrdinalIgnoreCase)
+                && string.Equals(Path.GetFileName(Path.GetDirectoryName(path)), "applications", StringComparison.Ordinal)
                 && Path.IsPathFullyQualified(path) && File.Exists(path))
             .Distinct(StringComparer.Ordinal).ToArray();
         return candidates.Length == 1 ? candidates[0] : null;

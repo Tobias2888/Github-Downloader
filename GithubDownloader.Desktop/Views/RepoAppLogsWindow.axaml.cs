@@ -7,6 +7,8 @@ namespace GithubDownloader.Desktop.Views;
 
 public partial class RepoAppLogsWindow : Window
 {
+    public RepoAppLogsWindow() : this(new RepoAppLogSession("Application")) { }
+
     public RepoAppLogsWindow(RepoAppLogSession session)
     {
         InitializeComponent();
