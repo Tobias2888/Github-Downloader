@@ -217,7 +217,7 @@ public partial class App : Application
         string appdataPath = Path.Join(DirectoryHelper.GetAppDataDirPath(), "github-downloader");
         Logger.LogDir = Path.Join(appdataPath, "logs");
         Logger.LogToTerminal = true;
-        Logger.LogFirstChance = true;
+        Logger.LogFirstChance = false;
         Logger.LogDebug = false;
         Logger.LogLevel = LogLevel.Info;
         // Retention must be configured before LoggerLib creates (and prunes) the session log.
