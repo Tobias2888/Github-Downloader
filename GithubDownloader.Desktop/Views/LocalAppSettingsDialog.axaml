@@ -1,0 +1,47 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:models="clr-namespace:GithubDownloader.Core.Models;assembly=GithubDownloader.Core"
+        x:Class="GithubDownloader.Desktop.Views.LocalAppSettingsDialog"
+        x:DataType="models:LocalApp"
+        Title="Local app settings" Width="520" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner" RequestedThemeVariant="Dark" Background="#222226">
+    <Window.Styles>
+        <Style Selector="TextBlock.DialogTitle">
+            <Setter Property="FontSize" Value="22"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0%,50%" EndPoint="100%,50%">
+                        <GradientStop Color="#A5DEE0" Offset="0"/>
+                        <GradientStop Color="#FFF" Offset="1"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style Selector="Button">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="10"/>
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0%,50%" EndPoint="100%,50%">
+                        <GradientStop Color="#009EA4" Offset="0"/>
+                        <GradientStop Color="#18AFB5" Offset="1"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+    </Window.Styles>
+    
+    <StackPanel Margin="24" Spacing="12">
+        <TextBlock Name="AppTitle" Classes="DialogTitle" TextWrapping="Wrap"/>
+        <TextBlock Text="Configure how this archive appears and launches from your application menu."
+                   TextWrapping="Wrap" Foreground="#DDD"/>
+        <Button Content="Choose icon…" IsVisible="{Binding CanSetArchiveIcon}" Click="ChooseIcon_OnClick" HorizontalAlignment="Stretch"/>
+        <Button Content="Desktop-entry name…" IsVisible="{Binding CanSetArchiveIcon}" Click="DesktopEntryName_OnClick" HorizontalAlignment="Stretch"/>
+        <Button Content="Launch arguments…" IsVisible="{Binding CanEditDesktopEntryArguments}" Click="Arguments_OnClick" HorizontalAlignment="Stretch"/>
+        <TextBlock Name="SettingsStatus" IsVisible="False" TextWrapping="Wrap" Foreground="#FF9999"/>
+        <Button Content="Done" Click="Done_OnClick" HorizontalAlignment="Right" Padding="16,8"/>
+    </StackPanel>
+</Window>

@@ -1,0 +1,17 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="GithubDownloader.Desktop.Views.DesktopEntryNameDialog"
+        Title="Desktop-entry name" Width="540" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner" RequestedThemeVariant="Dark" Background="#222226">
+    <StackPanel Margin="24" Spacing="16">
+        <TextBlock Text="Application-menu name" FontSize="20" FontWeight="SemiBold" Foreground="White"/>
+        <TextBlock Text="Choose the name shown for this archive in your application menu. Clear the field to use the archive filename."
+                   TextWrapping="Wrap" Foreground="#DDD"/>
+        <TextBox Name="NameInput" PlaceholderText="Archive name"/>
+        <TextBlock Name="SaveError" IsVisible="False" TextWrapping="Wrap" Foreground="#FF9999"/>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+            <Button Content="Cancel" Click="Cancel_OnClick" Padding="16,8"/>
+            <Button Name="SaveName" Content="Save" Click="Save_OnClick" Padding="16,8"/>
+        </StackPanel>
+    </StackPanel>
+</Window>

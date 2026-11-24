@@ -44,6 +44,19 @@ public sealed class LocalAppManager
         _store.Save(updated);
     }
 
+    public async Task SetDesktopEntryNameAsync(LocalApp app, string name, Action<string> progress)
+    {
+        LocalApp current = _store.Read().FirstOrDefault(entry => entry.Id == app.Id)
+            ?? throw new IOException("The local app entry no longer exists.");
+        if (current.Kind != LocalAppKind.Archive || !current.CanSetArchiveIcon)
+            throw new InvalidOperationException("Install an archive with an application-menu entry first.");
+        if (name.Contains('\n') || name.Contains('\r') || name.Contains('\0'))
+            throw new ArgumentException("The application-menu name cannot contain line breaks.", nameof(name));
+        LocalApp updated = current with { DesktopEntryName = name.Trim() };
+        updated = await _launcher.ConfigureAsync(updated, current, [current.ExecutablePath], null, progress);
+        _store.Save(updated);
+    }
+
     public async Task SetDesktopEntryArgumentsAsync(Repo repo, string arguments, Action<string> progress)
     {
         DesktopEntryCommand.Create("app", arguments);

@@ -86,7 +86,7 @@ internal sealed class ArchiveAppLauncher
         string content = $"""
             [Desktop Entry]
             Type=Application
-            Name={EscapeValue(displayName ?? app.Name)}
+            Name={EscapeValue(displayName ?? (app.DesktopEntryName.Length > 0 ? app.DesktopEntryName : app.Name))}
             Exec={DesktopEntryCommand.Create(executable, app.DesktopEntryArguments)}
             Path={EscapeValue(Path.GetDirectoryName(executable)!)}
             Icon={EscapeValue(icon)}
