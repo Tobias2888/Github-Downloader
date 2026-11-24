@@ -10,22 +10,23 @@ namespace GithubDownloader.Desktop.Views;
 
 public sealed class AnsiTextBlock : TextBlock
 {
-    public static readonly StyledProperty<string> AnsiTextProperty =
-        AvaloniaProperty.Register<AnsiTextBlock, string>(nameof(AnsiText), string.Empty);
+    public static readonly StyledProperty<string?> AnsiTextProperty =
+        AvaloniaProperty.Register<AnsiTextBlock, string?>(nameof(AnsiText), string.Empty);
 
     static AnsiTextBlock()
     {
         AnsiTextProperty.Changed.AddClassHandler<AnsiTextBlock>((control, _) => control.RenderAnsiText(control.AnsiText));
     }
 
-    public string AnsiText
+    public string? AnsiText
     {
         get => GetValue(AnsiTextProperty);
         set => SetValue(AnsiTextProperty, value);
     }
 
-    private void RenderAnsiText(string value)
+    private void RenderAnsiText(string? value)
     {
+        string text = value ?? string.Empty;
         EnsureInlines().Clear();
         Color? foreground = null;
         Color? background = null;
@@ -33,31 +34,31 @@ public sealed class AnsiTextBlock : TextBlock
         int textStart = 0;
         int position = 0;
 
-        while (position < value.Length)
+        while (position < text.Length)
         {
-            if (value[position] != '\u001b' || position + 1 >= value.Length)
+            if (text[position] != '\u001b' || position + 1 >= text.Length)
             {
                 position++;
                 continue;
             }
 
-            if (value[position + 1] == '[')
+            if (text[position + 1] == '[')
             {
-                int end = FindControlSequenceEnd(value, position + 2);
+                int end = FindControlSequenceEnd(text, position + 2);
                 if (end < 0) { position++; continue; }
-                AppendRun(value[textStart..position], foreground, background, bold);
-                if (value[end] == 'm') ApplySgr(value.AsSpan(position + 2, end - position - 2), ref foreground, ref background, ref bold);
+                AppendRun(text[textStart..position], foreground, background, bold);
+                if (text[end] == 'm') ApplySgr(text.AsSpan(position + 2, end - position - 2), ref foreground, ref background, ref bold);
                 position = end + 1;
                 textStart = position;
                 continue;
             }
 
-            if (value[position + 1] == ']')
+            if (text[position + 1] == ']')
             {
-                int end = FindOperatingSystemCommandEnd(value, position + 2);
+                int end = FindOperatingSystemCommandEnd(text, position + 2);
                 if (end >= 0)
                 {
-                    AppendRun(value[textStart..position], foreground, background, bold);
+                    AppendRun(text[textStart..position], foreground, background, bold);
                     position = end;
                     textStart = position;
                     continue;
@@ -67,7 +68,7 @@ public sealed class AnsiTextBlock : TextBlock
             position++;
         }
 
-        AppendRun(value[textStart..], foreground, background, bold);
+        AppendRun(text[textStart..], foreground, background, bold);
     }
 
     private void AppendRun(string text, Color? foreground, Color? background, bool bold)
