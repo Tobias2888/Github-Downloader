@@ -29,7 +29,7 @@ class Program
         }
 
         DesktopActivation = activation;
-        Logger.LogFirstChance = false;
+        Logger.LogFirstChance = true;
         Logger.LogDebug = false;
         Logger.LogLevel = LogLevel.Info;
         return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
