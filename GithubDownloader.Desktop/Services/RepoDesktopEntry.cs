@@ -114,8 +114,10 @@ internal sealed record RepoDesktopEntry(string FilePath, string Executable, IRea
 
     private static string PacmanPath(string line)
     {
-        int separator = line.IndexOf("  ", StringComparison.Ordinal);
-        return separator >= 0 ? line[(separator + 2)..].TrimEnd('\r') : "";
+        int pathStart = 0;
+        while (pathStart < line.Length && !char.IsWhiteSpace(line[pathStart])) pathStart++;
+        while (pathStart < line.Length && char.IsWhiteSpace(line[pathStart])) pathStart++;
+        return pathStart < line.Length ? line[pathStart..].TrimEnd('\r') : "";
     }
 
     private static string DataHome()
