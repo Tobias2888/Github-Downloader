@@ -160,10 +160,22 @@ internal sealed record RepoDesktopEntry(string FilePath, string Executable, IRea
             else if (character == '"') { inQuotes = !inQuotes; started = true; }
             else if (character == '%')
             {
-                if (index + 1 >= command.Length || command[index + 1] != '%') return false;
-                token.Append('%');
-                index++;
-                started = true;
+                if (index + 1 >= command.Length) return false;
+                char fieldCode = command[index + 1];
+                if (fieldCode == '%')
+                {
+                    token.Append('%');
+                    index++;
+                    started = true;
+                }
+                else if (fieldCode is 'f' or 'F' or 'u' or 'U')
+                {
+                    bool standalone = !started && token.Length == 0
+                        && (index + 2 == command.Length || char.IsWhiteSpace(command[index + 2]));
+                    if (!standalone) return false;
+                    index++;
+                }
+                else return false;
             }
             else if (char.IsWhiteSpace(character) && !inQuotes)
             {
