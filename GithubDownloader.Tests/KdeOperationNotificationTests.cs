@@ -35,6 +35,34 @@ public sealed class KdeOperationNotificationTests
         Assert.True(job.Disposed);
     }
 
+    [Fact]
+    public async Task RepositoryNameIsIncludedInTheJobTitle()
+    {
+        FakeJob job = new();
+        KdeOperationNotification notification = KdeOperationNotification.StartForTest(
+            () => Task.FromResult<KdeOperationNotification.INotificationJob>(job), "Updating");
+        UpdateManager.NotifyRepositoryStarted("owner/repo");
+        notification.ReportStatus("Downloading owner/repo");
+
+        Assert.True(await notification.FinishAsync(true));
+        KdeOperationNotification.Snapshot snapshot = Assert.Single(job.Updates);
+        Assert.Equal("Updating: owner/repo", snapshot.Title);
+    }
+
+    [Fact]
+    public async Task RepositoryNameIsNotRepeatedWhenTheTitleAlreadyContainsIt()
+    {
+        FakeJob job = new();
+        KdeOperationNotification notification = KdeOperationNotification.StartForTest(
+            () => Task.FromResult<KdeOperationNotification.INotificationJob>(job), "Reinstalling owner/repo");
+        UpdateManager.NotifyRepositoryStarted("owner/repo");
+        notification.ReportStatus("Downloading owner/repo");
+
+        Assert.True(await notification.FinishAsync(true));
+        KdeOperationNotification.Snapshot snapshot = Assert.Single(job.Updates);
+        Assert.Equal("Reinstalling owner/repo", snapshot.Title);
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData(35.0)]

@@ -94,7 +94,9 @@ public static class Api
             response.EnsureSuccessStatusCode();
         
             long? totalBytes = response.Content.Headers.ContentLength;
-        
+
+            string outputDirectory = Path.GetDirectoryName(Path.GetFullPath(outputPath))!;
+            Directory.CreateDirectory(outputDirectory);
             FileHelper.Create(outputPath);
             await using FileStream fs = File.OpenWrite(outputPath);
             Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken);

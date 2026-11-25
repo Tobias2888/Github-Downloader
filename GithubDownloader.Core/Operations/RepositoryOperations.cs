@@ -12,12 +12,14 @@ namespace GithubDownloader.Core.Operations;
 using Asset = GithubDownloader.Core.Operations.RepositoryAsset;
 
 /// <summary>Coordinates downloads, batch installation and history using per-operation dependencies.</summary>
-internal sealed class RepositoryOperations(HistoryStore history, WindowsSelfUpdate selfUpdate, PackageInstaller packages, RepositoryDownloads downloads)
+internal sealed class RepositoryOperations(HistoryStore history, WindowsSelfUpdate selfUpdate, PackageInstaller packages,
+    RepositoryDownloads downloads, InstallationManager? installations = null)
 {
     private readonly RepositoryDownloads _downloads = downloads;
     private readonly HistoryStore _history = history;
     private readonly WindowsSelfUpdate _selfUpdate = selfUpdate;
     private readonly PackageInstaller _packages = packages;
+    private readonly InstallationManager _installations = installations ?? new();
     internal async Task<bool> RunBatchAsync(IEnumerable<Repo> repos, Action<string> statusText,
         Action<string> progressText, bool force, bool downloadOnly,
         Func<string, string, IProgress<double>, Task>? downloadFile = null,
@@ -231,10 +233,13 @@ internal sealed class RepositoryOperations(HistoryStore history, WindowsSelfUpda
     internal async Task<bool> ApplyAssetAsync(Asset asset, Action<string> statusText,
         Action<string> progressText, bool downloadOnly, Func<Asset, Task<bool>>? installAsset,
         Func<string, IReadOnlyList<string>, Task<string?>>? selectArchiveExecutable = null,
-        ArchiveAppLauncher? archiveLauncher = null, Action<OperationProgress>? operationProgress = null)
+        ArchiveAppLauncher? archiveLauncher = null, Action<OperationProgress>? operationProgress = null,
+        InstallationManager? installations = null)
     {
         bool extract = !downloadOnly && asset.Repo.AutoExtract && ArchiveExtractor.IsSupportedArchive(asset.TempAssetPath);
         bool install = !downloadOnly && PackageInstaller.IsInstallerAsset(asset.TempAssetPath);
+        InstallationKind? newKind = !downloadOnly && asset.LocalSourcePath is null
+            ? InstallationKinds.FromAsset(asset.TempAssetPath, extract) : null;
         string displayName = asset.LocalSourcePath is null ? asset.Repo.Name : Path.GetFileName(asset.LocalSourcePath);
         using HistoryScope history = _history.Begin(extract ? HistoryAction.Extract
             : install ? HistoryAction.Install : HistoryAction.Save, asset.Repo, asset.ParentHistoryId,
@@ -284,6 +289,9 @@ internal sealed class RepositoryOperations(HistoryStore history, WindowsSelfUpda
                     asset.Repo.CurrentInstallTag = asset.Tag;
                 }
             }
+            if (newKind is InstallationKind kind)
+                _ = await (installations ?? _installations).RemoveSupersededInstallationsAsync(
+                    asset.Repo, kind, statusText, progressText);
             history.Complete(extract ? HistoryOutcome.Extracted : install ? HistoryOutcome.Installed : HistoryOutcome.Saved);
             return true;
         }

@@ -1,5 +1,6 @@
 using GithubDownloader.Core.LocalApplications;
 using GithubDownloader.Core.Installation;
+using GithubDownloader.Core.Operations;
 using GithubDownloader.Core.History;
 using System.Diagnostics;
 using System.Text.Json;
@@ -24,6 +25,20 @@ public sealed class ArchUninstallTests : IDisposable
 
     private InstallationManager Manager(Func<ProcessStartInfo, InstallationManager.CommandResult> run) =>
         new(Path.Combine(_root, "images"), Path.Combine(_root, "desktop"), (start, _) => Task.FromResult(run(start)));
+
+    private async Task<(string AppImage, string DesktopEntry)> CreateAppImage(string id)
+    {
+        string directory = Path.Combine(_root, "images", id);
+        Directory.CreateDirectory(directory);
+        string appImage = Path.Combine(directory, id + ".AppImage");
+        string icon = Path.Combine(directory, "icon.png");
+        string desktop = Path.Combine(_root, "desktop", id + ".desktop");
+        Directory.CreateDirectory(Path.GetDirectoryName(desktop)!);
+        await File.WriteAllTextAsync(appImage, "executable");
+        await File.WriteAllTextAsync(icon, "icon");
+        await File.WriteAllTextAsync(desktop, "[Desktop Entry]\nExec=" + appImage + "\n");
+        return (appImage, desktop);
+    }
 
     [Theory]
     [InlineData("actual-package\n", 0, true)]
@@ -108,6 +123,168 @@ public sealed class ArchUninstallTests : IDisposable
         Assert.False(removed.CanUninstall);
         Assert.True(removed.CanReinstall);
         Assert.All(app.AvailableInstallerVersions, version => Assert.True(File.Exists(version.Path)));
+    }
+
+    [Fact]
+    public async Task ArchInstallRemovesPreviousArchiveInstallation()
+    {
+        if (!OperatingSystem.IsLinux()) return;
+        string extraction = Path.Combine(_root, "extracted");
+        Directory.CreateDirectory(extraction);
+        string executable = Path.Combine(extraction, "app");
+        await File.WriteAllTextAsync(executable, "old app");
+        string changedFile = Path.Combine(extraction, "changed.txt");
+        await File.WriteAllTextAsync(changedFile, "user edit");
+        string desktopDirectory = Path.Combine(_root, "desktop");
+        Directory.CreateDirectory(desktopDirectory);
+        string entry = Path.Combine(desktopDirectory, "owner_repo.desktop");
+        await File.WriteAllTextAsync(entry, "[Desktop Entry]\nName=Old app\n");
+
+        LocalApp archive = new()
+        {
+            Id = "repository:owner/repo",
+            FileName = "release.tar.gz",
+            InstallationName = "owner/repo",
+            Kind = LocalAppKind.Archive,
+            ExtractionDirectory = extraction,
+            ExecutablePath = executable,
+            DesktopEntryHash = LocalAppManager.FileHash(entry),
+            OwnedFiles = new Dictionary<string, string>
+            {
+                ["app"] = LocalAppManager.FileHash(executable),
+                ["changed.txt"] = new string('0', 64)
+            }
+        };
+        Repo repo = new() { Url = "", Name = "owner/repo", CurrentInstallTag = "v1", ArchiveInstallation = archive };
+        string package = Path.Combine(_root, "new.pkg.tar.zst");
+        await File.WriteAllTextAsync(package, "installer");
+        RepositoryAsset asset = new(repo, package, "v2");
+        InstallationManager manager = Manager(start =>
+        {
+            if (start.ArgumentList.FirstOrDefault() == "-Qp") return new(0, "actual-package\n");
+            Assert.Equal(new[] { "-U", "--noconfirm", "--", package }, start.ArgumentList.TakeLast(4));
+            return new(0, "installed");
+        });
+
+        Assert.True(await UpdateManager.ApplyAssetAsync(asset, _ => { }, _ => { }, false,
+            item => UpdateManager.InstallArchAssetAsync(item, _ => { }, manager, (_, _) => Task.FromResult(0)),
+            installations: manager));
+
+        Assert.Equal("actual-package", repo.InstalledArchPackage);
+        Assert.Equal("v2", repo.CurrentInstallTag);
+        Assert.False(repo.ExcludedFromDownloadAll);
+        Assert.False(File.Exists(executable));
+        Assert.True(File.Exists(changedFile));
+        Assert.False(File.Exists(entry));
+        Assert.False(repo.ArchiveInstallation!.IsInstalled);
+        Assert.Contains(OperationHistory.Store.Query().Entries,
+            item => item.Action == HistoryAction.Uninstall && item.Outcome == HistoryOutcome.Uninstalled);
+    }
+
+    [Fact]
+    public async Task ArchInstallRemovesDebianAndAppImageInstallations()
+    {
+        if (!OperatingSystem.IsLinux()) return;
+        Repo repo = new()
+        {
+            Url = "", Name = "owner/repo", CurrentInstallTag = "v1",
+            InstalledDebianPackage = "old-deb:amd64", InstalledAppImageId = "owner-repo"
+        };
+        (string appImage, string desktop) = await CreateAppImage("owner-repo");
+        string package = Path.Combine(_root, "new.pkg.tar.zst");
+        await File.WriteAllTextAsync(package, "installer");
+        List<ProcessStartInfo> commands = [];
+        InstallationManager manager = Manager(start =>
+        {
+            commands.Add(start);
+            if (start.ArgumentList.FirstOrDefault() == "-Qp") return new(0, "new-arch\n");
+            return new(0, "");
+        });
+        RepositoryAsset asset = new(repo, package, "v2");
+
+        Assert.True(await UpdateManager.ApplyAssetAsync(asset, _ => { }, _ => { }, false,
+            item => UpdateManager.InstallArchAssetAsync(item, _ => { }, manager, (_, _) => Task.FromResult(0)),
+            installations: manager));
+
+        Assert.Contains(commands, start => start.ArgumentList.TakeLast(4)
+            .SequenceEqual(new[] { "/usr/bin/dpkg", "--remove", "--", "old-deb:amd64" }));
+        Assert.Empty(repo.InstalledDebianPackage);
+        Assert.Empty(repo.InstalledAppImageId);
+        Assert.Equal("new-arch", repo.InstalledArchPackage);
+        Assert.Equal("v2", repo.CurrentInstallTag);
+        Assert.False(repo.ExcludedFromDownloadAll);
+        Assert.False(File.Exists(appImage));
+        Assert.False(File.Exists(desktop));
+        Assert.Equal(2, OperationHistory.Store.Query().Entries.Count(
+            entry => entry.Action == HistoryAction.Uninstall && entry.Outcome == HistoryOutcome.Uninstalled));
+    }
+
+    [Fact]
+    public async Task AppImageInstallRemovesDebianAndArchInstallations()
+    {
+        if (!OperatingSystem.IsLinux()) return;
+        Repo repo = new()
+        {
+            Url = "", Name = "owner/repo", CurrentInstallTag = "v1",
+            InstalledDebianPackage = "old-deb:amd64", InstalledArchPackage = "old-arch"
+        };
+        string appImage = Path.Combine(_root, "new.AppImage");
+        await File.WriteAllTextAsync(appImage, "installer");
+        List<ProcessStartInfo> commands = [];
+        InstallationManager manager = Manager(start =>
+        {
+            commands.Add(start);
+            return new(0, "");
+        });
+        RepositoryAsset asset = new(repo, appImage, "v2");
+
+        Assert.True(await UpdateManager.ApplyAssetAsync(asset, _ => { }, _ => { }, false,
+            item =>
+            {
+                item.Repo.InstalledAppImageId = "owner-repo";
+                return Task.FromResult(true);
+            }, installations: manager));
+
+        Assert.Contains(commands, start => start.ArgumentList.TakeLast(4)
+            .SequenceEqual(new[] { "/usr/bin/dpkg", "--remove", "--", "old-deb:amd64" }));
+        Assert.Contains(commands, start => start.ArgumentList.TakeLast(4)
+            .SequenceEqual(new[] { "-R", "--noconfirm", "--", "old-arch" }));
+        Assert.Empty(repo.InstalledDebianPackage);
+        Assert.Empty(repo.InstalledArchPackage);
+        Assert.Equal("owner-repo", repo.InstalledAppImageId);
+        Assert.Equal("v2", repo.CurrentInstallTag);
+        Assert.False(repo.ExcludedFromDownloadAll);
+    }
+
+    [Fact]
+    public async Task SameKindInstallKeepsThePreviousInstallationRecord()
+    {
+        if (!InstallationManager.CanInstallDebianPackages) return;
+        Repo repo = new()
+        {
+            Url = "", Name = "owner/repo", CurrentInstallTag = "v1", InstalledDebianPackage = "old-deb:amd64"
+        };
+        string deb = Path.Combine(_root, "new.deb");
+        await File.WriteAllTextAsync(deb, "installer");
+        List<ProcessStartInfo> commands = [];
+        InstallationManager manager = Manager(start =>
+        {
+            commands.Add(start);
+            return new(0, "");
+        });
+        RepositoryAsset asset = new(repo, deb, "v2");
+
+        Assert.True(await UpdateManager.ApplyAssetAsync(asset, _ => { }, _ => { }, false,
+            item =>
+            {
+                item.Repo.InstalledDebianPackage = "new-deb:amd64";
+                return Task.FromResult(true);
+            }, installations: manager));
+
+        Assert.Empty(commands);
+        Assert.Equal("new-deb:amd64", repo.InstalledDebianPackage);
+        Assert.Equal("v2", repo.CurrentInstallTag);
+        Assert.False(repo.ExcludedFromDownloadAll);
     }
 
     [Fact]

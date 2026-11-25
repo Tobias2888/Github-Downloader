@@ -108,6 +108,111 @@ public sealed class InstallationManager
         }
     }
 
+    internal async Task<bool> RemoveSupersededInstallationsAsync(Repo repo, InstallationKind newKind,
+        Action<string> status, Action<string> progress)
+    {
+        bool removedAll = true;
+        if (newKind != InstallationKind.Archive && repo.ArchiveInstallation is { IsInstalled: true } archive)
+            removedAll &= await TryRemoveAsync("archive installation", progress,
+                () => RemoveArchiveInstallationAsync(archive, repo, status, progress));
+        if (newKind != InstallationKind.Debian && repo.InstalledDebianPackage.Length > 0)
+            removedAll &= await TryRemoveAsync("Debian package", progress,
+                () => RemoveDebianInstallationAsync(repo, repo.InstalledDebianPackage, status, progress));
+        if (newKind != InstallationKind.Arch && repo.InstalledArchPackage.Length > 0)
+            removedAll &= await TryRemoveAsync("Arch package", progress,
+                () => RemoveArchInstallationAsync(repo, repo.InstalledArchPackage, status, progress));
+        if (newKind != InstallationKind.AppImage && repo.InstalledAppImageId.Length > 0)
+            removedAll &= await TryRemoveAsync("AppImage installation", progress,
+                () => RemoveAppImageInstallationAsync(repo, repo.InstalledAppImageId, status, progress));
+        return removedAll;
+    }
+
+    private static async Task<bool> TryRemoveAsync(string label, Action<string> progress, Func<Task<bool>> remove)
+    {
+        try
+        {
+            return await remove();
+        }
+        catch (Exception exception)
+        {
+            _ = Logger.LogW($"Previous {label} could not be removed ({exception.GetType().Name})");
+            progress($"Previous {label} could not be removed. Remove it manually.");
+            return false;
+        }
+    }
+
+    private async Task<bool> RemoveArchiveInstallationAsync(LocalApp archive, Repo repo,
+        Action<string> status, Action<string> progress)
+    {
+        _ = Logger.LogI("Removing archive installation");
+        LocalAppManager archives = new(LocalApps.Store, this, new ArchiveAppLauncher(_desktopDirectory));
+        return await archives.UninstallArchiveAsync(archive, status, progress,
+            updated => repo.ArchiveInstallation = updated, removeEntireDirectory: false);
+    }
+
+    private async Task<bool> RemoveDebianInstallationAsync(Repo repo, string package,
+        Action<string> status, Action<string> progress)
+    {
+        using HistoryScope history = OperationHistory.Store.Begin(HistoryAction.Uninstall, repo);
+        try
+        {
+            if (!await RemoveDebianPackageAsync(repo, package, status, progress))
+            {
+                history.Finish(HistoryStatus.Failed, HistoryOutcome.UninstallFailed);
+                return false;
+            }
+            repo.InstalledDebianPackage = string.Empty;
+            history.Complete(HistoryOutcome.Uninstalled);
+            return true;
+        }
+        catch
+        {
+            history.Finish(HistoryStatus.Failed, HistoryOutcome.UninstallFailed);
+            throw;
+        }
+    }
+
+    private async Task<bool> RemoveArchInstallationAsync(Repo repo, string package,
+        Action<string> status, Action<string> progress)
+    {
+        using HistoryScope history = OperationHistory.Store.Begin(HistoryAction.Uninstall, repo);
+        try
+        {
+            if (!await RemoveArchPackageAsync(repo, package, status, progress))
+            {
+                history.Finish(HistoryStatus.Failed, HistoryOutcome.UninstallFailed);
+                return false;
+            }
+            repo.InstalledArchPackage = string.Empty;
+            history.Complete(HistoryOutcome.Uninstalled);
+            return true;
+        }
+        catch
+        {
+            history.Finish(HistoryStatus.Failed, HistoryOutcome.UninstallFailed);
+            throw;
+        }
+    }
+
+    private Task<bool> RemoveAppImageInstallationAsync(Repo repo, string id,
+        Action<string> status, Action<string> progress)
+    {
+        using HistoryScope history = OperationHistory.Store.Begin(HistoryAction.Uninstall, repo);
+        try
+        {
+            ValidateAppImageInstallation(id, repo.DesktopEntryArguments);
+            RemoveAppImage(repo, id, status, progress);
+            repo.InstalledAppImageId = string.Empty;
+            history.Complete(HistoryOutcome.Uninstalled);
+            return Task.FromResult(true);
+        }
+        catch
+        {
+            history.Finish(HistoryStatus.Failed, HistoryOutcome.UninstallFailed);
+            throw;
+        }
+    }
+
     public async Task<bool> UninstallAsync(Repo repo, Action<string> status, Action<string> progress,
         string? legacyDebianPackage = null, string? localFileName = null)
     {
@@ -120,16 +225,14 @@ public sealed class InstallationManager
 
             if (repo.ArchiveInstallation is { IsInstalled: true } archive)
             {
-                LocalAppManager archives = new(LocalApps.Store, this, new ArchiveAppLauncher(_desktopDirectory));
-                bool removed = await archives.UninstallArchiveAsync(archive, status, progress,
-                    updated => repo.ArchiveInstallation = updated, removeEntireDirectory: false);
-                if (removed)
+                if (await RemoveArchiveInstallationAsync(archive, repo, status, progress))
                 {
                     repo.CurrentInstallTag = string.Empty;
                     repo.ExcludedFromDownloadAll = true;
                     history.Complete(HistoryOutcome.Uninstalled);
+                    return true;
                 }
-                return removed;
+                return false;
             }
 
             string package = repo.InstalledDebianPackage;
@@ -149,48 +252,20 @@ public sealed class InstallationManager
             if (appImageId.Length > 0) ValidateAppImageInstallation(appImageId, repo.DesktopEntryArguments);
 
             status($"Uninstalling {repo.Name}...");
-            if (package.Length > 0)
+            if (package.Length > 0 && !await RemoveDebianPackageAsync(repo, package, status, progress))
             {
-                _ = Logger.LogI("Removing Debian package");
-                progress("Removing Debian package");
-                ProcessStartInfo start = CreateDebianRemovalStartInfo(package);
-                // Command output can contain user paths; do not put it in activity logs.
-                CommandResult result = await _run(start, _ => { });
-                if (result.ExitCode != 0)
-                {
-                    _ = Logger.LogE($"Debian package removal failed (exit code {result.ExitCode})");
-                    progress($"Uninstall failed (exit code {result.ExitCode}). Check authorization and package dependencies.");
-                    history.Finish(HistoryStatus.Failed, HistoryOutcome.UninstallFailed);
-                    return false;
-                }
-                _ = Logger.LogI("Debian package removed");
-                repo.InstalledDebianPackage = string.Empty;
+                history.Finish(HistoryStatus.Failed, HistoryOutcome.UninstallFailed);
+                return false;
             }
 
-            if (archPackage.Length > 0)
+            if (archPackage.Length > 0 && !await RemoveArchPackageAsync(repo, archPackage, status, progress))
             {
-                _ = Logger.LogI("Removing Arch package");
-                progress("Removing Arch package");
-                CommandResult result = await _run(CreateArchRemovalStartInfo(archPackage), _ => { });
-                if (result.ExitCode != 0)
-                {
-                    _ = Logger.LogE($"Arch package removal failed (exit code {result.ExitCode})");
-                    progress($"Uninstall failed (exit code {result.ExitCode}). Check authorization and package dependencies.");
-                    history.Finish(HistoryStatus.Failed, HistoryOutcome.UninstallFailed);
-                    return false;
-                }
-                repo.InstalledArchPackage = string.Empty;
-                _ = Logger.LogI("Arch package removed");
+                history.Finish(HistoryStatus.Failed, HistoryOutcome.UninstallFailed);
+                return false;
             }
 
             if (appImageId.Length > 0)
-            {
-                _ = Logger.LogI("Removing AppImage installation");
-                progress("Removing the AppImage and its application-menu entry");
-                RemoveAppImage(appImageId);
-                _ = Logger.LogI("AppImage installation removed");
-                repo.InstalledAppImageId = string.Empty;
-            }
+                RemoveAppImage(repo, appImageId, status, progress);
 
             repo.CurrentInstallTag = string.Empty;
             repo.ExcludedFromDownloadAll = true;
@@ -272,6 +347,45 @@ public sealed class InstallationManager
         return start;
     }
 
+    private async Task<bool> RemoveDebianPackageAsync(Repo repo, string package,
+        Action<string> status, Action<string> progress)
+    {
+        if (!IsValidDebianPackageName(package)) throw new InvalidOperationException("The Debian package name is invalid.");
+        _ = Logger.LogI("Removing Debian package");
+        status($"Uninstalling {repo.Name}...");
+        progress("Removing Debian package");
+        // Command output can contain user paths; do not put it in activity logs.
+        CommandResult result = await _run(CreateDebianRemovalStartInfo(package), _ => { });
+        if (result.ExitCode != 0)
+        {
+            _ = Logger.LogE($"Debian package removal failed (exit code {result.ExitCode})");
+            progress($"Uninstall failed (exit code {result.ExitCode}). Check authorization and package dependencies.");
+            return false;
+        }
+        repo.InstalledDebianPackage = string.Empty;
+        _ = Logger.LogI("Debian package removed");
+        return true;
+    }
+
+    private async Task<bool> RemoveArchPackageAsync(Repo repo, string package,
+        Action<string> status, Action<string> progress)
+    {
+        if (!IsValidArchPackageName(package)) throw new InvalidOperationException("The Arch package name is invalid.");
+        _ = Logger.LogI("Removing Arch package");
+        status($"Uninstalling {repo.Name}...");
+        progress("Removing Arch package");
+        CommandResult result = await _run(CreateArchRemovalStartInfo(package), _ => { });
+        if (result.ExitCode != 0)
+        {
+            _ = Logger.LogE($"Arch package removal failed (exit code {result.ExitCode})");
+            progress($"Uninstall failed (exit code {result.ExitCode}). Check authorization and package dependencies.");
+            return false;
+        }
+        repo.InstalledArchPackage = string.Empty;
+        _ = Logger.LogI("Arch package removed");
+        return true;
+    }
+
     private void ValidateAppImageInstallation(string id, string arguments)
     {
         ValidateAppImageId(id);
@@ -300,14 +414,21 @@ public sealed class InstallationManager
         File.WriteAllLines(entry, lines.Select(line => line.StartsWith("Exec=", StringComparison.Ordinal) ? "Exec=" + command : line));
     }
 
-    private void RemoveAppImage(string id)
+    private void RemoveAppImage(Repo repo, string id, Action<string> status, Action<string> progress)
     {
+        _ = Logger.LogI("Removing AppImage installation");
+        status($"Uninstalling {repo.Name}...");
+        progress("Removing the AppImage and its application-menu entry");
         string directory = Path.Combine(_appImagesDirectory, id);
         File.Delete(Path.Combine(_desktopDirectory, id + ".desktop"));
-        if (!Directory.Exists(directory)) return;
-        File.Delete(Path.Combine(directory, id + ".AppImage"));
-        File.Delete(Path.Combine(directory, "icon.png"));
-        if (!Directory.EnumerateFileSystemEntries(directory).Any()) Directory.Delete(directory);
+        if (Directory.Exists(directory))
+        {
+            File.Delete(Path.Combine(directory, id + ".AppImage"));
+            File.Delete(Path.Combine(directory, "icon.png"));
+            if (!Directory.EnumerateFileSystemEntries(directory).Any()) Directory.Delete(directory);
+        }
+        repo.InstalledAppImageId = string.Empty;
+        _ = Logger.LogI("AppImage installation removed");
     }
 
     private static ProcessStartInfo CreateStartInfo(string fileName) => new(fileName)

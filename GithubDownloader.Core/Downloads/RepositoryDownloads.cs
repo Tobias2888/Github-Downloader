@@ -19,6 +19,7 @@ internal sealed class RepositoryDownloads(HistoryStore historyStore, Func<string
     {
         cancellationToken.ThrowIfCancellationRequested();
         _ = Logger.LogI("Preparing asset download");
+        UpdateManager.NotifyRepositoryStarted(repo.Name);
 
         using HistoryScope history = historyStore.Begin(HistoryAction.Download, repo, parentId, batchId: batchId);
         operationProgress?.Invoke(new OperationProgress(OperationPhase.Download, null, StartsItem: true));
@@ -44,6 +45,7 @@ internal sealed class RepositoryDownloads(HistoryStore historyStore, Func<string
 
         string downloadTag = repo.Tag;
         cachePath ??= FileManager.CachePath;
+        Directory.CreateDirectory(cachePath);
         string? temporaryDirectory = repo.AutoExtract && ArchiveExtractor.IsSupportedArchive(downloadAssetName)
             || downloadAssetName.EndsWith(".deb", StringComparison.OrdinalIgnoreCase)
             ? Path.Combine(cachePath, $"archive-{Guid.NewGuid():N}")
@@ -67,7 +69,7 @@ internal sealed class RepositoryDownloads(HistoryStore historyStore, Func<string
         {
             history.Finish(cancellationToken.IsCancellationRequested ? HistoryStatus.Interrupted : HistoryStatus.Failed,
                 cancellationToken.IsCancellationRequested ? HistoryOutcome.Interrupted : HistoryOutcome.DownloadFailed);
-            if (temporaryDirectory != null) Directory.Delete(temporaryDirectory, recursive: true);
+            if (temporaryDirectory != null && Directory.Exists(temporaryDirectory)) Directory.Delete(temporaryDirectory, recursive: true);
             else if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
             throw;
         }

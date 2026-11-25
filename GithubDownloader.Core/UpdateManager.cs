@@ -23,6 +23,8 @@ public static class UpdateManager
     public static ObservableCollection<Repo> Repos { get => Catalog.Repos; set => Catalog.Repos = value; }
     public static Platform CurPlatform { get; set; }
     public static string? RootPassword { get; set; }
+    public static event Action<string>? RepositoryStarted;
+    internal static void NotifyRepositoryStarted(string name) => RepositoryStarted?.Invoke(name);
     public static WindowsSelfUpdate SelfUpdate { get; } = new();
     public static void WatchRepos() => Catalog.Watch();
 
@@ -91,8 +93,10 @@ public static class UpdateManager
     internal static Task<bool> ApplyAssetAsync(Asset asset, Action<string> statusText,
         Action<string> progressText, bool downloadOnly, Func<Asset, Task<bool>>? installAsset,
         Func<string, IReadOnlyList<string>, Task<string?>>? selectArchiveExecutable = null,
-        ArchiveAppLauncher? archiveLauncher = null, Action<OperationProgress>? operationProgress = null) =>
-        Operations.ApplyAssetAsync(asset, statusText, progressText, downloadOnly, installAsset, selectArchiveExecutable, archiveLauncher, operationProgress);
+        ArchiveAppLauncher? archiveLauncher = null, Action<OperationProgress>? operationProgress = null,
+        InstallationManager? installations = null) =>
+        Operations.ApplyAssetAsync(asset, statusText, progressText, downloadOnly, installAsset, selectArchiveExecutable,
+            archiveLauncher, operationProgress, installations);
 
     private static PackageInstaller Packages => new(CurPlatform, RootPassword);
     internal static ProcessStartInfo CreatePackageInstallStartInfo(string manager) => Packages.CreatePackageInstallStartInfo(manager);

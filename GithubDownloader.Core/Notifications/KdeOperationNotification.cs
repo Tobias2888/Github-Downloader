@@ -14,14 +14,18 @@ public sealed class KdeOperationNotification
         FullMode = BoundedChannelFullMode.DropOldest, SingleReader = true
     });
     private readonly Task<bool> _worker;
+    private readonly string _title;
+    private volatile string? _repository;
     private volatile bool _nativeJobCreated;
     private volatile bool _completionReported;
     private bool _success;
     private bool _cancelled;
     private string _failure = "The operation could not complete. Check GitHub Downloader for details.";
 
-    private KdeOperationNotification(Func<Task<INotificationJob>> connect)
+    private KdeOperationNotification(string title, Func<Task<INotificationJob>> connect)
     {
+        _title = title;
+        UpdateManager.RepositoryStarted += OnRepositoryStarted;
         _worker = Task.Run(async () =>
         {
             try
@@ -44,18 +48,27 @@ public sealed class KdeOperationNotification
                 _ = Logger.LogD($"KDE progress unavailable ({exception.GetType().Name})");
                 return _completionReported;
             }
+            finally
+            {
+                UpdateManager.RepositoryStarted -= OnRepositoryStarted;
+            }
         });
+    }
+
+    private void OnRepositoryStarted(string name)
+    {
+        if (!string.IsNullOrWhiteSpace(name)) _repository = name;
     }
 
     public static KdeOperationNotification? Start(string title, Action? cancel = null, bool enabled = true)
     {
         if (!enabled || !OperatingSystem.IsLinux()
             || string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("DBUS_SESSION_BUS_ADDRESS"))) return null;
-        return new KdeOperationNotification(() => NativeJob.ConnectAsync(title, cancel));
+        return new KdeOperationNotification(title, () => NativeJob.ConnectAsync(title, cancel));
     }
 
-    internal static KdeOperationNotification StartForTest(Func<Task<INotificationJob>> connect) =>
-        new KdeOperationNotification(connect);
+    internal static KdeOperationNotification StartForTest(Func<Task<INotificationJob>> connect, string title = "Update") =>
+        new KdeOperationNotification(title, connect);
 
     public void ReportTransfer(DownloadProgress progress) => Report(new Snapshot(progress.DisplayText,
         (ulong)Math.Max(0, progress.DownloadedBytes),
@@ -75,7 +88,18 @@ public sealed class KdeOperationNotification
         Report(new Snapshot(message, 0, null, 0));
     }
 
-    private void Report(Snapshot snapshot) => _updates.Writer.TryWrite(snapshot);
+    private void Report(Snapshot snapshot) => _updates.Writer.TryWrite(snapshot with { Title = CurrentTitle });
+
+    private string CurrentTitle
+    {
+        get
+        {
+            string? repository = _repository;
+            if (string.IsNullOrWhiteSpace(repository) || _title.Contains(repository, StringComparison.OrdinalIgnoreCase))
+                return _title;
+            return $"{_title}: {repository}";
+        }
+    }
 
     /// <returns>Whether a native job handles the completion notification.</returns>
     public async Task<bool> FinishAsync(bool success, bool cancelled = false, string? failure = null)
@@ -123,7 +147,8 @@ public sealed class KdeOperationNotification
         }
     }
 
-    internal sealed record Snapshot(string Description, ulong Processed, ulong? Total, ulong Speed, double? Percent = null);
+    internal sealed record Snapshot(string Description, ulong Processed, ulong? Total, ulong Speed,
+        double? Percent = null, string? Title = null);
 
     internal interface INotificationJob : IAsyncDisposable
     {
@@ -131,8 +156,10 @@ public sealed class KdeOperationNotification
         Task FinishAsync(bool success, bool cancelled, string failure);
     }
 
-    private sealed class NativeJob(KdeJobClient client, KdeJob job, Action? cancel) : INotificationJob
+    private sealed class NativeJob(KdeJobClient client, KdeJob job, string title, Action? cancel) : INotificationJob
     {
+        private string? _reportedTitle = title;
+
         public static async Task<INotificationJob> ConnectAsync(string title, Action? cancel)
         {
             KdeJobClient client = await KdeJobClient.ConnectAsync();
@@ -143,7 +170,7 @@ public sealed class KdeOperationNotification
                     ApplicationName = "GitHub Downloader", IconName = "software-update-available",
                     CanCancel = cancel is not null
                 });
-                NativeJob native = new NativeJob(client, job, cancel);
+                NativeJob native = new NativeJob(client, job, title, cancel);
                 job.CancelRequested += native.OnCancel;
                 return native;
             }
@@ -158,6 +185,11 @@ public sealed class KdeOperationNotification
 
         public async Task ReportAsync(Snapshot snapshot)
         {
+            if (snapshot.Title is string snapshotTitle && !string.Equals(snapshotTitle, _reportedTitle, StringComparison.Ordinal))
+            {
+                await job.SetTitleAsync(snapshotTitle);
+                _reportedTitle = snapshotTitle;
+            }
             await job.SetDescriptionAsync(snapshot.Description);
             if (snapshot.Percent is double percent && double.IsFinite(percent))
                 await job.ReportPercentAsync((uint)Math.Clamp(percent, 0, 100));
