@@ -112,3 +112,6 @@ builds/github-downloader-web-linux-x64/opt/Github-Downloader-Web/*
 # Other
 builds/release-assets/*
 !builds/release-assets/.gitkeep
+
+# Local OpenCode configuration with machine-specific MCP settings
+/opencode.json
